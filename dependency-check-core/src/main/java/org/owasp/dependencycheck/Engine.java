@@ -58,6 +58,7 @@ import org.owasp.dependencycheck.data.nvdcve.DatabaseProperties;
 import org.owasp.dependencycheck.exception.ReportException;
 import org.owasp.dependencycheck.reporting.ReportGenerator;
 
+
 /**
  * Scans files, directories, etc. for Dependencies. Analyzers are loaded and
  * used to process the files found by the scan, if a file is encountered and an
@@ -87,6 +88,7 @@ public class Engine implements FileFilter {
      * services.
      */
     private ClassLoader serviceClassLoader = Thread.currentThread().getContextClassLoader();
+
     /**
      * A reference to the database.
      */
@@ -125,7 +127,7 @@ public class Engine implements FileFilter {
      * @throws DatabaseException thrown if there is an error connecting to the
      * database
      */
-    protected final void initializeEngine() throws DatabaseException {
+    protected void initializeEngine() throws DatabaseException {
         ConnectionFactory.initialize();
         loadAnalyzers();
     }
@@ -145,7 +147,7 @@ public class Engine implements FileFilter {
      * Loads the analyzers specified in the configuration file (or system
      * properties).
      */
-    private void loadAnalyzers() {
+    protected void loadAnalyzers() {
         if (!analyzers.isEmpty()) {
             return;
         }
@@ -184,7 +186,7 @@ public class Engine implements FileFilter {
      * @see Collections#synchronizedList(List)
      * @see Analyzer#supportsParallelProcessing()
      */
-    public synchronized List<Dependency> getDependencies() {
+	public synchronized List<Dependency> getDependencies() {
         return dependencies;
     }
 
@@ -472,6 +474,10 @@ public class Engine implements FileFilter {
         }
         return dependency;
     }
+    
+    protected boolean skipPhase(AnalysisPhase phase) {
+    	return false;
+    }
 
     /**
      * Runs the analyzers against all of the dependencies. Since the mutable
@@ -506,6 +512,9 @@ public class Engine implements FileFilter {
 
         // analysis phases
         for (AnalysisPhase phase : AnalysisPhase.values()) {
+        	if(skipPhase(phase)) {
+        		continue;
+        	}
             final List<Analyzer> analyzerList = analyzers.get(phase);
 
             for (final Analyzer analyzer : analyzerList) {
@@ -778,7 +787,7 @@ public class Engine implements FileFilter {
      *
      * @throws NoDataException thrown if no data exists in the CPE Index
      */
-    private void ensureDataExists() throws NoDataException {
+	protected void ensureDataExists() throws NoDataException {
         if (database == null || !database.dataExists()) {
             throw new NoDataException("No documents exist");
         }
@@ -837,4 +846,5 @@ public class Engine implements FileFilter {
     public void writeReports(String applicationName, File outputDir, String format) throws ReportException {
         writeReports(applicationName, null, null, null, outputDir, format);
     }
+
 }

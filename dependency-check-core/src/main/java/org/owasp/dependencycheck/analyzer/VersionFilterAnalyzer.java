@@ -145,9 +145,9 @@ public class VersionFilterAnalyzer extends AbstractAnalyzer {
             final DependencyVersion dvFile = new DependencyVersion(fileVersion);
             final DependencyVersion dvPom = new DependencyVersion(pomVersion);
             final DependencyVersion dvManifest = new DependencyVersion(manifestVersion);
-            final boolean fileMatch = Objects.equals(dvFile, dvPom) || Objects.equals(dvFile, dvManifest);
-            final boolean manifestMatch = Objects.equals(dvManifest, dvPom) || Objects.equals(dvManifest, dvFile);
-            final boolean pomMatch = Objects.equals(dvPom, dvFile) || Objects.equals(dvPom, dvManifest);
+            final boolean fileMatch = equals(dvFile, dvPom) || equals(dvFile, dvManifest);
+            final boolean manifestMatch = equals(dvManifest, dvPom) || equals(dvManifest, dvFile);
+            final boolean pomMatch = equals(dvPom, dvFile) || equals(dvPom, dvManifest);
             if (fileMatch || manifestMatch || pomMatch) {
                 LOGGER.debug("filtering evidence from {}", dependency.getFileName());
                 final EvidenceCollection versionEvidence = dependency.getVersionEvidence();
@@ -163,5 +163,9 @@ public class VersionFilterAnalyzer extends AbstractAnalyzer {
                 }
             }
         }
+    }
+    
+    public static boolean equals(Object a, Object b) {
+        return (a == b) || (a != null && a.equals(b));
     }
 }

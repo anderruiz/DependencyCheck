@@ -234,7 +234,7 @@ public class Dependency implements Serializable, Comparable<Dependency> {
     public String getActualFilePath() {
         return this.actualFilePath;
     }
-
+    
     /**
      * Gets a reference to the File object.
      *
@@ -790,6 +790,107 @@ public class Dependency implements Serializable, Comparable<Dependency> {
                 .toHashCode();
     }
 
+	public String toStringEx() {
+		StringBuilder builder = new StringBuilder();
+		builder.append("Dependency [");
+		if (actualFilePath != null) {
+			builder.append("actualFilePath=");
+			builder.append(actualFilePath);
+			builder.append(", ");
+		}
+		if (filePath != null) {
+			builder.append("filePath=");
+			builder.append(filePath);
+			builder.append(", ");
+		}
+		if (fileName != null) {
+			builder.append("fileName=");
+			builder.append(fileName);
+			builder.append(", ");
+		}
+		if (packagePath != null) {
+			builder.append("packagePath=");
+			builder.append(packagePath);
+			builder.append(", ");
+		}
+		if (md5sum != null) {
+			builder.append("md5sum=");
+			builder.append(md5sum);
+			builder.append(", ");
+		}
+		if (sha1sum != null) {
+			builder.append("sha1sum=");
+			builder.append(sha1sum);
+			builder.append(", ");
+		}
+		if (identifiers != null) {
+			builder.append("identifiers=");
+			builder.append(identifiers);
+			builder.append(", ");
+		}
+		if (vendorEvidence != null) {
+			builder.append("vendorEvidence=");
+			builder.append(vendorEvidence);
+			builder.append(", ");
+		}
+		if (productEvidence != null) {
+			builder.append("productEvidence=");
+			builder.append(productEvidence);
+			builder.append(", ");
+		}
+		if (versionEvidence != null) {
+			builder.append("versionEvidence=");
+			builder.append(versionEvidence);
+			builder.append(", ");
+		}
+		if (displayName != null) {
+			builder.append("displayName=");
+			builder.append(displayName);
+			builder.append(", ");
+		}
+		if (suppressedIdentifiers != null) {
+			builder.append("suppressedIdentifiers=");
+			builder.append(suppressedIdentifiers);
+			builder.append(", ");
+		}
+		if (suppressedVulnerabilities != null) {
+			builder.append("suppressedVulnerabilities=");
+			builder.append(suppressedVulnerabilities);
+			builder.append(", ");
+		}
+		if (description != null) {
+			builder.append("description=");
+			builder.append(description);
+			builder.append(", ");
+		}
+		if (license != null) {
+			builder.append("license=");
+			builder.append(license);
+			builder.append(", ");
+		}
+		if (vulnerabilities != null) {
+			builder.append("vulnerabilities=");
+			builder.append(vulnerabilities);
+			builder.append(", ");
+		}
+		if (relatedDependencies != null) {
+			builder.append("relatedDependencies=");
+			builder.append(relatedDependencies);
+			builder.append(", ");
+		}
+		if (projectReferences != null) {
+			builder.append("projectReferences=");
+			builder.append(projectReferences);
+			builder.append(", ");
+		}
+		if (availableVersions != null) {
+			builder.append("availableVersions=");
+			builder.append(availableVersions);
+		}
+		builder.append("]");
+		return builder.toString();
+	}
+
     /**
      * Standard toString() implementation showing the filename, actualFilePath,
      * and filePath.
@@ -801,4 +902,6 @@ public class Dependency implements Serializable, Comparable<Dependency> {
         return "Dependency{ fileName='" + fileName + "', actualFilePath='" + actualFilePath
                 + "', filePath='" + filePath + "', packagePath='" + packagePath + "'}";
     }
+    
+
 }
