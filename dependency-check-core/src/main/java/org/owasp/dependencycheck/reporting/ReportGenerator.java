@@ -398,8 +398,8 @@ public class ReportGenerator {
         final String outputPath = pathToJson + ".pretty";
         final File in = new File(pathToJson);
         final File out = new File(outputPath);
-        try (JsonReader reader = new JsonReader(new InputStreamReader(new FileInputStream(in), StandardCharsets.UTF_8));
-                JsonWriter writer = new JsonWriter(new OutputStreamWriter(new FileOutputStream(out), StandardCharsets.UTF_8))) {
+        try (JsonReader reader = new JsonReader(new InputStreamReader(new FileInputStream(in), "UTF-8"));
+                JsonWriter writer = new JsonWriter(new OutputStreamWriter(new FileOutputStream(out), "UTF-8"))) {
             prettyPrint(reader, writer);
         } catch (IOException ex) {
             LOGGER.error("Unable to generate pretty report, caused by: ", ex.getMessage());
