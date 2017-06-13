@@ -823,7 +823,7 @@ public class Dependency implements Serializable, Comparable<Dependency> {
 			builder.append(sha1sum);
 			builder.append(", ");
 		}
-		if (identifiers != null) {
+		if (identifiers != null && !identifiers.isEmpty()) {
 			builder.append("identifiers=");
 			builder.append(identifiers);
 			builder.append(", ");
@@ -848,12 +848,12 @@ public class Dependency implements Serializable, Comparable<Dependency> {
 			builder.append(displayName);
 			builder.append(", ");
 		}
-		if (suppressedIdentifiers != null) {
+		if (suppressedIdentifiers != null && !suppressedIdentifiers.isEmpty()) {
 			builder.append("suppressedIdentifiers=");
 			builder.append(suppressedIdentifiers);
 			builder.append(", ");
 		}
-		if (suppressedVulnerabilities != null) {
+		if (suppressedVulnerabilities != null && !suppressedVulnerabilities.isEmpty()) {
 			builder.append("suppressedVulnerabilities=");
 			builder.append(suppressedVulnerabilities);
 			builder.append(", ");
@@ -868,22 +868,22 @@ public class Dependency implements Serializable, Comparable<Dependency> {
 			builder.append(license);
 			builder.append(", ");
 		}
-		if (vulnerabilities != null) {
+		if (vulnerabilities != null && !vulnerabilities.isEmpty()) {
 			builder.append("vulnerabilities=");
 			builder.append(vulnerabilities);
 			builder.append(", ");
 		}
-		if (relatedDependencies != null) {
+		if (relatedDependencies != null && !relatedDependencies.isEmpty()) {
 			builder.append("relatedDependencies=");
 			builder.append(relatedDependencies);
 			builder.append(", ");
 		}
-		if (projectReferences != null) {
+		if (projectReferences != null && !projectReferences.isEmpty()) {
 			builder.append("projectReferences=");
 			builder.append(projectReferences);
 			builder.append(", ");
 		}
-		if (availableVersions != null) {
+		if (availableVersions != null && !availableVersions.isEmpty()) {
 			builder.append("availableVersions=");
 			builder.append(availableVersions);
 		}

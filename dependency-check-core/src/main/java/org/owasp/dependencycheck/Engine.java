@@ -549,6 +549,9 @@ public class Engine implements FileFilter {
         final long analysisDurationSeconds = TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - analysisStart);
         LOGGER.info("Analysis Complete ({} seconds)", analysisDurationSeconds);
         if (exceptions.size() > 0) {
+        	for (Throwable throwable : exceptions) {
+				throwable.printStackTrace();
+			}
             throw new ExceptionCollection("One or more exceptions occurred during dependency-check analysis", exceptions);
         }
     }
@@ -559,7 +562,7 @@ public class Engine implements FileFilter {
      * @param exceptions a collection to store non-fatal exceptions
      * @throws ExceptionCollection thrown if fatal exceptions occur
      */
-    private void initializeAndUpdateDatabase(final List<Throwable> exceptions) throws ExceptionCollection {
+    protected void initializeAndUpdateDatabase(final List<Throwable> exceptions) throws ExceptionCollection {
         boolean autoUpdate = true;
         try {
             autoUpdate = Settings.getBoolean(Settings.KEYS.AUTO_UPDATE);
@@ -589,6 +592,7 @@ public class Engine implements FileFilter {
             } catch (IOException ex) {
                 throw new ExceptionCollection(new DatabaseException("Autoupdate is disabled and unable to connect to the database"), true);
             } catch (DatabaseException ex) {
+            	ex.printStackTrace();
                 throwFatalExceptionCollection("Unable to connect to the dependency-check database.", ex, exceptions);
             }
         }

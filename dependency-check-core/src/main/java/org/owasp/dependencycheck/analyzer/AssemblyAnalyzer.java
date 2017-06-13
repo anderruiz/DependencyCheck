@@ -30,6 +30,7 @@ import org.owasp.dependencycheck.dependency.Confidence;
 import org.owasp.dependencycheck.dependency.Dependency;
 import org.owasp.dependencycheck.dependency.Evidence;
 import org.owasp.dependencycheck.utils.FileFilterBuilder;
+import org.owasp.dependencycheck.utils.FileUtils;
 import org.owasp.dependencycheck.utils.Settings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -208,9 +209,9 @@ public class AssemblyAnalyzer extends AbstractFileTypeAnalyzer {
             throw new InitializationException("Unable to create temporary file for the assembly analyzer", ex);
         }
         try (FileOutputStream fos = new FileOutputStream(tempFile);
-                InputStream is = AssemblyAnalyzer.class.getClassLoader().getResourceAsStream("GrokAssembly.exe");
+                InputStream is = FileUtils.getResourceAsStream("GrokAssembly.exe");
                 FileOutputStream fosCfg = new FileOutputStream(cfg);
-                InputStream isCfg = AssemblyAnalyzer.class.getClassLoader().getResourceAsStream("GrokAssembly.exe.config")) {
+                InputStream isCfg = FileUtils.getResourceAsStream("GrokAssembly.exe.config")) {
             IOUtils.copy(is, fos);
             grokAssemblyExe = tempFile;
             LOGGER.debug("Extracted GrokAssembly.exe to {}", grokAssemblyExe.getPath());
