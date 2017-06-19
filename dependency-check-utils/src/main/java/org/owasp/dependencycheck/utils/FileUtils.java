@@ -149,7 +149,7 @@ public final class FileUtils {
             }
         }
     }
-    
+
     /**
      * Gets the {@link InputStream} for this resource
      *

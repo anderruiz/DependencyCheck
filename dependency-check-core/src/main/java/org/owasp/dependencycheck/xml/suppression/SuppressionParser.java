@@ -106,7 +106,7 @@ public class SuppressionParser {
      * @throws SAXException thrown if the XML cannot be parsed
      */
     private List<SuppressionRule> parseSuppressionRules(InputStream inputStream, String schema) throws SuppressionParseException, SAXException {
-    	try (InputStream schemaStream = FileUtils.getResourceAsStream(schema)) {
+        try (InputStream schemaStream = FileUtils.getResourceAsStream(schema)) {
             final SuppressionHandler handler = new SuppressionHandler();
             final SAXParser saxParser = XmlUtils.buildSecureSaxParser(schemaStream);
             final XMLReader xmlReader = saxParser.getXMLReader();

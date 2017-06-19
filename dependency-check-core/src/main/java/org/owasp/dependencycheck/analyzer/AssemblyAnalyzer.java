@@ -211,7 +211,7 @@ public class AssemblyAnalyzer extends AbstractFileTypeAnalyzer {
         try (FileOutputStream fos = new FileOutputStream(tempFile);
                 InputStream is = FileUtils.getResourceAsStream("GrokAssembly.exe");
                 FileOutputStream fosCfg = new FileOutputStream(cfg);
-                InputStream isCfg = FileUtils.getResourceAsStream("GrokAssembly.exe.config")) {
+            InputStream isCfg = FileUtils.getResourceAsStream("GrokAssembly.exe.config")) {
             IOUtils.copy(is, fos);
             grokAssemblyExe = tempFile;
             LOGGER.debug("Extracted GrokAssembly.exe to {}", grokAssemblyExe.getPath());

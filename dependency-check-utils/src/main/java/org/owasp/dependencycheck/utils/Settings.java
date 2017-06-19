@@ -260,6 +260,15 @@ public final class Settings {
          */
         public static final String ANALYZER_NODE_PACKAGE_ENABLED = "analyzer.node.package.enabled";
         /**
+         * The properties key for whether the Node Security Platform (nsp)
+         * analyzer is enabled.
+         */
+        public static final String ANALYZER_NSP_PACKAGE_ENABLED = "analyzer.nsp.package.enabled";
+        /**
+         * The properties key for whether the Nexus analyzer is enabled.
+         */
+        public static final String ANALYZER_NSP_URL = "analyzer.nsp.url";
+        /**
          * The properties key for whether the composer lock file analyzer is
          * enabled.
          */
@@ -734,7 +743,6 @@ public final class Settings {
      * @return a File object
      */
     private static File getJarPath() {
-    	
         String decodedPath = ".";
         String jarPath = "";
         ProtectionDomain domain = Settings.class.getProtectionDomain();
