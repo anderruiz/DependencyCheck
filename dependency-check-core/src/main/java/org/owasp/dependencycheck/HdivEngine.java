@@ -22,6 +22,9 @@ import org.owasp.dependencycheck.data.update.NvdCveUpdater;
 import org.owasp.dependencycheck.data.update.exception.UpdateException;
 import org.owasp.dependencycheck.dependency.Confidence;
 import org.owasp.dependencycheck.dependency.Dependency;
+import org.owasp.dependencycheck.dependency.Evidence;
+import org.owasp.dependencycheck.dependency.Vulnerability;
+import org.owasp.dependencycheck.dependency.VulnerableSoftware;
 import org.owasp.dependencycheck.exception.NoDataException;
 import org.owasp.dependencycheck.exception.ReportException;
 import org.owasp.dependencycheck.reporting.ReportGenerator;
@@ -61,7 +64,12 @@ public class HdivEngine extends Engine {
     }
 
 	public static void main(String [] args) throws FileNotFoundException, IOException, Exception {
+		System.out.println(System.getProperty("java.version"));
+		
+		
     	Settings.initialize();
+
+    	
     	HdivEngine engine = new HdivEngine();
     	engine.endPhase = AnalysisPhase.PRE_IDENTIFIER_ANALYSIS;
     	
@@ -100,20 +108,12 @@ public class HdivEngine extends Engine {
 //    	engine.setDependencies(java.util.Arrays.asList(d));
     	System.out.println(engine.scan(new File("/Library/Java/JavaVirtualMachines/jdk1.8.0_77.jdk/Contents/Home/jre/lib/rt.jar")));
     	
-    	Dependency d2 = new Dependency();
-    	d2.getVendorEvidence().addEvidence("rt", "oracle", "oracle", Confidence.HIGHEST);
-    	d2.getProductEvidence().addEvidence("rt", "jdk", "jdk", Confidence.HIGHEST);
-    	d2.getVersionEvidence().addEvidence("rt", "version", "1.8.0:update_102", Confidence.HIGHEST );
-    	d2.addIdentifier("maven", "oracle:jdk:1.8.0:update_102", "http://hdiv.com");
-    	d2.setFileName("rt.jar");
-    	d2.setActualFilePath("/dummy/rt.jar");
-    	d2.setFilePath("rt.jar");
+
     	//engine.getDependencies().add(d2);
     	
     	//engine.analyzeDependencies();
     	final List<Dependency> dependencies = new ArrayList<Dependency>(engine.getDependencies());
     	
-    	System.out.println("Initial dependencies:"+dependencies);
     	engine.endPhase = AnalysisPhase.FINAL;
     	engine.startPhase = AnalysisPhase.IDENTIFIER_ANALYSIS;
     	engine.getDependencies().clear();
@@ -127,11 +127,59 @@ public class HdivEngine extends Engine {
 //    	d.setPackagePath(path+"/spring-core-3.0.0.RELEASE.jar");
 //    	d.setActualFilePath(path+"/spring-core-3.0.0.RELEASE.jar");
     	//dependencies.clear();
+    	
+    	Dependency d2 = new Dependency();
+    	d2.getVendorEvidence().addEvidence("rt", "oracle", "oracle", Confidence.HIGHEST);
+    	d2.getProductEvidence().addEvidence("rt", "jdk", "jdk", Confidence.HIGHEST);
+    	d2.getVersionEvidence().addEvidence("rt", "version", "1.8.0:update_51", Confidence.HIGHEST );
+    	d2.addIdentifier("maven", "oracle:jdk:1.8.0:update_51", "http://hdiv.com");
+    	d2.setFileName("rt.jar");
+    	d2.setActualFilePath("/dummy/rt.jar");
+    	d2.setFilePath("rt.jar");
+    	// dependencies.add(d2);
+    	
+    	d2 = new Dependency();
+    	d2.getVendorEvidence().addEvidence("rt", "oracle", "oracle", Confidence.HIGHEST);
+    	d2.getProductEvidence().addEvidence("rt", "jrockit", "jrockit", Confidence.HIGHEST);
+    	d2.getVersionEvidence().addEvidence("rt", "version", "r28.3.13", Confidence.HIGHEST );
+    	d2.addIdentifier("maven", "com.oracle:jrockit:r28.3.13", "http://hdiv.com");
+    	d2.setFileName("rt.jar");
+    	d2.setActualFilePath("/dummy/rt.jar");
+    	d2.setFilePath("rt.jar");
+//    	dependencies.add(d2);
+    	
+    	d2 = new Dependency();
+    	d2.getVendorEvidence().addEvidence("rt", "ibm", "ibm", Confidence.HIGHEST);
+    	d2.getProductEvidence().addEvidence("rt", "websphere_application_server", "websphere_application_server", Confidence.HIGHEST);
+    	d2.getVersionEvidence().addEvidence("rt", "version", "7.0.0.25", Confidence.HIGHEST );
+    	d2.addIdentifier("maven", "ibm:websphere_application_server:7.0.0.25", "http://hdiv.com");
+    	d2.setFileName("rt.jar");
+    	d2.setActualFilePath("/dummy/rt.jar");
+    	d2.setFilePath("rt.jar");
+    	//dependencies.add(d2);
+    	
+    	d2 = new Dependency();
+    	d2.getVendorEvidence().addEvidence("rt", "redhat", "redhat", Confidence.HIGHEST);
+    	d2.getProductEvidence().addEvidence("rt", "jboss_enterprise_application_platform", "jboss_enterprise_application_platform", Confidence.HIGHEST);
+    	d2.getVersionEvidence().addEvidence("rt", "version", "4.2.2", Confidence.HIGHEST );
+    	d2.addIdentifier("maven", "ibm:websphere_application_server:7.0.0.25", "http://hdiv.com");
+    	d2.setFileName("rt.jar");
+    	d2.setActualFilePath("/dummy/rt.jar");
+    	d2.setFilePath("rt.jar");
+    	//dependencies.add(d2);
+    	
+    	d2 = new Dependency();
+    	d2.getVendorEvidence().addEvidence("rt", "oracle", "oracle", Confidence.HIGHEST);
+    	d2.getProductEvidence().addEvidence("rt", "jdk", "jdk", Confidence.HIGHEST);
+    	d2.getVersionEvidence().addEvidence("rt", "version", "1.7.0:update_40", Confidence.HIGHEST );
+    	d2.addIdentifier("maven", "oracle:jdk:1.7.0:update_40", "http://hdiv.com");
+    	d2.setFileName("rt.jar");
+    	d2.setActualFilePath("/dummy/rt.jar");
+    	d2.setFilePath("rt.jar");
     	dependencies.add(d2);
+    	
     	engine.setDependencies(dependencies);
-    	
-    	
-    	
+
     	
     	
     	engine.analyzeDependencies();
@@ -139,6 +187,7 @@ public class HdivEngine extends Engine {
     	
     	
 for (Dependency dependency : dependencies) {
+	consolidateJRE(dependency);
 	System.out.println(dependency.toStringEx());
 		}
     	
@@ -161,6 +210,39 @@ for (Dependency dependency : dependencies) {
         }
     	
     }
+	
+	private static void consolidateJRE(Dependency dependency) {
+		Set<Evidence> evidence = dependency.getProductEvidence().getEvidence("rt", "jdk");
+		if(!evidence.isEmpty()) {
+			String version = dependency.getVersionEvidence().getEvidence().iterator().next().getValue();
+			String update = null;
+			if(version.indexOf(':')!=-1) {
+				update = version.substring(version.indexOf(':')+1);
+				version = version.substring(0, version.indexOf(':'));
+			}
+			Set<Vulnerability> vulnerabilities = dependency.getVulnerabilities();
+			for (Iterator<Vulnerability> iterator = vulnerabilities.iterator(); iterator.hasNext();) {
+				boolean ok = false;
+				Vulnerability vulnerability = (Vulnerability) iterator.next();
+				for(VulnerableSoftware vs : vulnerability.getVulnerableSoftware()) {
+					if(version.equals(vs.getVersion())) {
+						System.out.println("Version:"+vs.getVersion()+" "+vs.getUpdate()+" and update:"+update);
+						if(vs.getUpdate()==null && update==null) {
+							ok = true;
+							break;
+						}
+						else if(update!=null && update.equals(vs.getUpdate())) {
+							ok = true;
+							break;
+						}
+					}
+				}
+				if(!ok) {
+					iterator.remove();
+				}
+			}
+		}
+	}
 	
 	public void setOfflineMode(boolean offline) {
 		Settings.setBoolean(Settings.KEYS.UPDATE_NVDCVE_ENABLED, !offline);
