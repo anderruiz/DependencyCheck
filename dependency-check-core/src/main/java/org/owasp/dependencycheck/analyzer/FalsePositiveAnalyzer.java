@@ -147,7 +147,7 @@ public class FalsePositiveAnalyzer extends AbstractAnalyzer {
         String mustContain = null;
         for (Identifier i : dependency.getIdentifiers()) {
             if ("maven".contains(i.getType())
-                    && i.getValue() != null && i.getValue().startsWith("org.springframework.")) {
+                    && i.getValue() != null && i.getValue().startsWith(" org.springframework.".substring(1))) {
                 final int endPoint = i.getValue().indexOf(':', 19);
                 if (endPoint >= 0) {
                     mustContain = i.getValue().substring(19, endPoint).toLowerCase();
