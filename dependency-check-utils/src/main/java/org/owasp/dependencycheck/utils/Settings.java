@@ -441,8 +441,7 @@ public final class Settings {
      */
     private Settings(String propertiesFilePath) {
         props = new Properties();
-        ClassLoader l = this.getClass().getClassLoader();
-        try (InputStream in = l!=null?l.getResourceAsStream(propertiesFilePath):ClassLoader.getSystemResourceAsStream(propertiesFilePath)) {
+        try (InputStream in = FileUtils.getResourceAsStream(propertiesFilePath)) {
             props.load(in);
         } catch (NullPointerException ex) {
             LOGGER.error("Did not find settings file '{}'.", propertiesFilePath);
