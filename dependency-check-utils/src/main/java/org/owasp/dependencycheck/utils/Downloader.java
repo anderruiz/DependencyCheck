@@ -114,6 +114,8 @@ public final class Downloader {
                 LOGGER.debug("Attempting download of {}", url.toString());
                 conn = URLConnectionFactory.createHttpURLConnection(url, useProxy);
                 conn.setRequestProperty("Accept-Encoding", "gzip, deflate");
+                conn.setConnectTimeout(2000);
+                conn.setReadTimeout(30000);
                 conn.connect();
                 int status = conn.getResponseCode();
                 int redirectCount = 0;
@@ -130,6 +132,8 @@ public final class Downloader {
                     LOGGER.debug("Download is being redirected from {} to {}", url.toString(), location);
                     conn = URLConnectionFactory.createHttpURLConnection(new URL(location), useProxy);
                     conn.setRequestProperty("Accept-Encoding", "gzip, deflate");
+                    conn.setConnectTimeout(2000);
+                    conn.setReadTimeout(30000);
                     conn.connect();
                     status = conn.getResponseCode();
                 }

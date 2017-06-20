@@ -431,7 +431,11 @@ public final class Settings {
          * new version available.
          */
         public static final String UPDATE_VERSION_CHECK_ENABLED = "updater.versioncheck.enabled";
-
+        /**
+         * The key to determine if dependency-check should check if there is a
+         * new version available.
+         */
+        public static final String UPDATE_WAIT_TIME = "updater.wait.time";
         /**
          * private constructor because this is a "utility" class containing
          * constants

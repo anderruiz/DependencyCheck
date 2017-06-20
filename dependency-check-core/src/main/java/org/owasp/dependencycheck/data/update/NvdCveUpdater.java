@@ -25,6 +25,7 @@ import java.util.Calendar;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import java.net.URL;
 import java.nio.channels.FileLock;
@@ -114,8 +115,11 @@ public class NvdCveUpdater implements CachedWebDataSource {
             if (ConnectionFactory.isH2Connection()) {
                 final File dir = Settings.getDataDirectory();
                 lockFile = new File(dir, "odc.update.lock");
-                if (lockFile.isFile() && getFileAge(lockFile) > 5 && !lockFile.delete()) {
-                    LOGGER.warn("An old db update lock file was found but the system was unable to delete the file. Consider manually deleting " + lockFile.getAbsolutePath());
+                if (lockFile.isFile() && getFileAge(lockFile) > 5) {
+                	ConnectionFactory.h2DataFile().delete();
+                	if(!lockFile.delete()) {
+                		LOGGER.warn("An old db update lock file was found but the system was unable to delete the file. Consider manually deleting " + lockFile.getAbsolutePath());
+                	}
                 }
                 int ctr = 0;
                 do {
@@ -130,7 +134,7 @@ public class NvdCveUpdater implements CachedWebDataSource {
                     if (lock == null || !lock.isValid()) {
                         try {
                             LOGGER.debug(String.format("Sleeping thread %s for 5 seconds because we could not obtain the update lock.", Thread.currentThread().getName()));
-                            Thread.sleep(5000);
+                            Thread.sleep(Math.abs(new Random().nextInt() % Settings.getInt(Settings.KEYS.UPDATE_WAIT_TIME, 5000)));
                         } catch (InterruptedException ex) {
                             LOGGER.trace("ignorable error, sleep was interrupted.", ex);
                         }
@@ -162,6 +166,13 @@ public class NvdCveUpdater implements CachedWebDataSource {
             }
             throw new UpdateException("Unable to download the NVD CVE data.", ex);
         } catch (DatabaseException ex) {
+        	if (ConnectionFactory.isH2Connection()) {
+        		try {
+					ConnectionFactory.h2DataFile().delete();
+				}
+				catch (IOException e) {
+				}
+        	}
             throw new UpdateException("Database Exception, unable to update the data to use the most current data.", ex);
         } catch (IOException ex) {
             throw new UpdateException("Database Exception", ex);

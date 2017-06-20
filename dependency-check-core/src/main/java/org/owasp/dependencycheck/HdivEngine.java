@@ -131,8 +131,8 @@ public class HdivEngine extends Engine {
     	Dependency d2 = new Dependency();
     	d2.getVendorEvidence().addEvidence("rt", "oracle", "oracle", Confidence.HIGHEST);
     	d2.getProductEvidence().addEvidence("rt", "jdk", "jdk", Confidence.HIGHEST);
-    	d2.getVersionEvidence().addEvidence("rt", "version", "1.8.0:update_51", Confidence.HIGHEST );
-    	d2.addIdentifier("maven", "oracle:jdk:1.8.0:update_51", "http://hdiv.com");
+    	d2.getVersionEvidence().addEvidence("rt", "version", "1.6.0:update_34", Confidence.HIGHEST );
+    	d2.addIdentifier("maven", "oracle:jdk:1.6.0:update_34", "http://hdiv.com");
     	d2.setFileName("rt.jar");
     	d2.setActualFilePath("/dummy/rt.jar");
     	d2.setFilePath("rt.jar");

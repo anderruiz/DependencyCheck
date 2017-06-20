@@ -243,10 +243,22 @@ public final class ConnectionFactory {
      * cannot be created
      */
     public static boolean h2DataFileExists() throws IOException {
+        return h2DataFile().exists();
+    }
+    
+    /**
+     * Determines if the H2 database file exists. If it does not exist then the
+     * data structure will need to be created.
+     *
+     * @return true if the H2 database file does not exist; otherwise false
+     * @throws IOException thrown if the data directory does not exist and
+     * cannot be created
+     */
+    public static File h2DataFile() throws IOException {
         final File dir = Settings.getDataDirectory();
         final String fileName = Settings.getString(Settings.KEYS.DB_FILE_NAME);
         final File file = new File(dir, fileName);
-        return file.exists();
+        return file;
     }
 
     /**
