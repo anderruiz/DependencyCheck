@@ -151,8 +151,7 @@ public class NspSearch {
         } catch (IOException ex) {
             if (ex instanceof javax.net.ssl.SSLHandshakeException
                     && ex.getMessage().contains("unable to find valid certification path to requested target")) {
-                final String msg = String.format("Unable to connect to '%s' - the Java trust store does not contain a trusted root for the cert. "
-                        + " Please see https://github.com/jeremylong/InstallCert for one method of updating the trusted certificates.", nspCheckUrl);
+                final String msg = String.format("Unable to connect to '%s' - the Java trust store does not contain a trusted root for the cert. ", nspCheckUrl);
                 throw new URLConnectionFailureException(msg, ex);
             }
             throw ex;

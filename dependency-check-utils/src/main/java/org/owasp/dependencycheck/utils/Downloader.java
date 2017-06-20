@@ -26,6 +26,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.security.InvalidAlgorithmParameterException;
@@ -77,6 +78,45 @@ public final class Downloader {
     public static void fetchFile(URL url, File outputPath) throws DownloadFailedException {
         fetchFile(url, outputPath, true);
     }
+    
+    public static void fetchFile(URL url, File outputPath, boolean useProxy) throws DownloadFailedException {
+    	int retries = 3;
+    	while(retries-->0) {
+	    	try {
+				doFetchFile(url, outputPath, useProxy);
+				retries = 0;
+			}
+			catch (Exception e) {
+				LOGGER.error("Error downloading from:"+url);
+				if(url.getProtocol().equals("https")) {
+					try {
+						doFetchFile(byProxy(url), outputPath, useProxy);
+						retries = 0;
+					}
+					catch (Exception e1) {
+						LOGGER.error("Error downloading from:"+byProxy(url));
+					}
+				}
+				retries--;
+			}
+    	}
+    }
+    
+    private static URL byProxy(URL url) {
+    	if(url.getProtocol().equals("https")) {
+			try {
+				String urls = url.toString();
+				int pos = urls.lastIndexOf('/');
+				String file = url.toString().substring(pos+1);
+				return new URL("http://52.207.65.244/proxy/uritemplate/"+file+"?_url="+urls.substring(0, pos+1));
+			}
+			catch (MalformedURLException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			}
+		}
+    	return url;
+    }
 
     /**
      * Retrieves a file from a given URL and saves it to the outputPath.
@@ -88,7 +128,7 @@ public final class Downloader {
      * @throws DownloadFailedException is thrown if there is an error
      * downloading the file
      */
-    public static void fetchFile(URL url, File outputPath, boolean useProxy) throws DownloadFailedException {
+    public static void doFetchFile(URL url, File outputPath, boolean useProxy) throws DownloadFailedException {
         if ("file".equalsIgnoreCase(url.getProtocol())) {
             File file;
             try {
@@ -114,8 +154,6 @@ public final class Downloader {
                 LOGGER.debug("Attempting download of {}", url.toString());
                 conn = URLConnectionFactory.createHttpURLConnection(url, useProxy);
                 conn.setRequestProperty("Accept-Encoding", "gzip, deflate");
-                conn.setConnectTimeout(2000);
-                conn.setReadTimeout(30000);
                 conn.connect();
                 int status = conn.getResponseCode();
                 int redirectCount = 0;
@@ -132,8 +170,6 @@ public final class Downloader {
                     LOGGER.debug("Download is being redirected from {} to {}", url.toString(), location);
                     conn = URLConnectionFactory.createHttpURLConnection(new URL(location), useProxy);
                     conn.setRequestProperty("Accept-Encoding", "gzip, deflate");
-                    conn.setConnectTimeout(2000);
-                    conn.setReadTimeout(30000);
                     conn.connect();
                     status = conn.getResponseCode();
                 }
@@ -156,9 +192,7 @@ public final class Downloader {
                     conn = null;
                 }
                 if ("Connection reset".equalsIgnoreCase(ex.getMessage())) {
-                    final String msg = format("TLS Connection Reset%nPlease see "
-                            + "http://jeremylong.github.io/DependencyCheck/general/tlsfailures.html "
-                            + "for more information regarding how to resolve the issue.");
+                    final String msg = format("TLS Connection Reset%n");
                     LOGGER.error(msg);
                     throw new DownloadFailedException(msg, ex);
                 }
@@ -280,9 +314,9 @@ public final class Downloader {
                 }
                 try {
                     //retry
-                    if (!isRetry && Settings.getBoolean(Settings.KEYS.DOWNLOADER_QUICK_QUERY_TIMESTAMP)) {
+                	if (!isRetry && Settings.getBoolean(Settings.KEYS.DOWNLOADER_QUICK_QUERY_TIMESTAMP)) {
                         Settings.setBoolean(Settings.KEYS.DOWNLOADER_QUICK_QUERY_TIMESTAMP, false);
-                        return getLastModified(url, true);
+                        return getLastModified(byProxy(url), true);
                     }
                 } catch (InvalidSettingException ex1) {
                     LOGGER.debug("invalid setting?", ex1);
@@ -316,6 +350,7 @@ public final class Downloader {
         while (cause != null) {
             if (cause instanceof java.net.UnknownHostException) {
                 final String msg = format("Unable to resolve domain '%s'", cause.getMessage());
+                new Exception(msg).printStackTrace();
                 LOGGER.error(msg);
                 throw new DownloadFailedException(msg);
             }
@@ -324,8 +359,7 @@ public final class Downloader {
                 final String version = System.getProperty("java.version");
                 final String vendor = System.getProperty("java.vendor");
                 LOGGER.info("Error making HTTPS request - InvalidAlgorithmParameterException");
-                LOGGER.info("There appears to be an issue with the installation of Java and the cacerts."
-                        + "See closed issue #177 here: https://github.com/jeremylong/DependencyCheck/issues/177");
+                LOGGER.info("There appears to be an issue with the installation of Java and the cacerts.");
                 LOGGER.info("Java Info:\njavax.net.ssl.keyStore='{}'\njava.version='{}'\njava.vendor='{}'",
                         keystore, version, vendor);
                 throw new DownloadFailedException("Error making HTTPS request. Please see the log for more details.");

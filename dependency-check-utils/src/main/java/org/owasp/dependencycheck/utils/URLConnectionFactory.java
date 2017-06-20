@@ -104,7 +104,9 @@ public final class URLConnectionFactory {
                 conn = (HttpURLConnection) url.openConnection();
             }
             final int timeout = Settings.getInt(Settings.KEYS.CONNECTION_TIMEOUT, 10000);
+            final int rtimeout = Settings.getInt(Settings.KEYS.READ_TIMEOUT, 30000);
             conn.setConnectTimeout(timeout);
+            conn.setReadTimeout(rtimeout);
             conn.setInstanceFollowRedirects(true);
         } catch (IOException ex) {
             if (conn != null) {
@@ -180,7 +182,9 @@ public final class URLConnectionFactory {
         try {
             conn = (HttpURLConnection) url.openConnection();
             final int timeout = Settings.getInt(Settings.KEYS.CONNECTION_TIMEOUT, 10000);
+            final int rtimeout = Settings.getInt(Settings.KEYS.READ_TIMEOUT, 30000);
             conn.setConnectTimeout(timeout);
+            conn.setReadTimeout(rtimeout);
             conn.setInstanceFollowRedirects(true);
         } catch (IOException ioe) {
             throw new URLConnectionFailureException("Error getting connection.", ioe);
