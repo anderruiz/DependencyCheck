@@ -520,7 +520,7 @@ public class NvdCveUpdater implements CachedWebDataSource {
 
         final Map<String, Future<Long>> timestampFutures = new HashMap<>();
         for (String url : urls) {
-            final TimestampRetriever timestampRetriever = new TimestampRetriever(url);
+        	final TimestampRetriever timestampRetriever = new TimestampRetriever(url);
             final Future<Long> future = downloadExecutorService.submit(timestampRetriever);
             timestampFutures.put(url, future);
         }

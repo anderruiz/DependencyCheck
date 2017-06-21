@@ -350,7 +350,6 @@ public final class Downloader {
         while (cause != null) {
             if (cause instanceof java.net.UnknownHostException) {
                 final String msg = format("Unable to resolve domain '%s'", cause.getMessage());
-                new Exception(msg).printStackTrace();
                 LOGGER.error(msg);
                 throw new DownloadFailedException(msg);
             }
