@@ -197,9 +197,8 @@ public final class CliParser {
             final String msg = String.format("Invalid '%s' argument: '%s'%nUnable to scan paths that start with '//'.", argumentName, path);
             throw new FileNotFoundException(msg);
         } else if ((path.endsWith("/*") && !path.endsWith("**/*")) || (path.endsWith("\\*") && path.endsWith("**\\*"))) {
-            final String msg = String.format("Possibly incorrect path '%s' from argument '%s' because it ends with a slash star; "
+            LOGGER.warn("Possibly incorrect path '{}' from argument '{}' because it ends with a slash star; "
                     + "dependency-check uses ant-style paths", path, argumentName);
-            LOGGER.warn(msg);
         }
     }
 
@@ -222,10 +221,9 @@ public final class CliParser {
      * Adds the standard command line options to the given options collection.
      *
      * @param options a collection of command line arguments
-     * @throws IllegalArgumentException thrown if there is an exception
      */
     @SuppressWarnings("static-access")
-    private void addStandardOptions(final Options options) throws IllegalArgumentException {
+    private void addStandardOptions(final Options options) {
         final Option help = new Option(ARGUMENT.HELP_SHORT, ARGUMENT.HELP, false,
                 "Print this message.");
 
@@ -273,8 +271,9 @@ public final class CliParser {
                 .desc("Sets how deep nested symbolic links will be followed; 0 indicates symbolic links will not be followed.")
                 .build();
 
-        final Option suppressionFile = Option.builder().argName("file").hasArg().longOpt(ARGUMENT.SUPPRESSION_FILE)
-                .desc("The file path to the suppression XML file.")
+        final Option suppressionFile = Option.builder().argName("file").hasArgs().longOpt(ARGUMENT.SUPPRESSION_FILES)
+                .desc("The file path to the suppression XML file. This can be specified more then once to utilize multiple "
+                        + "suppression files")
                 .build();
 
         final Option hintsFile = Option.builder().argName("file").hasArg().longOpt(ARGUMENT.HINTS_FILE)
@@ -326,10 +325,9 @@ public final class CliParser {
      * help messages.
      *
      * @param options a collection of command line arguments
-     * @throws IllegalArgumentException thrown if there is an exception
      */
     @SuppressWarnings("static-access")
-    private void addAdvancedOptions(final Options options) throws IllegalArgumentException {
+    private void addAdvancedOptions(final Options options) {
 
         final Option cve12Base = Option.builder().argName("url").hasArg().longOpt(ARGUMENT.CVE_BASE_12)
                 .desc("Base URL for each year’s CVE 1.2, the %d will be replaced with the year. ")
@@ -507,10 +505,9 @@ public final class CliParser {
      * existing scripts.
      *
      * @param options a collection of command line arguments
-     * @throws IllegalArgumentException thrown if there is an exception
      */
     @SuppressWarnings({"static-access", "deprecation"})
-    private void addDeprecatedOptions(final Options options) throws IllegalArgumentException {
+    private void addDeprecatedOptions(final Options options) {
 
         final Option proxyServer = Option.builder().argName("url").hasArg().longOpt(ARGUMENT.PROXY_URL)
                 .desc("The proxy url argument is deprecated, use proxyserver instead.")
@@ -735,7 +732,8 @@ public final class CliParser {
     public boolean isNodeJsDisabled() {
         return hasDisableOption(ARGUMENT.DISABLE_NODE_JS, Settings.KEYS.ANALYZER_NODE_PACKAGE_ENABLED);
     }
-/**
+
+    /**
      * Returns true if the disableNSP command line argument was specified.
      *
      * @return true if the disableNSP command line argument was specified;
@@ -904,7 +902,7 @@ public final class CliParser {
         String name = line.getOptionValue(ARGUMENT.PROJECT);
         if (name == null && appName != null) {
             name = appName;
-            LOGGER.warn("The '" + ARGUMENT.APP_NAME + "' argument should no longer be used; use '" + ARGUMENT.PROJECT + "' instead.");
+            LOGGER.warn("The '{}' argument should no longer be used; use '{}' instead.", ARGUMENT.APP_NAME, ARGUMENT.PROJECT);
         }
         return name;
     }
@@ -1031,12 +1029,12 @@ public final class CliParser {
     }
 
     /**
-     * Returns the path to the suppression file.
+     * Returns the paths to the suppression files.
      *
-     * @return the path to the suppression file
+     * @return the paths to the suppression files.
      */
-    public String getSuppressionFile() {
-        return line.getOptionValue(ARGUMENT.SUPPRESSION_FILE);
+    public String[] getSuppressionFiles() {
+        return line.getOptionValues(ARGUMENT.SUPPRESSION_FILES);
     }
 
     /**
@@ -1374,9 +1372,9 @@ public final class CliParser {
         public static final String SYM_LINK_DEPTH = "symLink";
         /**
          * The CLI argument name for setting the location of the suppression
-         * file.
+         * file(s).
          */
-        public static final String SUPPRESSION_FILE = "suppression";
+        public static final String SUPPRESSION_FILES = "suppression";
         /**
          * The CLI argument name for setting the location of the hint file.
          */

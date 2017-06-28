@@ -116,21 +116,19 @@ public final class CpeMemoryIndex {
      * @param cve the data source to retrieve the cpe data
      * @throws IndexException thrown if there is an error creating the index
      */
-    public void open(CveDB cve) throws IndexException {
-        synchronized (INSTANCE) {
-            if (!openState) {
-                index = new RAMDirectory();
-                buildIndex(cve);
-                try {
-                    indexReader = DirectoryReader.open(index);
-                } catch (IOException ex) {
-                    throw new IndexException(ex);
-                }
-                indexSearcher = new IndexSearcher(indexReader);
-                searchingAnalyzer = createSearchingAnalyzer();
-                queryParser = new QueryParser(LuceneUtils.CURRENT_VERSION, Fields.DOCUMENT_KEY, searchingAnalyzer);
-                openState = true;
+    public synchronized void open(CveDB cve) throws IndexException {
+        if (!openState) {
+            index = new RAMDirectory();
+            buildIndex(cve);
+            try {
+                indexReader = DirectoryReader.open(index);
+            } catch (IOException ex) {
+                throw new IndexException(ex);
             }
+            indexSearcher = new IndexSearcher(indexReader);
+            searchingAnalyzer = createSearchingAnalyzer();
+            queryParser = new QueryParser(LuceneUtils.CURRENT_VERSION, Fields.DOCUMENT_KEY, searchingAnalyzer);
+            openState = true;
         }
     }
 
@@ -139,7 +137,7 @@ public final class CpeMemoryIndex {
      *
      * @return whether or not the index is open
      */
-    public boolean isOpen() {
+    public synchronized boolean isOpen() {
         return openState;
     }
 
@@ -162,7 +160,7 @@ public final class CpeMemoryIndex {
     /**
      * Closes the CPE Index.
      */
-    public void close() {
+    public synchronized void close() {
         if (searchingAnalyzer != null) {
             searchingAnalyzer.close();
             searchingAnalyzer = null;
@@ -276,7 +274,7 @@ public final class CpeMemoryIndex {
      * @return the Document
      * @throws IOException thrown if there is an IOException
      */
-    public Document getDocument(int documentId) throws IOException {
+    public synchronized Document getDocument(int documentId) throws IOException {
         return indexSearcher.doc(documentId);
     }
 
@@ -285,7 +283,7 @@ public final class CpeMemoryIndex {
      *
      * @return the number of CPE entries stored in the index
      */
-    public int numDocs() {
+    public synchronized int numDocs() {
         if (indexReader == null) {
             return -1;
         }

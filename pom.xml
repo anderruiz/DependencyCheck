@@ -20,17 +20,17 @@ Copyright (c) 2012 - Jeremy Long
 
     <groupId>org.owasp</groupId>
     <artifactId>dependency-check-parent</artifactId>
-    <version>2.0.0.rc1.hdiv</version>
+    <version>2.0.0.rc2.hdiv</version>
     <packaging>pom</packaging>
 
     <modules>
         <module>dependency-check-core</module>
         <module>dependency-check-cli</module>
-        <module>dependency-check-ant</module>
+        <!-- module>dependency-check-ant</module-->
         <module>dependency-check-maven</module>
         <module>dependency-check-utils</module>
         <module>dependency-check-plugin</module>
-        <module>build-reporting</module>
+        <!-- module>build-reporting</module -->
     </modules>
     <name>Dependency-Check</name>
     <url>https://github.com/jeremylong/DependencyCheck.git</url>

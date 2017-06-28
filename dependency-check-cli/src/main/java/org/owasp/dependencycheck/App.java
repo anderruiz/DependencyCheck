@@ -65,7 +65,7 @@ public class App {
             Settings.initialize();
             final App app = new App();
             exitCode = app.run(args);
-            LOGGER.debug("Exit code: " + exitCode);
+            LOGGER.debug("Exit code: {}", exitCode);
         } finally {
             Settings.cleanup(true);
         }
@@ -244,7 +244,7 @@ public class App {
                     throw ex;
                 }
             }
-            if (exCol != null && exCol.getExceptions().size() > 0) {
+            if (exCol != null && !exCol.getExceptions().isEmpty()) {
                 throw exCol;
             }
             return determineReturnCode(engine, cvssFailScore);
@@ -270,7 +270,7 @@ public class App {
         for (Dependency dep : engine.getDependencies()) {
             if (!dep.getVulnerabilities().isEmpty()) {
                 for (Vulnerability vuln : dep.getVulnerabilities()) {
-                    LOGGER.debug("VULNERABILITY FOUND " + dep.getDisplayFileName());
+                    LOGGER.debug("VULNERABILITY FOUND {}", dep.getDisplayFileName());
                     if (vuln.getCvssScore() > cvssFailScore) {
                         retCode = 1;
                     }
@@ -387,7 +387,7 @@ public class App {
         final String proxyPass = cli.getProxyPassword();
         final String dataDirectory = cli.getDataDirectory();
         final File propertiesFile = cli.getPropertiesFile();
-        final String suppressionFile = cli.getSuppressionFile();
+        final String[] suppressionFiles = cli.getSuppressionFiles();
         final String hintsFile = cli.getHintsFile();
         final String nexusUrl = cli.getNexusUrl();
         final String databaseDriverName = cli.getDatabaseDriverName();
@@ -436,9 +436,10 @@ public class App {
         Settings.setStringIfNotEmpty(Settings.KEYS.PROXY_USERNAME, proxyUser);
         Settings.setStringIfNotEmpty(Settings.KEYS.PROXY_PASSWORD, proxyPass);
         Settings.setStringIfNotEmpty(Settings.KEYS.CONNECTION_TIMEOUT, connectionTimeout);
-        Settings.setStringIfNotEmpty(Settings.KEYS.SUPPRESSION_FILE, suppressionFile);
         Settings.setStringIfNotEmpty(Settings.KEYS.HINTS_FILE, hintsFile);
         Settings.setIntIfNotNull(Settings.KEYS.CVE_CHECK_VALID_FOR_HOURS, cveValidForHours);
+
+        Settings.setArrayIfNotEmpty(Settings.KEYS.SUPPRESSION_FILE, suppressionFiles);
 
         //File Type Analyzer Settings
         Settings.setBooleanIfNotNull(Settings.KEYS.ANALYZER_EXPERIMENTAL_ENABLED, experimentalEnabled);
