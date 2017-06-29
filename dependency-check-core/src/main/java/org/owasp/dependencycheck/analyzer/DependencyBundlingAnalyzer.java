@@ -318,7 +318,11 @@ public class DependencyBundlingAnalyzer extends AbstractAnalyzer {
                 }
             }
         }
-        LOGGER.debug("IdentifiersMatch={} ({}, {})", matches, dependency1.getFileName(), dependency2.getFileName());
+        if(matches) {
+        	LOGGER.debug("IdentifiersMatch={} ({}, {})", matches, dependency1.getFileName(), dependency2.getFileName());
+        } else {
+        	LOGGER.trace("IdentifiersMatch={} ({}, {})", matches, dependency1.getFileName(), dependency2.getFileName());
+        }
         return matches;
     }
 

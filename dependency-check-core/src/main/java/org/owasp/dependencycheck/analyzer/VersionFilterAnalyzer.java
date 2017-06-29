@@ -149,7 +149,7 @@ public class VersionFilterAnalyzer extends AbstractAnalyzer {
             final boolean manifestMatch = equals(dvManifest, dvPom) || equals(dvManifest, dvFile);
             final boolean pomMatch = equals(dvPom, dvFile) || equals(dvPom, dvManifest);
             if (fileMatch || manifestMatch || pomMatch) {
-                LOGGER.debug("filtering evidence from {}", dependency.getFileName());
+                
                 final EvidenceCollection versionEvidence = dependency.getVersionEvidence();
                 final Iterator<Evidence> itr = versionEvidence.iterator();
                 while (itr.hasNext()) {
@@ -158,6 +158,7 @@ public class VersionFilterAnalyzer extends AbstractAnalyzer {
                             && (NEXUS.equals(e.getSource()) || CENTRAL.equals(e.getSource()) || POM.equals(e.getSource())))
                             && !(fileMatch && VERSION.equals(e.getName()) && FILE.equals(e.getSource()))
                             && !(manifestMatch && MANIFEST.equals(e.getSource()) && IMPLEMENTATION_VERSION.equals(e.getName()))) {
+                    	LOGGER.debug("filtering evidence {} from {}", e, dependency.getFileName());
                         itr.remove();
                     }
                 }

@@ -1012,4 +1012,12 @@ public final class Settings {
         throw new IOException(String.format("Unable to create the data directory '%s'",
                 (path == null) ? "unknown" : path.getAbsolutePath()));
     }
+    
+    public static int availableProcessors() {
+    	if(System.getProperty("available.processors")!=null) {
+    		return Integer.parseInt(System.getProperty("available.processors"));
+    	} else {
+    		return Runtime.getRuntime().availableProcessors();
+    	}
+    }
 }

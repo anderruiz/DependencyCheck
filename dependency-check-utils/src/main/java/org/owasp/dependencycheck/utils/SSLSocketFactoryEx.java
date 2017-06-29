@@ -265,10 +265,7 @@ public class SSLSocketFactoryEx extends SSLSocketFactory {
             availableProtocols = socket.getSupportedProtocols();
             Arrays.sort(availableProtocols);
             if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug("Available Protocols:");
-                for (String p : availableProtocols) {
-                    LOGGER.debug(p);
-                }
+                LOGGER.debug("Available Protocols:"+Arrays.asList(availableProtocols));
             }
         } catch (Exception ex) {
             LOGGER.debug("Error getting protocol list, using TLSv1", ex);
