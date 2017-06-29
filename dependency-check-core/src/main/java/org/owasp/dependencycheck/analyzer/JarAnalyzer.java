@@ -235,7 +235,7 @@ public class JarAnalyzer extends AbstractFileTypeAnalyzer {
             }
             final boolean hasManifest = parseManifest(dependency, classNames);
             final boolean hasPOM = analyzePOM(dependency, classNames, engine);
-            final boolean addPackagesAsEvidence = !(hasManifest && hasPOM);
+            final boolean addPackagesAsEvidence = !(hasManifest && hasPOM) || dependency.getFileName().startsWith("jstl");
             analyzePackageNames(classNames, dependency, addPackagesAsEvidence);
         } catch (IOException ex) {
             throw new AnalysisException("Exception occurred reading the JAR file (" + dependency.getFileName() + ").", ex);
