@@ -88,15 +88,19 @@ public final class Downloader {
 				retries = 0;
 			}
 			catch (Exception e) {
-				LOGGER.error("Error downloading from:"+url);
+				LOGGER.info("Error downloading from: "+url);
+				LOGGER.info("Retrying with proxy.");
 				if(url.getProtocol().equals("https")) {
 					try {
 						doFetchFile(byProxy(url), outputPath, useProxy);
 						retries = 0;
 					}
 					catch (Exception e1) {
-						LOGGER.error("Error downloading from:"+byProxy(url));
+						LOGGER.error("Error downloading from: "+byProxy(url));
 					}
+				}
+				else {
+					LOGGER.error("Error downloading from: "+url);
 				}
 				retries--;
 			}
@@ -194,7 +198,7 @@ public final class Downloader {
                 }
                 if ("Connection reset".equalsIgnoreCase(ex.getMessage())) {
                     final String msg = format("TLS Connection Reset%n");
-                    LOGGER.error(msg);
+                    //LOGGER.error(msg);
                     throw new DownloadFailedException(msg, ex);
                 }
                 final String msg = format("Error downloading file %s; unable to connect.", url.toString());
@@ -300,7 +304,11 @@ public final class Downloader {
                 throw new DownloadFailedException(format("Error creating URL Connection for HTTP %s request.", httpMethod), ex);
             } catch (IOException ex) {
                 checkForCommonExceptionTypes(ex);
-                LOGGER.error("IO Exception: " + ex.getMessage());
+                if(isRetry) {
+                		LOGGER.error("IO Exception: " + ex.getMessage());
+                }else {
+                		LOGGER.debug("IO Exception: " + ex.getMessage());
+                }
                 LOGGER.debug("Exception details", ex);
                 if (ex.getCause() != null) {
                     LOGGER.debug("IO Exception cause: " + ex.getCause().getMessage(), ex.getCause());
