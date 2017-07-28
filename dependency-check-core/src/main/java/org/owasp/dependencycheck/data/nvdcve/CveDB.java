@@ -17,6 +17,7 @@
  */
 package org.owasp.dependencycheck.data.nvdcve;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.sql.Connection;
@@ -62,7 +63,7 @@ import static org.owasp.dependencycheck.data.nvdcve.CveDB.PreparedStatementCveDb
  * @author Jeremy Long
  */
 @ThreadSafe
-public final class CveDB implements AutoCloseable {
+public final class CveDB implements Closeable {
 
     /**
      * Singleton instance of the CveDB.
