@@ -202,7 +202,7 @@ public final class URLConnectionFactory {
      * @param conn the connection
      */
     private static void configureTLS(URL url, URLConnection conn) {
-        if ("https".equals(url.getProtocol())) {
+        if ("https".equals(url.getProtocol())&& conn instanceof HttpsURLConnection) {
             try {
                 final HttpsURLConnection secCon = (HttpsURLConnection) conn;
                 final SSLSocketFactoryEx factory = new SSLSocketFactoryEx();
