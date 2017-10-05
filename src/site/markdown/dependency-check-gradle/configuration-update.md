@@ -3,13 +3,26 @@ Tasks
 
 Task                                             | Description
 -------------------------------------------------|-----------------------
-[dependencyCheck](configuration.html)            | Runs dependency-check against the project and generates a report.
+[dependencyCheckAnalyze](configuration.html)     | Runs dependency-check against the project and generates a report.
 dependencyCheckUpdate                            | Updates the local cache of the NVD data from NIST.
 [dependencyCheckPurge](configuration-purge.html) | Deletes the local copy of the NVD. This is used to force a refresh of the data.
 
-Configuration: dependencyCheckUpdate
+Configuration
 ====================
-The following properties can be configured for the dependencyCheckUpdate task:
+
+```groovy
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'org.owasp:dependency-check-gradle:${project.version}'
+    }
+}
+apply plugin: 'org.owasp.dependencycheck'
+
+check.dependsOn dependencyCheckUpdate
+```
 
 Property             | Description                        | Default Value
 ---------------------|------------------------------------|------------------
@@ -18,24 +31,23 @@ failOnError          | Fails the build if an error occurs during the dependency-
 
 #### Example
 ```groovy
-dependencyCheckUpdate {
+dependencyCheck {
     cveValidForHours=1
 }
 ```
 
 ### Proxy Configuration
 
-Property          | Description                        | Default Value
-------------------|------------------------------------|------------------
-server            | The proxy server.                  | &nbsp;
-port              | The proxy port.                    | &nbsp;
-username          | Defines the proxy user name.       | &nbsp;
-password          | Defines the proxy password.        | &nbsp;
-connectionTimeout | The URL Connection Timeout.        | &nbsp;
+Config Group | Property          | Description                        | Default Value
+-------------|-------------------|------------------------------------|------------------
+proxy        | server            | The proxy server.                  | &nbsp;
+proxy        | port              | The proxy port.                    | &nbsp;
+proxy        | username          | Defines the proxy user name.       | &nbsp;
+proxy        | password          | Defines the proxy password.        | &nbsp;
 
 #### Example
 ```groovy
-dependencyCheckUpdate {
+dependencyCheck {
     proxy {
         server=some.proxy.server
         port=8989
@@ -64,7 +76,7 @@ data         | password          | The password used when connecting to the data
 
 #### Example
 ```groovy
-dependencyCheckUpdate {
+dependencyCheck {
     data {
         directory='d:/nvd'
     }

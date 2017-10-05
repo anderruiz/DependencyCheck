@@ -112,7 +112,7 @@ public class App {
                 }
                 File db;
                 try {
-                    db = new File(Settings.getDataDirectory(), "dc.h2.db");
+                    db = new File(Settings.getDataDirectory(), Settings.getString(Settings.KEYS.DB_FILE_NAME, "dc.h2.db"));
                     if (db.exists()) {
                         if (db.delete()) {
                             LOGGER.info("Database file purged; local copy of the NVD has been removed");
@@ -359,14 +359,8 @@ public class App {
      * connection to the database could not be established
      */
     private void runUpdateOnly() throws UpdateException, DatabaseException {
-        Engine engine = null;
-        try {
-            engine = new Engine();
+        try (Engine engine = new Engine()) {
             engine.doUpdates();
-        } finally {
-            if (engine != null) {
-                engine.cleanup();
-            }
         }
     }
 

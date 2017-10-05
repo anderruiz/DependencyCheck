@@ -18,12 +18,14 @@
 package org.owasp.dependencycheck.analyzer;
 
 import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.ServiceLoader;
 import org.owasp.dependencycheck.utils.InvalidSettingException;
 import org.owasp.dependencycheck.utils.Settings;
 import org.slf4j.LoggerFactory;
+
+import static java.util.Arrays.asList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.ServiceLoader;
 
 /**
  * The Analyzer Service Loader. This class loads all services that implement
@@ -32,6 +34,7 @@ import org.slf4j.LoggerFactory;
  * @author Jeremy Long
  */
 public class AnalyzerService {
+
     /**
      * The Logger for use throughout the class.
      */
@@ -45,7 +48,8 @@ public class AnalyzerService {
     /**
      * Creates a new instance of AnalyzerService.
      *
-     * @param classLoader the ClassLoader to use when dynamically loading Analyzer and Update services
+     * @param classLoader the ClassLoader to use when dynamically loading
+     * Analyzer and Update services
      */
     public AnalyzerService(ClassLoader classLoader) {
         service = ServiceLoader.load(Analyzer.class, classLoader);
@@ -57,6 +61,28 @@ public class AnalyzerService {
      * @return a list of Analyzers.
      */
     public List<Analyzer> getAnalyzers() {
+        return getAnalyzers(AnalysisPhase.values());
+    }
+
+    /**
+     * Returns a list of all instances of the Analyzer interface that are bound
+     * to one of the given phases.
+     *
+     * @param phases the phases to obtain analyzers for
+     * @return a list of Analyzers.
+     */
+    public List<Analyzer> getAnalyzers(AnalysisPhase... phases) {
+        return getAnalyzers(asList(phases));
+    }
+
+    /**
+     * Returns a list of all instances of the Analyzer interface that are bound
+     * to one of the given phases.
+     *
+     * @param phases the phases to obtain analyzers for
+     * @return a list of Analyzers
+     */
+    private List<Analyzer> getAnalyzers(List<AnalysisPhase> phases) {
         final List<Analyzer> analyzers = new ArrayList<>();
         final Iterator<Analyzer> iterator = service.iterator();
         boolean experimentalEnabled = false;
@@ -67,6 +93,9 @@ public class AnalyzerService {
         }
         while (iterator.hasNext()) {
             final Analyzer a = iterator.next();
+            if (!phases.contains(a.getAnalysisPhase())) {
+                continue;
+            }
             if (!experimentalEnabled && a.getClass().isAnnotationPresent(Experimental.class)) {
                 continue;
             }

@@ -48,9 +48,11 @@ import org.owasp.dependencycheck.data.update.nvd.DownloadTask;
 import org.owasp.dependencycheck.data.update.nvd.NvdCveInfo;
 import org.owasp.dependencycheck.data.update.nvd.ProcessTask;
 import org.owasp.dependencycheck.data.update.nvd.UpdateableNvdCve;
+import org.owasp.dependencycheck.exception.H2DBLockException;
 import org.owasp.dependencycheck.utils.DateUtil;
 import org.owasp.dependencycheck.utils.Downloader;
 import org.owasp.dependencycheck.utils.DownloadFailedException;
+import org.owasp.dependencycheck.utils.H2DBLock;
 import org.owasp.dependencycheck.utils.InvalidSettingException;
 import org.owasp.dependencycheck.utils.Settings;
 import org.slf4j.Logger;
@@ -150,6 +152,7 @@ public class NvdCveUpdater implements CachedWebDataSource {
                     throw new UpdateException("Unable to obtain the update lock, skipping the database update. Skippinig the database update.");
                 }
             }
+
             initializeExecutorServices();
             cveDb = CveDB.getInstance();
             dbProperties = cveDb.getDatabaseProperties();
@@ -179,9 +182,13 @@ public class NvdCveUpdater implements CachedWebDataSource {
         	}
             throw new UpdateException("Database Exception, unable to update the data to use the most current data.", ex);
         } catch (IOException ex) {
-            throw new UpdateException("Database Exception", ex);
+        	throw new UpdateException("Database Exception", ex);
         } finally {
+            if (cveDb != null) {
+                cveDb.close();
+            }
             shutdownExecutorServices();
+
             if (cveDb != null) {
 				cveDb.close();
 			}
@@ -239,7 +246,7 @@ public class NvdCveUpdater implements CachedWebDataSource {
         final long modified = file.lastModified();
         return (d.getTime() - modified) / 1000 / 60;
     }
-
+    
     /**
      * Initialize the executor services for download and processing of the NVD
      * CVE XML data.
@@ -375,12 +382,14 @@ public class NvdCveUpdater implements CachedWebDataSource {
             }
         }
 
-        if (maxUpdates >= 1) { //ensure the modified file date gets written (we may not have actually updated it)
+        //always true because <=0 exits early above
+        //if (maxUpdates >= 1) { 
+            //ensure the modified file date gets written (we may not have actually updated it)
             dbProperties.save(updateable.get(MODIFIED));
             LOGGER.info("Begin database maintenance.");
             cveDb.cleanupDatabase();
             LOGGER.info("End database maintenance.");
-        }
+        //}
     }
 
     /**
@@ -528,7 +537,7 @@ public class NvdCveUpdater implements CachedWebDataSource {
 
         final Map<String, Future<Long>> timestampFutures = new HashMap<>();
         for (String url : urls) {
-            final TimestampRetriever timestampRetriever = new TimestampRetriever(url);
+            final TimestampRetriever timestampRetriever = new TimestampRetriever(url, Settings.getInstance());
             final Future<Long> future = downloadExecutorService.submit(timestampRetriever);
             timestampFutures.put(url, future);
         }
@@ -557,6 +566,10 @@ public class NvdCveUpdater implements CachedWebDataSource {
     private static class TimestampRetriever implements Callable<Long> {
 
         /**
+         * A reference to the global settings object.
+         */
+        private final Settings settings;
+        /**
          * The URL to obtain the timestamp from.
          */
         private final String url;
@@ -565,16 +578,18 @@ public class NvdCveUpdater implements CachedWebDataSource {
          * Instantiates a new timestamp retriever object.
          *
          * @param url the URL to hit
+         * @param settings the global settings
          */
-        TimestampRetriever(String url) {
+        TimestampRetriever(String url, Settings settings) {
             this.url = url;
+            this.settings = settings;
         }
 
         @Override
         public Long call() throws Exception {
             LOGGER.debug("Checking for updates from: {}", url);
             try {
-                Settings.initialize();
+                Settings.setInstance(settings);
                 return Downloader.getLastModified(new URL(url));
             } finally {
                 Settings.cleanup(false);

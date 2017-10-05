@@ -199,6 +199,7 @@ public final class Downloader {
                 if ("Connection reset".equalsIgnoreCase(ex.getMessage())) {
                     final String msg = format("TLS Connection Reset%n");
                     //LOGGER.error(msg);
+
                     throw new DownloadFailedException(msg, ex);
                 }
                 final String msg = format("Error downloading file %s; unable to connect.", url.toString());
@@ -216,7 +217,7 @@ public final class Downloader {
                 } else {
                     reader = conn.getInputStream();
                 }
-                
+
                 final byte[] buffer = new byte[4096];
                 int bytesRead;
                 while ((bytesRead = reader.read(buffer)) > 0) {

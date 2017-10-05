@@ -47,12 +47,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * An in memory lucene index that contains the vendor/product combinations from
+ * An in memory Lucene index that contains the vendor/product combinations from
  * the CPE (application) identifiers within the NVD CVE data.
  *
  * @author Jeremy Long
  */
-public final class CpeMemoryIndex {
+public final class CpeMemoryIndex implements AutoCloseable {
 
     /**
      * The logger.
@@ -91,9 +91,10 @@ public final class CpeMemoryIndex {
      */
     private SearchFieldAnalyzer vendorFieldAnalyzer;
     /**
-     * A flag indicating whether or not the index is open.
+     * Track the number of current users of the Lucene index; used to track it
+     * it is okay to actually close the index.
      */
-    private boolean openState = false;
+    private int usageCount = 0;
 
     /**
      * private constructor for singleton.
@@ -117,7 +118,8 @@ public final class CpeMemoryIndex {
      * @throws IndexException thrown if there is an error creating the index
      */
     public synchronized void open(CveDB cve) throws IndexException {
-        if (!openState) {
+        if (INSTANCE.usageCount <= 0) {
+            INSTANCE.usageCount = 0;
             index = new RAMDirectory();
             buildIndex(cve);
             try {
@@ -128,8 +130,8 @@ public final class CpeMemoryIndex {
             indexSearcher = new IndexSearcher(indexReader);
             searchingAnalyzer = createSearchingAnalyzer();
             queryParser = new QueryParser(LuceneUtils.CURRENT_VERSION, Fields.DOCUMENT_KEY, searchingAnalyzer);
-            openState = true;
         }
+        INSTANCE.usageCount += 1;
     }
 
     /**
@@ -138,7 +140,7 @@ public final class CpeMemoryIndex {
      * @return whether or not the index is open
      */
     public synchronized boolean isOpen() {
-        return openState;
+        return INSTANCE.usageCount > 0;
     }
 
     /**
@@ -160,26 +162,29 @@ public final class CpeMemoryIndex {
     /**
      * Closes the CPE Index.
      */
+    @Override
     public synchronized void close() {
-        if (searchingAnalyzer != null) {
-            searchingAnalyzer.close();
-            searchingAnalyzer = null;
-        }
-        if (indexReader != null) {
-            try {
-                indexReader.close();
-            } catch (IOException ex) {
-                LOGGER.trace("", ex);
+        INSTANCE.usageCount -= 1;
+        if (INSTANCE.usageCount <= 0) {
+            if (searchingAnalyzer != null) {
+                searchingAnalyzer.close();
+                searchingAnalyzer = null;
             }
-            indexReader = null;
+            if (indexReader != null) {
+                try {
+                    indexReader.close();
+                } catch (IOException ex) {
+                    LOGGER.trace("", ex);
+                }
+                indexReader = null;
+            }
+            queryParser = null;
+            indexSearcher = null;
+            if (index != null) {
+                index.close();
+                index = null;
+            }
         }
-        queryParser = null;
-        indexSearcher = null;
-        if (index != null) {
-            index.close();
-            index = null;
-        }
-        openState = false;
     }
 
     /**
@@ -206,7 +211,6 @@ public final class CpeMemoryIndex {
                     v.setStringValue(pair.getLeft());
                     p.setStringValue(pair.getRight());
                     indexWriter.addDocument(doc);
-                    resetFieldAnalyzer();
                 }
             }
             indexWriter.commit();
@@ -218,18 +222,6 @@ public final class CpeMemoryIndex {
             throw new IndexException("Unable to close an in-memory index", ex);
         } catch (IOException ex) {
             throw new IndexException("Unable to close an in-memory index", ex);
-        }
-    }
-
-    /**
-     * Resets the product and vendor field analyzers.
-     */
-    private void resetFieldAnalyzer() {
-        if (productFieldAnalyzer != null) {
-            productFieldAnalyzer.clear();
-        }
-        if (vendorFieldAnalyzer != null) {
-            vendorFieldAnalyzer.clear();
         }
     }
 
@@ -248,7 +240,6 @@ public final class CpeMemoryIndex {
             throw new ParseException("Query is null or empty");
         }
         LOGGER.debug(searchString);
-        resetFieldAnalyzer();
         final Query query = queryParser.parse(searchString);
         return search(query, maxQueryResults);
     }
@@ -263,7 +254,6 @@ public final class CpeMemoryIndex {
      * @throws IOException thrown if there is an IOException
      */
     public synchronized TopDocs search(Query query, int maxQueryResults) throws CorruptIndexException, IOException {
-        resetFieldAnalyzer();
         return indexSearcher.search(query, maxQueryResults);
     }
 

@@ -25,7 +25,7 @@ before_install:
 
 matrix:
   include:
-    - jdk: oraclejdk7
+    - jdk: openjdk7
       env:
         - JDK="JDK7"
       script:
@@ -45,11 +45,11 @@ after_success:
 
 deploy:
   - provider: script
-    script: mvn --settings .travis.settings.xml source:jar javadoc:jar deploy -DskipTests=true
+    script: mvn --settings .travis.settings.xml source:jar javadoc:jar package deploy -DskipTests=true -X
     skip_cleanup: true
     on:
       branch: master
-      jdk: oraclejdk7
+      jdk: openjdk7
   - provider: pages
     skip_cleanup: true
     local_dir: target/staging
@@ -57,5 +57,5 @@ deploy:
     on:
       tags: true
       branch: master
-      jdk: oraclejdk7
+      jdk: openjdk7
  
