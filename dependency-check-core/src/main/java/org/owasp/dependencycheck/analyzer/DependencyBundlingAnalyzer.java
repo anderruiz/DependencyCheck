@@ -210,7 +210,7 @@ public class DependencyBundlingAnalyzer extends AbstractAnalyzer {
             dependency.addRelatedDependency(i.next());
             i.remove();
         }
-        if (dependency.getSha1sum().equals(relatedDependency.getSha1sum())) {
+        if (hashesMatch(dependency, relatedDependency)) {
             dependency.addAllProjectReferences(relatedDependency.getProjectReferences());
         }
         dependenciesToRemove.add(relatedDependency);
