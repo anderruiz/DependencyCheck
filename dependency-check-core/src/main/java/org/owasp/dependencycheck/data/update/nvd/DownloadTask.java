@@ -192,6 +192,8 @@ public class DownloadTask implements Callable<Future<ProcessTask>> {
         } catch (Throwable ex) {
             LOGGER.warn("An exception occurred downloading NVD CVE - {}\nSome CVEs may not be reported.", nvdCveInfo.getId());
             LOGGER.debug("Download Task Failed", ex);
+            LOGGER.warn("Removing temp files");
+            cleanup();
         } finally {
             Settings.cleanup(false);
         }
