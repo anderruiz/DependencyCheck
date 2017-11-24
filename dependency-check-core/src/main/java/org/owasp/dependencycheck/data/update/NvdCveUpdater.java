@@ -51,6 +51,7 @@ import org.owasp.dependencycheck.data.update.nvd.UpdateableNvdCve;
 import org.owasp.dependencycheck.exception.H2DBLockException;
 import org.owasp.dependencycheck.utils.DateUtil;
 import org.owasp.dependencycheck.utils.Downloader;
+import org.owasp.dependencycheck.utils.FileUtils;
 import org.owasp.dependencycheck.utils.DownloadFailedException;
 import org.owasp.dependencycheck.utils.H2DBLock;
 import org.owasp.dependencycheck.utils.InvalidSettingException;
@@ -335,6 +336,17 @@ public class NvdCveUpdater implements CachedWebDataSource {
         if (maxUpdates > 3) {
             LOGGER.info("NVD CVE requires several updates; this could take a couple of minutes.");
         }
+        
+        try {
+        		FileUtils.cleanOldTempFiles();
+        }catch (IOException e) {
+        		throw new UpdateException("Can not delete old temp files.", e);
+		}
+        try {
+	    		FileUtils.cleanOldTempFolders();
+	    }catch (IOException e) {
+	    		throw new UpdateException("Can not delete old temp dirs.", e);
+		}
 
         final Set<Future<Future<ProcessTask>>> downloadFutures = new HashSet<>(maxUpdates);
         for (NvdCveInfo cve : updateable) {

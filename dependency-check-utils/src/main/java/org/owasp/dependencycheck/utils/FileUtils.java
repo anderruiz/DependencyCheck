@@ -18,13 +18,18 @@
 package org.owasp.dependencycheck.utils;
 
 import java.io.Closeable;
+
 import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.io.filefilter.AgeFileFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.FileFilter;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Date;
+import java.util.Iterator;
 import java.util.UUID;
 import org.apache.commons.lang3.SystemUtils;
 
@@ -49,6 +54,8 @@ public final class FileUtils {
      */
     private static final String BIT_BUCKET_WIN = "NUL";
 
+    private static final long TEMP_FILE_MAX_TIME = 1000 * 60 * 60;
+    
     /**
      * Private constructor for a utility class.
      */
@@ -160,5 +167,39 @@ public final class FileUtils {
         return FileUtils.class.getClassLoader() != null
                 ? FileUtils.class.getClassLoader().getResourceAsStream(resource)
                 : ClassLoader.getSystemResourceAsStream(resource);
+    }
+    
+    public static void cleanOldTempFiles() throws IOException{
+		File dir = Settings.getTempDirectory();
+		Date oldestAllowedFileDate = new Date(System.currentTimeMillis() - TEMP_FILE_MAX_TIME);
+		Iterator<File> filesToDelete = org.apache.commons.io.FileUtils.iterateFiles(dir, new AgeFileFilter(oldestAllowedFileDate), null);
+		LOGGER.info("Deleting old temp files");
+		while (filesToDelete.hasNext()) { 
+			File file = filesToDelete.next();
+			LOGGER.debug("Deleting old temp file: "+file);
+            delete(file); 
+        } 
+    }
+    
+    public static void cleanOldTempFolders() throws IOException {
+    		final File baseTemp = new File(Settings.getString(Settings.KEYS.TEMP_DIRECTORY, System.getProperty("java.io.tmpdir")));
+    		final File currentTempDir = Settings.getTempDirectory();
+    		final Date oldestAllowedFileDate = new Date(System.currentTimeMillis() - TEMP_FILE_MAX_TIME);
+    		
+    		FileFilter filter = new FileFilter() {
+			@Override
+			public boolean accept(File file) {
+				return file.isDirectory() && //
+						file.getName().startsWith("dctemp") && //
+						org.apache.commons.io.FileUtils.isFileOlder(file, oldestAllowedFileDate) && //
+						!file.equals(currentTempDir);
+			}
+		};
+    		File[] filesToDelete = baseTemp.listFiles(filter);
+    		LOGGER.info("Deleting old temp dirs. "+ filesToDelete.length);
+    		for (File file : filesToDelete) { 
+    			LOGGER.debug("Deleting old temp dir: "+file);
+    			org.apache.commons.io.FileUtils.deleteDirectory(file);
+        } 
     }
 }
