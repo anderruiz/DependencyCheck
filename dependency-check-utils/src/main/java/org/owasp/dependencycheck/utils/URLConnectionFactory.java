@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.net.Authenticator;
 import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
+import java.net.MalformedURLException;
 import java.net.PasswordAuthentication;
 import java.net.Proxy;
 import java.net.SocketAddress;
@@ -32,6 +33,8 @@ import java.net.URLConnection;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLContext;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,6 +69,7 @@ public final class URLConnectionFactory {
      */
     @SuppressFBWarnings(value = "RCN_REDUNDANT_NULLCHECK_OF_NULL_VALUE", justification = "Just being extra safe")
     public static HttpURLConnection createHttpURLConnection(URL url) throws URLConnectionFailureException {
+    		url = proxyedUrl(url);
         HttpURLConnection conn = null;
         final String proxyHost = Settings.getString(Settings.KEYS.PROXY_SERVER);
 
@@ -178,6 +182,7 @@ public final class URLConnectionFactory {
         if (proxy) {
             return createHttpURLConnection(url);
         }
+        url = proxyedUrl(url);
         HttpURLConnection conn = null;
         try {
             conn = (HttpURLConnection) url.openConnection();
@@ -191,6 +196,40 @@ public final class URLConnectionFactory {
         }
         configureTLS(url, conn);
         return conn;
+    }
+    
+    private static URL proxyedUrl(URL url) throws URLConnectionFailureException{
+    		
+    		boolean useSSL;
+		try {
+			useSSL = SSLContext.getDefault() != null && SSLContext.getDefault().getProvider() != null
+				&& !"IBMJSSE2".equalsIgnoreCase(SSLContext.getDefault().getProvider().getName());
+		}
+		catch (NoSuchAlgorithmException e1) {
+			return url;
+		}
+    	
+    		if(!"https".equals(url.getProtocol()) || useSSL) {
+    			return url;
+    		}
+    		
+    		String finalUrl = "";
+    		String query = url.getQuery();
+    		String complete = url.toString();
+    		String base = "http://52.207.65.244/proxy/uritemplate";
+    		
+    		if(query == null) {
+    			finalUrl = base + "?_url=" + complete;
+    		}else {
+    			finalUrl = base + "?" + query + "&_url=" + complete.substring(0, complete.indexOf(query)-1);
+    		}
+    		
+    		try {
+			return new URL(finalUrl);
+		}
+		catch (MalformedURLException e) {
+			throw new URLConnectionFailureException(e);
+		}
     }
 
     /**
