@@ -183,7 +183,7 @@ public class DownloadTask implements Callable<Future<ProcessTask>> {
 
             LOGGER.info("Download Complete for NVD CVE - {}  ({} ms)", nvdCveInfo.getId(),
                     System.currentTimeMillis() - startDownload);
-            if (this.processorService == null) {
+            if (this.processorService == null || this.processorService.isShutdown()) {
                 return null;
             }
             final ProcessTask task = new ProcessTask(cveDB, this, settings);
