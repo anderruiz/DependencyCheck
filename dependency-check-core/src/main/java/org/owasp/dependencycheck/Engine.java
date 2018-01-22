@@ -76,7 +76,7 @@ public class Engine implements FileFilter {
     /**
      * A Map of analyzers grouped by Analysis phase.
      */
-    private final Map<AnalysisPhase, List<Analyzer>> analyzers = new EnumMap<>(AnalysisPhase.class);
+    protected final Map<AnalysisPhase, List<Analyzer>> analyzers = new EnumMap<>(AnalysisPhase.class);
 
     /**
      * A Map of analyzers grouped by Analysis phase.
@@ -526,6 +526,21 @@ public class Engine implements FileFilter {
 
                 if (analyzer.isEnabled()) {
                     executeAnalysisTasks(analyzer, exceptions);
+                    
+                    
+                    for (Dependency dependency : dependencies) {
+                    		
+                    		
+                    		if(dependency.getActualFile().getName().contains("spring-core")) {
+                    			System.out.println("After analyzer:"+analyzer);
+                    			System.out.println(dependency.getIdentifiers());
+                    			System.out.println(dependency.getEvidence());
+                    		}
+                    		
+					}
+                    
+                    
+                    
 
                     final long analyzerDurationMillis = System.currentTimeMillis() - analyzerStart;
                     final long analyzerDurationSeconds = TimeUnit.MILLISECONDS.toSeconds(analyzerDurationMillis);
