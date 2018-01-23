@@ -194,14 +194,18 @@ public class HintAnalyzer extends AbstractAnalyzer {
             }
         }
         
+        final List<Evidence> newEntries = new ArrayList<>();
         for(Evidence e : dependency.getVendorEvidence()) {
 	    		for (VendorDuplicatingHintRule dhr : hints.getVendorDuplicatingHintRules()) {
 	            if (dhr.getValue().equalsIgnoreCase(e.getValue(false))) {
-	            		dependency.getVendorEvidence().addEvidence(new Evidence(e.getSource() + " (hint)",
+	            		newEntries.add(new Evidence(e.getSource() + " (hint)",
 	                            e.getName(), dhr.getDuplicate(), e.getConfidence()));
 	            }
 	        }
 	    }
+        for (Evidence e : newEntries) {
+            dependency.getEvidence().addEvidence(e);
+        }
     }
 
     /**
