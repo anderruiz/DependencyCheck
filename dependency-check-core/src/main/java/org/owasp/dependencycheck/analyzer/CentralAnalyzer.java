@@ -36,6 +36,8 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.List;
+import javax.annotation.concurrent.ThreadSafe;
+import org.owasp.dependencycheck.dependency.EvidenceType;
 import org.owasp.dependencycheck.exception.InitializationException;
 import org.owasp.dependencycheck.utils.DownloadFailedException;
 import org.owasp.dependencycheck.utils.Downloader;
@@ -49,6 +51,7 @@ import org.owasp.dependencycheck.utils.Settings;
  *
  * @author colezlaw
  */
+@ThreadSafe
 public class CentralAnalyzer extends AbstractFileTypeAnalyzer {
 
     /**
@@ -72,28 +75,26 @@ public class CentralAnalyzer extends AbstractFileTypeAnalyzer {
     private static final String SUPPORTED_EXTENSIONS = "jar";
 
     /**
-     * The analyzer should be disabled if there are errors, so this is a flag to
-     * determine if such an error has occurred.
+     * There may be temporary issues when connecting to MavenCentral. In order
+     * to compensate for 99% of the issues, we perform a retry before finally
+     * failing the analysis.
      */
-    private volatile boolean errorFlag = false;
+    private static final int NUMBER_OF_TRIES = 5;
 
     /**
      * The searcher itself.
      */
     private CentralSearch searcher;
-    /**
-     * Field indicating if the analyzer is enabled.
-     */
-    private final boolean enabled = checkEnabled();
 
     /**
-     * Determine whether to enable this analyzer or not.
+     * Initializes the analyzer with the configured settings.
      *
-     * @return whether the analyzer should be enabled
+     * @param settings the configured settings to use
      */
     @Override
-    public boolean isEnabled() {
-        return enabled;
+    public void initialize(Settings settings) {
+        super.initialize(settings);
+        setEnabled(checkEnabled());
     }
 
     /**
@@ -106,9 +107,9 @@ public class CentralAnalyzer extends AbstractFileTypeAnalyzer {
         boolean retVal = false;
 
         try {
-            if (Settings.getBoolean(Settings.KEYS.ANALYZER_CENTRAL_ENABLED)) {
-                if (!Settings.getBoolean(Settings.KEYS.ANALYZER_NEXUS_ENABLED)
-                        || NexusAnalyzer.DEFAULT_URL.equals(Settings.getString(Settings.KEYS.ANALYZER_NEXUS_URL))) {
+            if (getSettings().getBoolean(Settings.KEYS.ANALYZER_CENTRAL_ENABLED)) {
+                if (!getSettings().getBoolean(Settings.KEYS.ANALYZER_NEXUS_ENABLED)
+                        || NexusAnalyzer.DEFAULT_URL.equals(getSettings().getString(Settings.KEYS.ANALYZER_NEXUS_URL))) {
                     LOGGER.debug("Enabling the Central analyzer");
                     retVal = true;
                 } else {
@@ -126,20 +127,19 @@ public class CentralAnalyzer extends AbstractFileTypeAnalyzer {
     /**
      * Initializes the analyzer once before any analysis is performed.
      *
+     * @param engine a reference to the dependency-check engine
      * @throws InitializationException if there's an error during initialization
      */
     @Override
-    public void initializeFileTypeAnalyzer() throws InitializationException {
+    public void prepareFileTypeAnalyzer(Engine engine) throws InitializationException {
         LOGGER.debug("Initializing Central analyzer");
         LOGGER.debug("Central analyzer enabled: {}", isEnabled());
         if (isEnabled()) {
-            final String searchUrl = Settings.getString(Settings.KEYS.ANALYZER_CENTRAL_URL);
-            LOGGER.debug("Central Analyzer URL: {}", searchUrl);
             try {
-                searcher = new CentralSearch(new URL(searchUrl));
+                searcher = new CentralSearch(getSettings());
             } catch (MalformedURLException ex) {
                 setEnabled(false);
-                throw new InitializationException("The configured URL to Maven Central is malformed: " + searchUrl, ex);
+                throw new InitializationException("The configured URL to Maven Central is malformed", ex);
             }
         }
     }
@@ -194,18 +194,14 @@ public class CentralAnalyzer extends AbstractFileTypeAnalyzer {
      */
     @Override
     public void analyzeDependency(Dependency dependency, Engine engine) throws AnalysisException {
-        if (errorFlag || !isEnabled()) {
-            return;
-        }
-
         try {
-            final List<MavenArtifact> mas = searcher.searchSha1(dependency.getSha1sum());
+            final List<MavenArtifact> mas = fetchMavenArtifacts(dependency);
             final Confidence confidence = mas.size() > 1 ? Confidence.HIGH : Confidence.HIGHEST;
             for (MavenArtifact ma : mas) {
                 LOGGER.debug("Central analyzer found artifact ({}) for dependency ({})", ma, dependency.getFileName());
                 dependency.addAsEvidence("central", ma, confidence);
                 boolean pomAnalyzed = false;
-                for (Evidence e : dependency.getVendorEvidence()) {
+                for (Evidence e : dependency.getEvidence(EvidenceType.VENDOR)) {
                     if ("pom".equals(e.getSource())) {
                         pomAnalyzed = true;
                         break;
@@ -214,7 +210,7 @@ public class CentralAnalyzer extends AbstractFileTypeAnalyzer {
                 if (!pomAnalyzed && ma.getPomUrl() != null) {
                     File pomFile = null;
                     try {
-                        final File baseDir = Settings.getTempDirectory();
+                        final File baseDir = getSettings().getTempDirectory();
                         pomFile = File.createTempFile("pom", ".xml", baseDir);
                         if (!pomFile.delete()) {
                             LOGGER.warn("Unable to fetch pom.xml for {} from Central; "
@@ -222,7 +218,8 @@ public class CentralAnalyzer extends AbstractFileTypeAnalyzer {
                             LOGGER.debug("Unable to delete temp file");
                         }
                         LOGGER.debug("Downloading {}", ma.getPomUrl());
-                        Downloader.fetchFile(new URL(ma.getPomUrl()), pomFile);
+                        final Downloader downloader = new Downloader(getSettings());
+                        downloader.fetchFile(new URL(ma.getPomUrl()), pomFile);
                         PomUtils.analyzePOM(dependency, pomFile);
 
                     } catch (DownloadFailedException ex) {
@@ -242,8 +239,61 @@ public class CentralAnalyzer extends AbstractFileTypeAnalyzer {
         } catch (FileNotFoundException fnfe) {
             LOGGER.debug("Artifact not found in repository: '{}", dependency.getFileName());
         } catch (IOException ioe) {
-            LOGGER.debug("Could not connect to Central search", ioe);
-            errorFlag = true;
+            final String message = "Could not connect to Central search. Analysis failed.";
+            LOGGER.error(message, ioe);
+            throw new AnalysisException(message, ioe);
         }
+    }
+
+    /**
+     * Downloads the corresponding list of MavenArtifacts of the given
+     * dependency from MavenCentral.
+     * <p>
+     * As the connection to MavenCentral is known to be unreliable, we implement
+     * a simple retry logic in order to compensate for 99% of the issues.
+     *
+     * @param dependency the dependency to analyze
+     * @return the downloaded list of MavenArtifacts
+     * @throws FileNotFoundException if the specified artifact is not found
+     * @throws IOException if connecting to MavenCentral finally failed
+     */
+    protected List<MavenArtifact> fetchMavenArtifacts(Dependency dependency) throws IOException {
+        IOException lastException = null;
+        long sleepingTimeBetweenRetriesInMillis = 1000;
+        int triesLeft = NUMBER_OF_TRIES;
+        while (triesLeft-- > 0) {
+            try {
+                return searcher.searchSha1(dependency.getSha1sum());
+            } catch (FileNotFoundException fnfe) {
+                // retry does not make sense, just throw the exception
+                throw fnfe;
+            } catch (IOException ioe) {
+                LOGGER.debug("Could not connect to Central search (tries left: {}): {}",
+                        triesLeft, ioe.getMessage());
+                lastException = ioe;
+
+                if (triesLeft > 0) {
+                    try {
+                        Thread.sleep(sleepingTimeBetweenRetriesInMillis);
+                        sleepingTimeBetweenRetriesInMillis *= 2;
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                }
+            }
+        }
+
+        final String message = "Finally failed connecting to Central search."
+                + " Giving up after " + NUMBER_OF_TRIES + " tries.";
+        throw new IOException(message, lastException);
+    }
+
+    /**
+     * Method used by unit tests to setup the analyzer.
+     *
+     * @param searcher the Central Search object to use.
+     */
+    protected void setCentralSearch(CentralSearch searcher) {
+        this.searcher = searcher;
     }
 }

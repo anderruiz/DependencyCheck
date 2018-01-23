@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
+import javax.annotation.concurrent.ThreadSafe;
 
 import org.apache.commons.compress.archivers.ArchiveEntry;
 import org.apache.commons.compress.archivers.ArchiveInputStream;
@@ -43,6 +44,7 @@ import org.slf4j.LoggerFactory;
  *
  * @author Jeremy Long
  */
+@ThreadSafe
 public final class ExtractionUtil {
 
     /**
@@ -249,7 +251,8 @@ public final class ExtractionUtil {
             throw new IOException("Unable to rename '" + file.getPath() + "'");
         }
         final File newFile = new File(originalPath);
-        try (GZIPInputStream cin = new GZIPInputStream(new FileInputStream(gzip));
+        try (FileInputStream fis = new FileInputStream(gzip);
+                GZIPInputStream cin = new GZIPInputStream(fis);
                 FileOutputStream out = new FileOutputStream(newFile)) {
             IOUtils.copy(cin, out);
         } finally {

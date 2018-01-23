@@ -37,6 +37,7 @@ import org.junit.Assume;
 import org.junit.Test;
 import org.owasp.dependencycheck.Engine;
 import org.owasp.dependencycheck.data.nvdcve.DatabaseException;
+import org.owasp.dependencycheck.exception.ExceptionCollection;
 import org.owasp.dependencycheck.utils.InvalidSettingException;
 import org.owasp.dependencycheck.utils.Settings;
 
@@ -90,20 +91,20 @@ public class BaseDependencyCheckMojoTest extends BaseTest {
                 }
             }.getMockInstance();
 
-            boolean autoUpdate = Settings.getBoolean(Settings.KEYS.AUTO_UPDATE);
-            Settings.setBoolean(Settings.KEYS.AUTO_UPDATE, false);
-            Engine engine = new Engine();
-            Settings.setBoolean(Settings.KEYS.AUTO_UPDATE, autoUpdate);
+            boolean autoUpdate = getSettings().getBoolean(Settings.KEYS.AUTO_UPDATE);
+            getSettings().setBoolean(Settings.KEYS.AUTO_UPDATE, false);
+            try (Engine engine = new Engine(getSettings())) {
+                getSettings().setBoolean(Settings.KEYS.AUTO_UPDATE, autoUpdate);
 
-            assertTrue(engine.getDependencies().isEmpty());
-            BaseDependencyCheckMojoImpl instance = new BaseDependencyCheckMojoImpl();
-            try { //the mock above fails under some JDKs
-                instance.scanArtifacts(project, engine);
-            } catch (NullPointerException ex) {
-                Assume.assumeNoException(ex);
+                assertTrue(engine.getDependencies().length == 0);
+                BaseDependencyCheckMojoImpl instance = new BaseDependencyCheckMojoImpl();
+                try { //the mock above fails under some JDKs
+                    instance.scanArtifacts(project, engine);
+                } catch (NullPointerException ex) {
+                    Assume.assumeNoException(ex);
+                }
+                assertFalse(engine.getDependencies().length == 0);
             }
-            assertFalse(engine.getDependencies().isEmpty());
-            engine.cleanup();
         }
     }
 
@@ -113,8 +114,8 @@ public class BaseDependencyCheckMojoTest extends BaseTest {
     public class BaseDependencyCheckMojoImpl extends BaseDependencyCheckMojo {
 
         @Override
-        public void runCheck() throws MojoExecutionException, MojoFailureException {
-            throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        protected void runCheck() throws MojoExecutionException, MojoFailureException {
+            throw new UnsupportedOperationException("Operation not supported");
         }
 
         @Override
@@ -129,7 +130,12 @@ public class BaseDependencyCheckMojoTest extends BaseTest {
 
         @Override
         public boolean canGenerateReport() {
-            throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+            throw new UnsupportedOperationException("Operation not supported");
+        }
+
+        @Override
+        protected ExceptionCollection scanDependencies(Engine engine) throws MojoExecutionException {
+            throw new UnsupportedOperationException("Operation not supported");
         }
     }
 }

@@ -23,6 +23,7 @@ import org.owasp.dependencycheck.data.update.exception.UpdateException;
 import org.owasp.dependencycheck.dependency.Confidence;
 import org.owasp.dependencycheck.dependency.Dependency;
 import org.owasp.dependencycheck.dependency.Evidence;
+import org.owasp.dependencycheck.dependency.EvidenceType;
 import org.owasp.dependencycheck.dependency.Vulnerability;
 import org.owasp.dependencycheck.dependency.VulnerableSoftware;
 import org.owasp.dependencycheck.exception.NoDataException;
@@ -38,12 +39,12 @@ public class HdivEngine extends Engine {
 	private AnalysisPhase endPhase = AnalysisPhase.FINAL;
 	private AnalysisPhase startPhase = AnalysisPhase.INITIAL;
 	
-	public HdivEngine() throws DatabaseException {
-		// TODO Auto-generated constructor stub
+	public HdivEngine(Settings settings) throws DatabaseException {
+		super(settings);
 	}
 
-	public HdivEngine(ClassLoader serviceClassLoader) throws DatabaseException {
-		super(serviceClassLoader);
+	public HdivEngine(ClassLoader serviceClassLoader, Settings settings) throws DatabaseException {
+		super(serviceClassLoader, settings);
 	}
 	
     protected void ensureDataExists() throws NoDataException {
@@ -62,15 +63,18 @@ public class HdivEngine extends Engine {
     		super.doUpdates();
     	}
     }
+    
+    public List<Dependency> getDependencyList() {
+    		return dependencies;
+    }
 
 	public static void main(String [] args) throws FileNotFoundException, IOException, Exception {
 		System.out.println(System.getProperty("java.version"));
 		
-		
-    	Settings.initialize();
+		Settings settings = new Settings();
 
     	
-    	HdivEngine engine = new HdivEngine();
+    	HdivEngine engine = new HdivEngine(settings);
     	engine.endPhase = AnalysisPhase.PRE_IDENTIFIER_ANALYSIS;
     	
     	List<Analyzer> removed = new ArrayList<>();
@@ -112,11 +116,11 @@ public class HdivEngine extends Engine {
     	//engine.getDependencies().add(d2);
     	
     	//engine.analyzeDependencies();
-    	final List<Dependency> dependencies = new ArrayList<Dependency>(engine.getDependencies());
+    	final List<Dependency> dependencies = new ArrayList<Dependency>(engine.dependencies);
     	
     	engine.endPhase = AnalysisPhase.FINAL;
     	engine.startPhase = AnalysisPhase.IDENTIFIER_ANALYSIS;
-    	engine.getDependencies().clear();
+    	engine.dependencies.clear();
     	//Dependency d = dependencies.get(0);
     	String path = "/dummyPath";
     	System.out.println("Updating");
@@ -129,9 +133,9 @@ public class HdivEngine extends Engine {
     	//dependencies.clear();
     	
     	Dependency d2 = new Dependency();
-    	d2.getVendorEvidence().addEvidence("rt", "oracle", "oracle", Confidence.HIGHEST);
-    	d2.getProductEvidence().addEvidence("rt", "jdk", "jdk", Confidence.HIGHEST);
-    	d2.getVersionEvidence().addEvidence("rt", "version", "1.6.0:update_34", Confidence.HIGHEST );
+    	d2.addEvidence(EvidenceType.VENDOR, new Evidence("rt", "oracle", "oracle", Confidence.HIGHEST));
+    	d2.addEvidence(EvidenceType.PRODUCT, new Evidence("rt", "jdk", "jdk", Confidence.HIGHEST));
+    	d2.addEvidence(EvidenceType.VERSION, new Evidence("rt", "version", "1.6.0:update_34", Confidence.HIGHEST ));
     	d2.addIdentifier("maven", "oracle:jdk:1.6.0:update_34", "http://hdiv.com");
     	d2.setFileName("rt.jar");
     	d2.setActualFilePath("/dummy/rt.jar");
@@ -139,9 +143,9 @@ public class HdivEngine extends Engine {
     	// dependencies.add(d2);
     	
     	d2 = new Dependency();
-    	d2.getVendorEvidence().addEvidence("rt", "oracle", "oracle", Confidence.HIGHEST);
-    	d2.getProductEvidence().addEvidence("rt", "jrockit", "jrockit", Confidence.HIGHEST);
-    	d2.getVersionEvidence().addEvidence("rt", "version", "r28.3.13", Confidence.HIGHEST );
+    	d2.addEvidence(EvidenceType.VENDOR, new Evidence("rt", "oracle", "oracle", Confidence.HIGHEST));
+    	d2.addEvidence(EvidenceType.PRODUCT, new Evidence("rt", "jrockit", "jrockit", Confidence.HIGHEST));
+    	d2.addEvidence(EvidenceType.VERSION, new Evidence("rt", "version", "r28.3.13", Confidence.HIGHEST ));
     	d2.addIdentifier("maven", "com.oracle:jrockit:r28.3.13", "http://hdiv.com");
     	d2.setFileName("rt.jar");
     	d2.setActualFilePath("/dummy/rt.jar");
@@ -149,9 +153,9 @@ public class HdivEngine extends Engine {
 //    	dependencies.add(d2);
     	
     	d2 = new Dependency();
-    	d2.getVendorEvidence().addEvidence("rt", "ibm", "ibm", Confidence.HIGHEST);
-    	d2.getProductEvidence().addEvidence("rt", "websphere_application_server", "websphere_application_server", Confidence.HIGHEST);
-    	d2.getVersionEvidence().addEvidence("rt", "version", "7.0.0.25", Confidence.HIGHEST );
+    	d2.addEvidence(EvidenceType.VENDOR, new Evidence("rt", "ibm", "ibm", Confidence.HIGHEST));
+    	d2.addEvidence(EvidenceType.PRODUCT, new Evidence("rt", "websphere_application_server", "websphere_application_server", Confidence.HIGHEST));
+    	d2.addEvidence(EvidenceType.VERSION, new Evidence("rt", "version", "7.0.0.25", Confidence.HIGHEST ));
     	d2.addIdentifier("maven", "ibm:websphere_application_server:7.0.0.25", "http://hdiv.com");
     	d2.setFileName("rt.jar");
     	d2.setActualFilePath("/dummy/rt.jar");
@@ -159,9 +163,9 @@ public class HdivEngine extends Engine {
     	//dependencies.add(d2);
     	
     	d2 = new Dependency();
-    	d2.getVendorEvidence().addEvidence("rt", "redhat", "redhat", Confidence.HIGHEST);
-    	d2.getProductEvidence().addEvidence("rt", "jboss_enterprise_application_platform", "jboss_enterprise_application_platform", Confidence.HIGHEST);
-    	d2.getVersionEvidence().addEvidence("rt", "version", "4.2.2", Confidence.HIGHEST );
+    	d2.addEvidence(EvidenceType.VENDOR, new Evidence("rt", "redhat", "redhat", Confidence.HIGHEST));
+    	d2.addEvidence(EvidenceType.PRODUCT, new Evidence("rt", "jboss_enterprise_application_platform", "jboss_enterprise_application_platform", Confidence.HIGHEST));
+    	d2.addEvidence(EvidenceType.VERSION, new Evidence("rt", "version", "4.2.2", Confidence.HIGHEST ));
     	d2.addIdentifier("maven", "ibm:websphere_application_server:7.0.0.25", "http://hdiv.com");
     	d2.setFileName("rt.jar");
     	d2.setActualFilePath("/dummy/rt.jar");
@@ -169,9 +173,9 @@ public class HdivEngine extends Engine {
     	//dependencies.add(d2);
     	
     	d2 = new Dependency();
-    	d2.getVendorEvidence().addEvidence("rt", "oracle", "oracle", Confidence.HIGHEST);
-    	d2.getProductEvidence().addEvidence("rt", "jdk", "jdk", Confidence.HIGHEST);
-    	d2.getVersionEvidence().addEvidence("rt", "version", "1.7.0:update_40", Confidence.HIGHEST );
+    	d2.addEvidence(EvidenceType.VENDOR, new Evidence("rt", "oracle", "oracle", Confidence.HIGHEST));
+    	d2.addEvidence(EvidenceType.PRODUCT, new Evidence("rt", "jdk", "jdk", Confidence.HIGHEST));
+    	d2.addEvidence(EvidenceType.VERSION, new Evidence("rt", "version", "1.7.0:update_40", Confidence.HIGHEST ));
     	d2.addIdentifier("maven", "oracle:jdk:1.7.0:update_40", "http://hdiv.com");
     	d2.setFileName("rt.jar");
     	d2.setActualFilePath("/dummy/rt.jar");
@@ -191,7 +195,7 @@ for (Dependency dependency : dependencies) {
 	System.out.println(dependency.toStringEx());
 		}
     	
-        final CveDB cve = CveDB.getInstance();
+        final CveDB cve = engine.database;
 //        
 //        Set<Pair<String,String>> values = cve.getVendorProductList();
 //        for (Pair<String, String> pair : values) {
@@ -201,20 +205,16 @@ for (Dependency dependency : dependencies) {
         
         
         final DatabaseProperties prop = cve.getDatabaseProperties();
-        final ReportGenerator report = new ReportGenerator("myapp", engine.getDependencies(), engine.getAnalyzers(), prop);
-        try {
-            report.write("salida2.html", Format.HTML);
-        } catch (ReportException ex) {
 
-                throw ex;
-        }
     	
     }
 	
 	private static void consolidateJRE(Dependency dependency) {
-		Set<Evidence> evidence = dependency.getProductEvidence().getEvidence("rt", "jdk");
-		if(!evidence.isEmpty()) {
-			String version = dependency.getVersionEvidence().getEvidence().iterator().next().getValue();
+
+		Set<Evidence> evidences = dependency.getEvidence(EvidenceType.PRODUCT);
+		for (Evidence evidence : evidences) {
+			if("rt".equals(evidence.getSource())&&"jdk".equals(evidence.getName())) {
+			String version = dependency.getEvidence(EvidenceType.VERSION).iterator().next().getValue();
 			String update = null;
 			if(version.indexOf(':')!=-1) {
 				update = version.substring(version.indexOf(':')+1);
@@ -241,30 +241,31 @@ for (Dependency dependency : dependencies) {
 					iterator.remove();
 				}
 			}
+			}
 		}
 	}
 	
 	public void setOfflineMode(boolean offline) {
-		Settings.setBoolean(Settings.KEYS.UPDATE_NVDCVE_ENABLED, !offline);
+		settings.setBoolean(Settings.KEYS.UPDATE_NVDCVE_ENABLED, !offline);
 	}
 	
 	public void update() throws UpdateException, InvalidSettingException, DatabaseException {
-		CveDB.getInstance().cleanupDatabase();
+		database.cleanupDatabase();
 		NvdCveUpdater update = new NvdCveUpdater();
 		
-		final int startYear = Settings.getInt(Settings.KEYS.CVE_START_YEAR, 2002);
+		final int startYear = settings.getInt(Settings.KEYS.CVE_START_YEAR, 2002);
         final int endYear = Calendar.getInstance().get(Calendar.YEAR);
         boolean needsFullUpdate = false;
         for (int y = startYear; y <= endYear; y++) {
-        	CveDB.getInstance().getDatabaseProperties().save(DatabaseProperties.LAST_UPDATED_BASE + y, "0");
+        	database.getDatabaseProperties().save(DatabaseProperties.LAST_UPDATED_BASE + y, "0");
         }
 		
-		int previousDays = Settings.getInt(Settings.KEYS.CVE_MODIFIED_VALID_FOR_DAYS, 7);
-		int previous = Settings.getInt(Settings.KEYS.CVE_CHECK_VALID_FOR_HOURS);
-		Settings.setInt(Settings.KEYS.CVE_CHECK_VALID_FOR_HOURS, -1);
-		Settings.setInt(Settings.KEYS.CVE_MODIFIED_VALID_FOR_DAYS, -1);
-		update.update();
-		Settings.setInt(Settings.KEYS.CVE_CHECK_VALID_FOR_HOURS, previous);
-		Settings.setInt(Settings.KEYS.CVE_MODIFIED_VALID_FOR_DAYS, previousDays);
+		int previousDays = settings.getInt(Settings.KEYS.CVE_MODIFIED_VALID_FOR_DAYS, 7);
+		int previous = settings.getInt(Settings.KEYS.CVE_CHECK_VALID_FOR_HOURS);
+		settings.setInt(Settings.KEYS.CVE_CHECK_VALID_FOR_HOURS, -1);
+		settings.setInt(Settings.KEYS.CVE_MODIFIED_VALID_FOR_DAYS, -1);
+		update.update(this);
+		settings.setInt(Settings.KEYS.CVE_CHECK_VALID_FOR_HOURS, previous);
+		settings.setInt(Settings.KEYS.CVE_MODIFIED_VALID_FOR_DAYS, previousDays);
 	}
 }

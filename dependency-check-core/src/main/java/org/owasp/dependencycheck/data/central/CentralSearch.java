@@ -20,9 +20,12 @@ package org.owasp.dependencycheck.data.central;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
+import javax.annotation.concurrent.ThreadSafe;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.xpath.XPath;
@@ -44,15 +47,21 @@ import org.xml.sax.SAXException;
  *
  * @author colezlaw
  */
+@ThreadSafe
 public class CentralSearch {
 
     /**
-     * The URL for the Central service
+     * The URL for the Central service.
      */
-    private final URL rootURL;
+    private final String rootURL;
 
     /**
-     * Whether to use the Proxy when making requests
+     * The Central Search Query.
+     */
+    private final String query;
+
+    /**
+     * Whether to use the Proxy when making requests.
      */
     private final boolean useProxy;
 
@@ -60,16 +69,35 @@ public class CentralSearch {
      * Used for logging.
      */
     private static final Logger LOGGER = LoggerFactory.getLogger(CentralSearch.class);
+    /**
+     * The configured settings.
+     */
+    private final Settings settings;
 
     /**
      * Creates a NexusSearch for the given repository URL.
      *
-     * @param rootURL the URL of the repository on which searches should
-     * execute. Only parameters are added to this (so it should end in /select)
+     * @param settings the configured settings
+     * @throws MalformedURLException thrown if the configured URL is invalid
      */
-    public CentralSearch(URL rootURL) {
-        this.rootURL = rootURL;
-        if (null != Settings.getString(Settings.KEYS.PROXY_SERVER)) {
+    public CentralSearch(Settings settings) throws MalformedURLException {
+        this.settings = settings;
+
+        final String searchUrl = settings.getString(Settings.KEYS.ANALYZER_CENTRAL_URL);
+        LOGGER.debug("Central Search URL: {}", searchUrl);
+        if (isInvalidURL(searchUrl)) {
+            throw new MalformedURLException(String.format("The configured central analyzer URL is invalid: %s", searchUrl));
+        }
+        this.rootURL = searchUrl;
+        final String queryStr = settings.getString(Settings.KEYS.ANALYZER_CENTRAL_QUERY);
+        LOGGER.debug("Central Search Query: {}", queryStr);
+        if (!queryStr.matches("^%s.*%s.*$")) {
+            final String msg = String.format("The configured central analyzer query parameter is invalid (it must have two %%s): %s", queryStr);
+            throw new MalformedURLException(msg);
+        }
+        this.query = queryStr;
+        LOGGER.debug("Central Search Full URL: {}", String.format(query, rootURL, "[SHA1]"));
+        if (null != settings.getString(Settings.KEYS.PROXY_SERVER)) {
             useProxy = true;
             LOGGER.debug("Using proxy");
         } else {
@@ -79,21 +107,21 @@ public class CentralSearch {
     }
 
     /**
-     * Searches the configured Central URL for the given sha1 hash. If the
+     * Searches the configured Central URL for the given SHA1 hash. If the
      * artifact is found, a <code>MavenArtifact</code> is populated with the
      * GAV.
      *
      * @param sha1 the SHA-1 hash string for which to search
      * @return the populated Maven GAV.
+     * @throws FileNotFoundException if the specified artifact is not found
      * @throws IOException if it's unable to connect to the specified repository
-     * or if the specified artifact is not found.
      */
     public List<MavenArtifact> searchSha1(String sha1) throws IOException {
         if (null == sha1 || !sha1.matches("^[0-9A-Fa-f]{40}$")) {
             throw new IllegalArgumentException("Invalid SHA1 format");
         }
         List<MavenArtifact> result = null;
-        final URL url = new URL(rootURL + String.format("?q=1:\"%s\"&wt=xml", sha1));
+        final URL url = new URL(String.format(query, rootURL, sha1));
 
         LOGGER.debug("Searching Central url {}", url);
 
@@ -103,75 +131,88 @@ public class CentralSearch {
         // or proxy is specifically set to false)
         int retries = 3;
         while(retries-->0) {
-	        final HttpURLConnection conn = URLConnectionFactory.createHttpURLConnection(url, useProxy);
-	
-	        conn.setDoOutput(true);
-	
-	        // JSON would be more elegant, but there's not currently a dependency
-	        // on JSON, so don't want to add one just for this
-	        conn.addRequestProperty("Accept", "application/xml");
-	        conn.connect();
-	
-	        if (conn.getResponseCode() == 200) {
-	            boolean missing = false;
-	            try {
-	                final DocumentBuilder builder = XmlUtils.buildSecureDocumentBuilder();
-	                final Document doc = builder.parse(conn.getInputStream());
-	                final XPath xpath = XPathFactory.newInstance().newXPath();
-	                final String numFound = xpath.evaluate("/response/result/@numFound", doc);
-	                if ("0".equals(numFound)) {
-	                    missing = true;
-	                } else {
-	                    result = new ArrayList<>();
-	                    final NodeList docs = (NodeList) xpath.evaluate("/response/result/doc", doc, XPathConstants.NODESET);
-	                    for (int i = 0; i < docs.getLength(); i++) {
-	                        final String g = xpath.evaluate("./str[@name='g']", docs.item(i));
-	                        LOGGER.trace("GroupId: {}", g);
-	                        final String a = xpath.evaluate("./str[@name='a']", docs.item(i));
-	                        LOGGER.trace("ArtifactId: {}", a);
-	                        final String v = xpath.evaluate("./str[@name='v']", docs.item(i));
-	                        NodeList attributes = (NodeList) xpath.evaluate("./arr[@name='ec']/str", docs.item(i), XPathConstants.NODESET);
-	                        boolean pomAvailable = false;
-	                        boolean jarAvailable = false;
-	                        for (int x = 0; x < attributes.getLength(); x++) {
-	                            final String tmp = xpath.evaluate(".", attributes.item(x));
-	                            if (".pom".equals(tmp)) {
-	                                pomAvailable = true;
-	                            } else if (".jar".equals(tmp)) {
-	                                jarAvailable = true;
-	                            }
-	                        }
-	
-	                        attributes = (NodeList) xpath.evaluate("./arr[@name='tags']/str", docs.item(i), XPathConstants.NODESET);
-	                        boolean useHTTPS = false;
-	                        for (int x = 0; x < attributes.getLength(); x++) {
-	                            final String tmp = xpath.evaluate(".", attributes.item(x));
-	                            if ("https".equals(tmp)) {
-	                                useHTTPS = true;
-	                            }
-	                        }
-	                        LOGGER.trace("Version: {}", v);
-	                        result.add(new MavenArtifact(g, a, v, jarAvailable, pomAvailable, useHTTPS));
-	                    }
-	                }
-	                
-	            } catch (ParserConfigurationException | IOException | SAXException | XPathExpressionException e) {
-	                // Anything else is jacked up XML stuff that we really can't recover from well
-	                throw new IOException(e.getMessage(), e);
-	            }
-	
-	            if (missing) {
-	                throw new FileNotFoundException("Artifact not found in Central");
-	            }
-	            return result;
-	        } else {
-	            LOGGER.debug("Could not connect to Central received response code: {} {}",
-	                    conn.getResponseCode(), conn.getResponseMessage());
-	            if(retries==1) {
-	            	throw new IOException("Could not connect to Central");
-	            }
-	        }
+        	final URLConnectionFactory factory = new URLConnectionFactory(settings);
+            final HttpURLConnection conn = factory.createHttpURLConnection(url, useProxy);
+
+            conn.setDoOutput(true);
+
+            // JSON would be more elegant, but there's not currently a dependency
+            // on JSON, so don't want to add one just for this
+            conn.addRequestProperty("Accept", "application/xml");
+            conn.connect();
+
+            if (conn.getResponseCode() == 200) {
+                boolean missing = false;
+                try {
+                    final DocumentBuilder builder = XmlUtils.buildSecureDocumentBuilder();
+                    final Document doc = builder.parse(conn.getInputStream());
+                    final XPath xpath = XPathFactory.newInstance().newXPath();
+                    final String numFound = xpath.evaluate("/response/result/@numFound", doc);
+                    if ("0".equals(numFound)) {
+                        missing = true;
+                    } else {
+                        result = new ArrayList<>();
+                        final NodeList docs = (NodeList) xpath.evaluate("/response/result/doc", doc, XPathConstants.NODESET);
+                        for (int i = 0; i < docs.getLength(); i++) {
+                            final String g = xpath.evaluate("./str[@name='g']", docs.item(i));
+                            LOGGER.trace("GroupId: {}", g);
+                            final String a = xpath.evaluate("./str[@name='a']", docs.item(i));
+                            LOGGER.trace("ArtifactId: {}", a);
+                            final String v = xpath.evaluate("./str[@name='v']", docs.item(i));
+                            NodeList attributes = (NodeList) xpath.evaluate("./arr[@name='ec']/str", docs.item(i), XPathConstants.NODESET);
+                            boolean pomAvailable = false;
+                            boolean jarAvailable = false;
+                            for (int x = 0; x < attributes.getLength(); x++) {
+                                final String tmp = xpath.evaluate(".", attributes.item(x));
+                                if (".pom".equals(tmp)) {
+                                    pomAvailable = true;
+                                } else if (".jar".equals(tmp)) {
+                                    jarAvailable = true;
+                                }
+                            }
+
+                            attributes = (NodeList) xpath.evaluate("./arr[@name='tags']/str", docs.item(i), XPathConstants.NODESET);
+                            boolean useHTTPS = false;
+                            for (int x = 0; x < attributes.getLength(); x++) {
+                                final String tmp = xpath.evaluate(".", attributes.item(x));
+                                if ("https".equals(tmp)) {
+                                    useHTTPS = true;
+                                }
+                            }
+                            LOGGER.trace("Version: {}", v);
+                            result.add(new MavenArtifact(g, a, v, jarAvailable, pomAvailable, useHTTPS));
+                        }
+                    }
+                } catch (ParserConfigurationException | IOException | SAXException | XPathExpressionException e) {
+                    // Anything else is jacked up XML stuff that we really can't recover from well
+                    throw new IOException(e.getMessage(), e);
+                }
+
+                if (missing) {
+                    throw new FileNotFoundException("Artifact not found in Central");
+                }
+            } else {
+                final String errorMessage = "Could not connect to MavenCentral (" + conn.getResponseCode() + "): " + conn.getResponseMessage();
+                throw new IOException(errorMessage);
+            }
         }
         return result;
+    }
+
+    /**
+     * Tests to determine if the given URL is <b>invalid</b>.
+     *
+     * @param url the URL to evaluate
+     * @return true if the URL is malformed; otherwise false
+     */
+    private boolean isInvalidURL(String url) {
+        try {
+            final URL u = new URL(url);
+            u.toURI();
+        } catch (MalformedURLException | URISyntaxException e) {
+            LOGGER.trace("URL is invalid: {}", url);
+            return true;
+        }
+        return false;
     }
 }

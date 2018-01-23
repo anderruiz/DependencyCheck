@@ -18,23 +18,26 @@
 package org.owasp.dependencycheck.analyzer;
 
 import java.io.File;
+import javax.annotation.concurrent.ThreadSafe;
 
 import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.io.IOCase;
 import org.apache.commons.io.filefilter.NameFileFilter;
 import org.owasp.dependencycheck.Engine;
 import org.owasp.dependencycheck.analyzer.exception.AnalysisException;
 import org.owasp.dependencycheck.dependency.Confidence;
 import org.owasp.dependencycheck.dependency.Dependency;
+import org.owasp.dependencycheck.dependency.EvidenceType;
 import org.owasp.dependencycheck.utils.DependencyVersion;
 import org.owasp.dependencycheck.utils.DependencyVersionUtil;
 import org.owasp.dependencycheck.utils.Settings;
 
 /**
- *
  * Takes a dependency and analyzes the filename and determines the hashes.
  *
  * @author Jeremy Long
  */
+@ThreadSafe
 public class FileNameAnalyzer extends AbstractAnalyzer {
 
     /**
@@ -44,7 +47,15 @@ public class FileNameAnalyzer extends AbstractAnalyzer {
     private static final NameFileFilter IGNORED_FILES = new NameFileFilter(new String[]{
         "__init__.py",
         "__init__.pyc",
-        "__init__.pyo",});
+        "__init__.pyo",
+        "composer.lock",
+        "configure.in",
+        "configure.ac",
+        "Gemfile.lock",
+        "METADATA",
+        "PKG-INFO",
+        "package.json",
+        "Package.swift",}, IOCase.INSENSITIVE);
     //CSON: WhitespaceAfter
 
     //<editor-fold defaultstate="collapsed" desc="All standard implementation details of Analyzer">
@@ -76,6 +87,7 @@ public class FileNameAnalyzer extends AbstractAnalyzer {
     public AnalysisPhase getAnalysisPhase() {
         return ANALYSIS_PHASE;
     }
+
     /**
      * <p>
      * Returns the setting key to determine if the analyzer is enabled.</p>
@@ -111,21 +123,16 @@ public class FileNameAnalyzer extends AbstractAnalyzer {
             // a shade. This should hopefully correct for cases like log4j.jar or
             // struts2-core.jar
             if (version.getVersionParts() == null || version.getVersionParts().size() < 2) {
-                dependency.getVersionEvidence().addEvidence("file", "version",
-                        version.toString(), Confidence.MEDIUM);
+                dependency.addEvidence(EvidenceType.VERSION, "file", "version", version.toString(), Confidence.MEDIUM);
             } else {
-                dependency.getVersionEvidence().addEvidence("file", "version",
-                        version.toString(), Confidence.HIGHEST);
+                dependency.addEvidence(EvidenceType.VERSION, "file", "version", version.toString(), Confidence.HIGHEST);
             }
-            dependency.getVersionEvidence().addEvidence("file", "name",
-                    packageName, Confidence.MEDIUM);
+            dependency.addEvidence(EvidenceType.VERSION, "file", "name", packageName, Confidence.MEDIUM);
         }
 
         if (!IGNORED_FILES.accept(f)) {
-            dependency.getProductEvidence().addEvidence("file", "name",
-                    packageName, Confidence.HIGH);
-            dependency.getVendorEvidence().addEvidence("file", "name",
-                    packageName, Confidence.HIGH);
+            dependency.addEvidence(EvidenceType.PRODUCT, "file", "name", packageName, Confidence.HIGH);
+            dependency.addEvidence(EvidenceType.VENDOR, "file", "name", packageName, Confidence.HIGH);
         }
     }
 }

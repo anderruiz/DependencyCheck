@@ -25,6 +25,8 @@ import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.ResolutionScope;
+import org.owasp.dependencycheck.Engine;
+import org.owasp.dependencycheck.exception.ExceptionCollection;
 import org.owasp.dependencycheck.utils.Settings;
 
 /**
@@ -61,7 +63,7 @@ public class PurgeMojo extends BaseDependencyCheckMojo {
      * fail the build
      */
     @Override
-    public void runCheck() throws MojoExecutionException, MojoFailureException {
+    protected void runCheck() throws MojoExecutionException, MojoFailureException {
 
         if (getConnectionString() != null && !getConnectionString().isEmpty()) {
             final String msg = "Unable to purge the local NVD when using a non-default connection string";
@@ -73,7 +75,7 @@ public class PurgeMojo extends BaseDependencyCheckMojo {
             populateSettings();
             File db;
             try {
-                db = new File(Settings.getDataDirectory(), Settings.getString(Settings.KEYS.DB_FILE_NAME, "dc.h2.db"));
+                db = new File(getSettings().getDataDirectory(), getSettings().getString(Settings.KEYS.DB_FILE_NAME, "dc.h2.db"));
                 if (db.exists()) {
                     if (db.delete()) {
                         getLog().info("Database file purged; local copy of the NVD has been removed");
@@ -85,7 +87,7 @@ public class PurgeMojo extends BaseDependencyCheckMojo {
                         getLog().error(msg);
                     }
                 } else {
-                    final String msg = String.format("Unable to purge database; the database file does not exists: %s", db.getAbsolutePath());
+                    final String msg = String.format("Unable to purge database; the database file does not exist: %s", db.getAbsolutePath());
                     if (this.isFailOnError()) {
                         throw new MojoFailureException(msg);
                     }
@@ -98,7 +100,7 @@ public class PurgeMojo extends BaseDependencyCheckMojo {
                 }
                 getLog().error(msg);
             }
-            Settings.cleanup();
+            getSettings().cleanup();
         }
     }
 
@@ -125,4 +127,15 @@ public class PurgeMojo extends BaseDependencyCheckMojo {
         return "Purges the local cache of the NVD dataT.";
     }
 
+    /**
+     * Throws an exception if called. The purge mojo does not scan dependencies.
+     *
+     * @param engine the engine used to scan
+     * @return a collection of exceptions
+     * @throws MojoExecutionException thrown if there is an exception
+     */
+    @Override
+    protected ExceptionCollection scanDependencies(Engine engine) throws MojoExecutionException {
+        throw new UnsupportedOperationException("Operation not supported");
+    }
 }

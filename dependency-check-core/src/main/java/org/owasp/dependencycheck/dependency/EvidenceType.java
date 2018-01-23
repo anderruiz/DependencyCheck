@@ -13,34 +13,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Copyright (c) 2012 Jeremy Long. All Rights Reserved.
+ * Copyright (c) 2017 Jeremy Long. All Rights Reserved.
  */
 package org.owasp.dependencycheck.dependency;
 
-import java.io.Serializable;
-import java.util.Comparator;
-
 /**
- * Comparator for Vulnerability objects.
+ * The types of evidence.
  *
- * @author Jeremy Long
+ * @author jeremy long
  */
-public class VulnerabilityComparator implements Comparator<Vulnerability>, Serializable {
-
+public enum EvidenceType {
     /**
-     * The serial version UID.
+     * Vendor evidence.
      */
-    private static final long serialVersionUID = 1L;
-
+    VENDOR,
     /**
-     * Implements the comparison of vulnerabilities.
-     *
-     * @param o1 a vulnerability
-     * @param o2 a second vulnerability
-     * @return the comparison
+     * Product evidence.
      */
-    @Override
-    public int compare(Vulnerability o1, Vulnerability o2) {
-        return o2.getName().compareTo(o1.getName());
-    }
+    PRODUCT,
+    /**
+     * Version evidence.
+     */
+    VERSION
+
 }

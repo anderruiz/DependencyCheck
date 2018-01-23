@@ -20,7 +20,7 @@ Copyright (c) 2013 Jeremy Long. All Rights Reserved.
     <parent>
         <groupId>org.owasp</groupId>
         <artifactId>dependency-check-parent</artifactId>
-    		<version>2.1.1.rc1.hdiv</version>
+    		<version>3.0.2.rc1.hdiv</version>
     </parent>
     <artifactId>dependency-check-maven</artifactId>
     <packaging>maven-plugin</packaging>
@@ -73,27 +73,6 @@ Copyright (c) 2013 Jeremy Long. All Rights Reserved.
                         <goals>
                             <goal>helpmojo</goal>
                         </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <inherited>true</inherited>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-enforcer-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <id>enforce-maven-3</id>
-                        <goals>
-                            <goal>enforce</goal>
-                        </goals>
-                        <configuration>
-                            <rules>
-                                <requireMavenVersion>
-                                    <version>[3.0,]</version>
-                                </requireMavenVersion>
-                            </rules>
-                            <fail>true</fail>
-                        </configuration>
                     </execution>
                 </executions>
             </plugin>
@@ -231,12 +210,10 @@ Copyright (c) 2013 Jeremy Long. All Rights Reserved.
                         </dependencies>
                         <configuration>
                             <!--streamLogs>true</streamLogs-->
-                            <!-- The parallel builds cannot be increased beyond 2 as 690 must run before others (can be run parralel to 618 though) -->
                             <parallelThreads>4</parallelThreads>
-                            <setupIncludes>
+                            <!--setupIncludes>
                                 <setupInclude>690-threadsafety/pom.xml</setupInclude>
-                                <setupInclude>618-aggregator-purge/pom.xml</setupInclude>
-                            </setupIncludes>
+                            </setupIncludes-->
                             <cloneProjectsTo>${project.build.directory}/it</cloneProjectsTo>
                             <localRepositoryPath>target/local-repo</localRepositoryPath>
                         </configuration>

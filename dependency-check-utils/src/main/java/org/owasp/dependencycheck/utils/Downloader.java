@@ -63,11 +63,25 @@ public final class Downloader {
 	 */
 	private static final String GET = "GET";
 
-	/**
-	 * Private constructor for utility class.
-	 */
-	private Downloader() {
-	}
+    /**
+     * The configured settings.
+     */
+    private final Settings settings;
+
+    /**
+     * The URL connection facctory.
+     */
+    private final URLConnectionFactory connFactory;
+
+    /**
+     * Constructs a new downloader object.
+     *
+     * @param settings the configured settings
+     */
+    public Downloader(Settings settings) {
+        this.settings = settings;
+        this.connFactory = new URLConnectionFactory(settings);
+    }
 
 	/**
 	 * Retrieves a file from a given URL and saves it to the outputPath.
@@ -77,12 +91,11 @@ public final class Downloader {
      * @throws DownloadFailedException is thrown if there is an error
      * downloading the file
      */
-	public static void fetchFile(final URL url, final File outputPath) throws DownloadFailedException {
+	public void fetchFile(final URL url, final File outputPath) throws DownloadFailedException {
 		fetchFile(url, outputPath, true);
 	}
 
-
-	public static void fetchFile(final URL url, final File outputPath, final boolean useProxy) throws DownloadFailedException {
+	public void fetchFile(final URL url, final File outputPath, final boolean useProxy) throws DownloadFailedException {
 		int retries = 3;
 		while (retries-- > 0) {
 			try {
@@ -132,7 +145,7 @@ public final class Downloader {
 	 * @param useProxy whether to use the configured proxy when downloading files
 	 * @throws DownloadFailedException is thrown if there is an error downloading the file
 	 */
-	public static void doFetchFile(final URL url, final File outputPath, final boolean useProxy) throws DownloadFailedException {
+	public void doFetchFile(final URL url, final File outputPath, final boolean useProxy) throws DownloadFailedException {
 		if ("file".equalsIgnoreCase(url.getProtocol())) {
 			File file;
 			try {
@@ -156,7 +169,7 @@ public final class Downloader {
 			HttpURLConnection conn = null;
 			try {
 				LOGGER.debug("Attempting download of {}", url.toString());
-				conn = URLConnectionFactory.createHttpURLConnection(url, useProxy);
+				conn = connFactory.createHttpURLConnection(url, useProxy);
 				conn.setRequestProperty("Accept-Encoding", "gzip, deflate");
 				conn.connect();
 				int status = conn.getResponseCode();
@@ -166,26 +179,25 @@ public final class Downloader {
                         || status == HttpURLConnection.HTTP_SEE_OTHER)
                         && MAX_REDIRECT_ATTEMPTS > redirectCount++) {
 					final String location = conn.getHeaderField("Location");
-					try {
-						conn.disconnect();
-					} finally {
-						conn = null;
-					}
-					LOGGER.debug("Download is being redirected from {} to {}", url.toString(), location);
-					conn = URLConnectionFactory.createHttpURLConnection(new URL(location), useProxy);
-					conn.setRequestProperty("Accept-Encoding", "gzip, deflate");
-					conn.connect();
-					status = conn.getResponseCode();
-				}
-				if (status != 200) {
-					try {
-						conn.disconnect();
-					} finally {
-						conn = null;
-					}
-					final String msg = format("Error downloading file %s; received response code %s.", url.toString(), status);
-					throw new DownloadFailedException(msg);
-
+                    try {
+                        conn.disconnect();
+                    } finally {
+                        conn = null;
+                    }
+                    LOGGER.debug("Download is being redirected from {} to {}", url.toString(), location);
+                    conn = connFactory.createHttpURLConnection(new URL(location), useProxy);
+                    conn.setRequestProperty("Accept-Encoding", "gzip, deflate");
+                    conn.connect();
+                    status = conn.getResponseCode();
+                }
+                if (status != 200) {
+                    try {
+                        conn.disconnect();
+                    } finally {
+                        conn = null;
+                    }
+                    final String msg = format("Error downloading file %s; received response code %s.", url.toString(), status);
+                    throw new DownloadFailedException(msg);
 				}
 			} catch (IOException ex) {
 				try {
@@ -258,9 +270,9 @@ public final class Downloader {
      * @throws DownloadFailedException is thrown if an exception occurs making
      * the HTTP request
      */
-	public static long getLastModified(final URL url) throws DownloadFailedException {
-		return getLastModified(url, false);
-	}
+    public long getLastModified(URL url) throws DownloadFailedException {
+        return getLastModified(url, false);
+    }
 
     /**
      * Makes an HTTP Head request to retrieve the last modified date of the
@@ -274,70 +286,62 @@ public final class Downloader {
      * @throws DownloadFailedException is thrown if an exception occurs making
      * the HTTP request
      */
-	private static long getLastModified(final URL url, final boolean isRetry) throws DownloadFailedException {
-		long timestamp = 0;
-		// TODO add the FTP protocol?
-		if ("file".equalsIgnoreCase(url.getProtocol())) {
-			File lastModifiedFile;
-			try {
-				lastModifiedFile = new File(url.toURI());
-			} catch (URISyntaxException ex) {
-				final String msg = format("Unable to locate '%s'", url.toString());
-				throw new DownloadFailedException(msg, ex);
-			}
-			timestamp = lastModifiedFile.lastModified();
-		}
-		else {
-			final String httpMethod = determineHttpMethod();
-			HttpURLConnection conn = null;
-			try {
-				conn = URLConnectionFactory.createHttpURLConnection(url);
-				conn.setRequestMethod(httpMethod);
-				conn.connect();
-				final int t = conn.getResponseCode();
-				if (t >= 200 && t < 300) {
-					timestamp = conn.getLastModified();
-				} else {
-					throw new DownloadFailedException(format("%s request returned a non-200 status code", httpMethod));
-				}
-			}
-			catch (URLConnectionFailureException ex) {
-				throw new DownloadFailedException(format("Error creating URL Connection for HTTP %s request.", httpMethod), ex);
-			}
-			catch (IOException ex) {
-				checkForCommonExceptionTypes(ex);
-				if (isRetry) {
-					LOGGER.error("IO Exception: " + ex.getMessage());
-				}
-				else {
-					LOGGER.debug("IO Exception: " + ex.getMessage());
-				}
-				LOGGER.debug("Exception details", ex);
-				if (ex.getCause() != null) {
-					LOGGER.debug("IO Exception cause: " + ex.getCause().getMessage(), ex.getCause());
-				}
-				try {
-					// retry
-					if (!isRetry && Settings.getBoolean(Settings.KEYS.DOWNLOADER_QUICK_QUERY_TIMESTAMP)) {
-						Settings.setBoolean(Settings.KEYS.DOWNLOADER_QUICK_QUERY_TIMESTAMP, false);
-						return getLastModified(byProxy(url), true);
-					}
-				} catch (InvalidSettingException ex1) {
-					LOGGER.debug("invalid setting?", ex1);
-				}
-				throw new DownloadFailedException(format("Error making HTTP %s request to %s.", httpMethod, url.toString()), ex);
-			} finally {
-				if (conn != null) {
-					try {
-						conn.disconnect();
-					} finally {
-						conn = null;
-					}
-				}
-			}
-		}
-		return timestamp;
-	}
+    private long getLastModified(URL url, boolean isRetry) throws DownloadFailedException {
+        long timestamp = 0;
+        //TODO add the FTP protocol?
+        if ("file".equalsIgnoreCase(url.getProtocol())) {
+            File lastModifiedFile;
+            try {
+                lastModifiedFile = new File(url.toURI());
+            } catch (URISyntaxException ex) {
+                final String msg = format("Unable to locate '%s'", url.toString());
+                throw new DownloadFailedException(msg, ex);
+            }
+            timestamp = lastModifiedFile.lastModified();
+        } else {
+            final String httpMethod = determineHttpMethod();
+            HttpURLConnection conn = null;
+            try {
+                conn = connFactory.createHttpURLConnection(url);
+                conn.setRequestMethod(httpMethod);
+                conn.connect();
+                final int t = conn.getResponseCode();
+                if (t >= 200 && t < 300) {
+                    timestamp = conn.getLastModified();
+                } else {
+                    throw new DownloadFailedException(format("%s request returned a non-200 status code", httpMethod));
+                }
+            } catch (URLConnectionFailureException ex) {
+                throw new DownloadFailedException(format("Error creating URL Connection for HTTP %s request.", httpMethod), ex);
+            } catch (IOException ex) {
+                checkForCommonExceptionTypes(ex);
+                LOGGER.error("IO Exception: " + ex.getMessage());
+                LOGGER.debug("Exception details", ex);
+                if (ex.getCause() != null) {
+                    LOGGER.debug("IO Exception cause: " + ex.getCause().getMessage(), ex.getCause());
+                }
+                try {
+                    //retry
+                    if (!isRetry && settings.getBoolean(Settings.KEYS.DOWNLOADER_QUICK_QUERY_TIMESTAMP)) {
+                        settings.setBoolean(Settings.KEYS.DOWNLOADER_QUICK_QUERY_TIMESTAMP, false);
+                        return getLastModified(url, true);
+                    }
+                } catch (InvalidSettingException ex1) {
+                    LOGGER.debug("invalid setting?", ex1);
+                }
+                throw new DownloadFailedException(format("Error making HTTP %s request.", httpMethod), ex);
+            } finally {
+                if (conn != null) {
+                    try {
+                        conn.disconnect();
+                    } finally {
+                        conn = null;
+                    }
+                }
+            }
+        }
+        return timestamp;
+    }
 
     /**
      * Analyzes the IOException, logs the appropriate information for debugging
@@ -349,19 +353,19 @@ public final class Downloader {
      * @throws DownloadFailedException a wrapper exception that contains the
      * original exception as the cause
      */
-	protected static synchronized void checkForCommonExceptionTypes(final IOException ex) throws DownloadFailedException {
-		Throwable cause = ex;
-		while (cause != null) {
-			if (cause instanceof java.net.UnknownHostException) {
-				final String msg = format("Unable to resolve domain '%s'", cause.getMessage());
-				LOGGER.error(msg);
-				throw new DownloadFailedException(msg);
-			}
-			if (cause instanceof InvalidAlgorithmParameterException) {
-				final String keystore = System.getProperty("javax.net.ssl.keyStore");
-				final String version = System.getProperty("java.version");
-				final String vendor = System.getProperty("java.vendor");
-				LOGGER.info("Error making HTTPS request - InvalidAlgorithmParameterException");
+    protected synchronized void checkForCommonExceptionTypes(IOException ex) throws DownloadFailedException {
+        Throwable cause = ex;
+        while (cause != null) {
+            if (cause instanceof java.net.UnknownHostException) {
+                final String msg = format("Unable to resolve domain '%s'", cause.getMessage());
+                LOGGER.error(msg);
+                throw new DownloadFailedException(msg);
+            }
+            if (cause instanceof InvalidAlgorithmParameterException) {
+                final String keystore = System.getProperty("javax.net.ssl.keyStore");
+                final String version = System.getProperty("java.version");
+                final String vendor = System.getProperty("java.vendor");
+                LOGGER.info("Error making HTTPS request - InvalidAlgorithmParameterException");
                 LOGGER.info("There appears to be an issue with the installation of Java and the cacerts."
                         + "See closed issue #177 here: https://github.com/jeremylong/DependencyCheck/issues/177");
                 LOGGER.info("Java Info:\njavax.net.ssl.keyStore='{}'\njava.version='{}'\njava.vendor='{}'",
@@ -371,15 +375,15 @@ public final class Downloader {
 			cause = cause.getCause();
 		}
 	}
-
-	/**
-	 * Returns the HEAD or GET HTTP method. HEAD is the default.
-	 *
-	 * @return the HTTP method to use
-	 */
-	private static String determineHttpMethod() {
-		return isQuickQuery() ? HEAD : GET;
-	}
+	
+    /**
+     * Returns the HEAD or GET HTTP method. HEAD is the default.
+     *
+     * @return the HTTP method to use
+     */
+    private String determineHttpMethod() {
+        return isQuickQuery() ? HEAD : GET;
+    }
 
     /**
      * Determines if the HTTP method GET or HEAD should be used to check the
@@ -387,17 +391,18 @@ public final class Downloader {
      *
      * @return true if configured to use HEAD requests
      */
-	private static boolean isQuickQuery() {
-		boolean quickQuery;
+    private boolean isQuickQuery() {
+        boolean quickQuery;
 
-		try {
-			quickQuery = Settings.getBoolean(Settings.KEYS.DOWNLOADER_QUICK_QUERY_TIMESTAMP, true);
-		} catch (InvalidSettingException e) {
-			if (LOGGER.isTraceEnabled()) {
-				LOGGER.trace("Invalid settings : {}", e.getMessage(), e);
-			}
-			quickQuery = true;
-		}
-		return quickQuery;
-	}
+        try {
+            quickQuery = settings.getBoolean(Settings.KEYS.DOWNLOADER_QUICK_QUERY_TIMESTAMP, true);
+        } catch (InvalidSettingException e) {
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace("Invalid settings : {}", e.getMessage(), e);
+            }
+            quickQuery = true;
+        }
+        return quickQuery;
+    }
+
 }

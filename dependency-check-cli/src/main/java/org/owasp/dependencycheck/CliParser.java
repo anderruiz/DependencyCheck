@@ -53,6 +53,19 @@ public final class CliParser {
      * Indicates whether the arguments are valid.
      */
     private boolean isValid = true;
+    /**
+     * The configured settings.
+     */
+    private final Settings settings;
+
+    /**
+     * Constructs a new CLI Parser object with the configured settings.
+     *
+     * @param settings the configured settings
+     */
+    public CliParser(Settings settings) {
+        this.settings = settings;
+    }
 
     /**
      * Parses the arguments passed in and captures the results for later use.
@@ -288,6 +301,10 @@ public final class CliParser {
                 .desc("Enables the experimental analyzers.")
                 .build();
 
+        final Option retiredEnabled = Option.builder().longOpt(ARGUMENT.RETIRED)
+                .desc("Enables the experimental analyzers.")
+                .build();
+
         final Option failOnCVSS = Option.builder().argName("score").hasArg().longOpt(ARGUMENT.FAIL_ON_CVSS)
                 .desc("Specifies if the build should be failed if a CVSS score above a specified level is identified. "
                         + "The default is 11; since the CVSS scores are 0-10, by default the build will never fail.")
@@ -316,6 +333,7 @@ public final class CliParser {
                 .addOption(hintsFile)
                 .addOption(cveValidForHours)
                 .addOption(experimentalEnabled)
+                .addOption(retiredEnabled)
                 .addOption(failOnCVSS);
     }
 
@@ -582,7 +600,7 @@ public final class CliParser {
     private boolean hasDisableOption(String argument, String setting) {
         if (line == null || !line.hasOption(argument)) {
             try {
-                return !Settings.getBoolean(setting);
+                return !settings.getBoolean(setting);
             } catch (InvalidSettingException ise) {
                 LOGGER.warn("Invalid property setting '{}' defaulting to false", setting);
                 return false;
@@ -801,7 +819,7 @@ public final class CliParser {
         // still honor the property if it's set.
         if (line == null || !line.hasOption(ARGUMENT.NEXUS_USES_PROXY)) {
             try {
-                return Settings.getBoolean(Settings.KEYS.ANALYZER_NEXUS_USES_PROXY);
+                return settings.getBoolean(Settings.KEYS.ANALYZER_NEXUS_USES_PROXY);
             } catch (InvalidSettingException ise) {
                 return true;
             }
@@ -823,10 +841,10 @@ public final class CliParser {
         final String helpMsg = String.format("%n%s"
                 + " can be used to identify if there are any known CVE vulnerabilities in libraries utilized by an application. "
                 + "%s will automatically update required data from the Internet, such as the CVE and CPE data files from nvd.nist.gov.%n%n",
-                Settings.getString("application.name", "DependencyCheck"),
-                Settings.getString("application.name", "DependencyCheck"));
+                settings.getString("application.name", "DependencyCheck"),
+                settings.getString("application.name", "DependencyCheck"));
 
-        formatter.printHelp(Settings.getString("application.name", "DependencyCheck"),
+        formatter.printHelp(settings.getString("application.name", "DependencyCheck"),
                 helpMsg,
                 options,
                 "",
@@ -1054,8 +1072,8 @@ public final class CliParser {
      */
     public void printVersionInfo() {
         final String version = String.format("%s version %s",
-                Settings.getString(Settings.KEYS.APPLICATION_NAME, "dependency-check"),
-                Settings.getString(Settings.KEYS.APPLICATION_VERSION, "Unknown"));
+                settings.getString(Settings.KEYS.APPLICATION_NAME, "dependency-check"),
+                settings.getString(Settings.KEYS.APPLICATION_VERSION, "Unknown"));
         System.out.println(version);
     }
 
@@ -1173,6 +1191,15 @@ public final class CliParser {
      */
     public Boolean isExperimentalEnabled() {
         return (line != null && line.hasOption(ARGUMENT.EXPERIMENTAL)) ? true : null;
+    }
+
+    /**
+     * Returns true if the retired analyzers are enabled.
+     *
+     * @return true if the retired analyzers are enabled; otherwise null
+     */
+    public Boolean isRetiredEnabled() {
+        return (line != null && line.hasOption(ARGUMENT.RETIRED)) ? true : null;
     }
 
     /**
@@ -1508,6 +1535,10 @@ public final class CliParser {
          * The CLI argument to enable the experimental analyzers.
          */
         private static final String EXPERIMENTAL = "enableExperimental";
+        /**
+         * The CLI argument to enable the retired analyzers.
+         */
+        private static final String RETIRED = "enableRetired";
         /**
          * The CLI argument to enable the experimental analyzers.
          */

@@ -14,12 +14,13 @@ Short  | Argument&nbsp;Name&nbsp;&nbsp; | Parameter       | Description | Requir
        | \-\-failOnCVSS         | \<score\>       | If the score set between 0 and 10 the exit code from dependency-check will indicate if a vulnerability with a CVSS score equal to or higher was identified. | Optional
  \-l   | \-\-log                | \<file\>        | The file path to write verbose logging information. | Optional
  \-n   | \-\-noupdate           |                 | Disables the automatic updating of the CPE data. | Optional
-       | \-\-suppression        | \<files\>       | The file paths to the suppression XML files; used to suppress [false positives](../general/suppression.html). This can be specified more then once to utilize multiple suppression files. | Optional
+       | \-\-suppression        | \<files\>       | The file paths to the suppression XML files; used to suppress [false positives](../general/suppression.html). This can be specified more than once to utilize multiple suppression files. | Optional
  \-h   | \-\-help               |                 | Print the help message. | Optional
        | \-\-advancedHelp       |                 | Print the advanced help message. | Optional
  \-v   | \-\-version            |                 | Print the version information. | Optional
        | \-\-cveValidForHours   | \<hours\>       | The number of hours to wait before checking for new updates from the NVD. The default is 4 hours. | Optional
        | \-\-enableExperimental |                 | Enable the [experimental analyzers](../analyzers/index.html). If not set the analyzers marked as experimental below will not be loaded or used. | Optional
+       | \-\-enableRetired      |                 | Enable the [retired analyzers](../analyzers/index.html). If not set the analyzers marked as retired below will not be loaded or used. | Optional
 
 Advanced Options
 ================
@@ -33,12 +34,12 @@ Short  | Argument&nbsp;Name&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | Paramete
        | \-\-updateonly         |                 | If set only the update phase of dependency-check will be executed; no scan will be executed and no report will be generated. | &nbsp;
        | \-\-disablePyDist      |                 | Sets whether the [experimental](../analyzers/index.html) Python Distribution Analyzer will be used.                      | false
        | \-\-disablePyPkg       |                 | Sets whether the [experimental](../analyzers/index.html) Python Package Analyzer will be used.                           | false
-       | \-\-disableNodeJS      |                 | Sets whether the [experimental](../analyzers/index.html) Node.js Package Analyzer will be used.                          | false
+       | \-\-disableNodeJS      |                 | Sets whether the [retired](../analyzers/index.html) Node.js Package Analyzer will be used.                               | false
        | \-\-disableNSP         |                 | Sets whether the NSP Analyzer will be used.                                                                              | false
        | \-\-disableRubygems    |                 | Sets whether the [experimental](../analyzers/index.html) Ruby Gemspec Analyzer will be used.                             | false
        | \-\-disableBundleAudit |                 | Sets whether the [experimental](../analyzers/index.html) Ruby Bundler Audit Analyzer will be used.                       | false
        | \-\-disableCocoapodsAnalyzer |           | Sets whether the [experimental](../analyzers/index.html) Cocoapods Analyzer will be used.                                | false
-       | \-\-disableSwiftPackageManagerAnalyzer | | Sets whether the [experimental](../analyzers/index.html) Swift Package Manager Analyzer will be used.                   | false
+       | \-\-disableSwiftPackageManagerAnalyzer | | Sets whether the [experimental](../analyzers/index.html) Swift Package Manager Analyzer will be used.                    | false
        | \-\-disableAutoconf    |                 | Sets whether the [experimental](../analyzers/index.html) Autoconf Analyzer will be used.                                 | false
        | \-\-disableOpenSSL     |                 | Sets whether the OpenSSL Analyzer will be used.                                                                          | false
        | \-\-disableCmake       |                 | Sets whether the [experimental](../analyzers/index.html) Cmake Analyzer will be disabled.                                | false
@@ -47,7 +48,7 @@ Short  | Argument&nbsp;Name&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | Paramete
        | \-\-disableJar         |                 | Sets whether the Jar Analyzer will be disabled.                                                                          | false
        | \-\-disableComposer    |                 | Sets whether the [experimental](../analyzers/index.html) PHP Composer Lock File Analyzer will be disabled.               | false
        | \-\-disableCentral     |                 | Sets whether the Central Analyzer will be used. **Disabling this analyzer is not recommended as it could lead to false negatives (e.g. libraries that have vulnerabilities may not be reported correctly).** If this analyzer is being disabled there is a good chance you also want to disable the Nexus Analyzer. | false
-       | \-\-disableNexus       |                 | Sets whether the Nexus Analyzer will be used. Note, this has been superceded by the Central Analyzer. However, you can configure the Nexus URL to utilize an internally hosted Nexus Pro server. | false
+       | \-\-disableNexus       |                 | Sets whether the Nexus Analyzer will be used (requires Nexus Pro). Note, this has been superceded by the Central Analyzer. However, you can configure the Nexus URL to utilize an internally hosted Nexus Pro server. | false
        | \-\-nexus              | \<url\>         | The url to the Nexus Server's web service end point (example: http://domain.enterprise/nexus/service/local/). If not set the Nexus Analyzer will be disabled. | &nbsp;
        | \-\-nexusUsesProxy     | \<true\|false\> | Whether or not the defined proxy should be used when connecting to Nexus.        | true
        | \-\-disableNuspec      |                 | Sets whether or not the .NET Nuget Nuspec Analyzer will be used.                 | false

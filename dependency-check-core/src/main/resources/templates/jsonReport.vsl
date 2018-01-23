@@ -1,5 +1,5 @@
 {
-    "reportSchema": "1.0",
+    "reportSchema": "1.1",
     "scanInfo": {
         "engineVersion": "$version",
         "dataSource": [
@@ -24,6 +24,7 @@
     },
     "dependencies": [
         #foreach($dependency in $dependencies)#if($foreach.count > 1),#end{
+            "isVirtual": #if($dependency.isVirtual)true#{else}false#end,
             "fileName": "$enc.json($dependency.DisplayFileName)",
             "filePath": "$enc.json($dependency.FilePath)",
             "md5": "$enc.json($dependency.Md5sum)",
@@ -33,6 +34,7 @@
             #if ($dependency.getRelatedDependencies().size()>0)
             ,"relatedDependencies": [
                 #foreach($related in $dependency.getRelatedDependencies()) #if($foreach.count > 1),#end {
+                    "isVirtual": #if($dependency.isVirtual)true#{else}false#end,
                     "filePath": "$enc.json($related.FilePath)",
                     "sha1": "#if($related.Sha1sum)$enc.json($related.Sha1sum)#end",
                     "md5": "#if($related.Md5sum)$enc.json($related.Md5sum)#end"#if($related.getIdentifiers()),
@@ -65,7 +67,7 @@
             #end
             ,"evidenceCollected": {
                 "vendorEvidence": [
-                    #foreach($evidence in $dependency.getVendorEvidence())
+                    #foreach($evidence in $dependency.getEvidence($VENDOR))
                         #if($foreach.count > 1),#end{
                             "type": "vendor",
                             "confidence": "$enc.json($evidence.getConfidence().toString())",
@@ -76,7 +78,7 @@
                     #end
                 ],
                 "productEvidence": [
-                    #foreach($evidence in $dependency.getProductEvidence())
+                    #foreach($evidence in $dependency.getEvidence($PRODUCT))
                         #if($foreach.count > 1),#end{
                             "type": "product",
                             "confidence": "$enc.json($evidence.getConfidence().toString())",
@@ -87,7 +89,7 @@
                     #end
                 ],
                 "versionEvidence": [
-                    #foreach($evidence in $dependency.getVersionEvidence())
+                    #foreach($evidence in $dependency.getEvidence($VERSION))
                     #if($foreach.count > 1),#end
                     {
                         "type": "version",
@@ -104,7 +106,6 @@
                 #foreach($id in $dependency.getIdentifiers())
                     #if($foreach.count > 1),#end
                     {
-                        "count": "$loopCount",
                         "name": "$id.value",
                         "type": "$enc.json($id.type)"
                         #if($id.confidence),"confidence": "$id.confidence"#end
@@ -131,7 +132,8 @@
 
             #if($dependency.getVulnerabilities().size()>0)
             ,"vulnerabilities": [
-            #foreach($vuln in $dependency.getVulnerabilities())#if($foreach.count > 1),#end {
+            #foreach($vuln in $dependency.getVulnerabilities(true))#if($foreach.count > 1),#end {
+                "source": "$enc.json($vuln.getSource().name())",
                 "name": "$enc.json($vuln.name)",
                 "cvssScore": "$vuln.cvssScore",
                 #if ($vuln.getSource().name().equals("NVD"))
@@ -168,15 +170,18 @@
 
             #if($dependency.getSuppressedVulnerabilities().size()>0 || $dependency.getSuppressedVulnerabilities().size()>0)
             ,"suppressedVulnerabilities": [
-                #foreach($vuln in $dependency.getSuppressedVulnerabilities())#if($foreach.count > 1),#end {
+                #foreach($vuln in $dependency.getSuppressedVulnerabilities(true))#if($foreach.count > 1),#end {
+                "source": "$enc.json($vuln.getSource().name())",
                 "name": "$enc.json($vuln.name)",
                 "cvssScore": "$vuln.cvssScore",
-                "cvssAccessVector": "$enc.json($vuln.cvssAccessVector)",
-                "cvssAccessComplexity": "$enc.json($vuln.cvssAccessComplexity)",
-                "cvssAuthenticationr": "$enc.json($vuln.cvssAuthentication)",
-                "cvssConfidentialImpact": "$enc.json($vuln.cvssConfidentialityImpact)",
-                "cvssIntegrityImpact": "$enc.json($vuln.cvssIntegrityImpact)",
-                "cvssAvailabilityImpact": "$enc.json($vuln.cvssAvailabilityImpact)",
+                #if ($vuln.getSource().name().equals("NVD"))
+                    "cvssAccessVector": "$enc.json($vuln.cvssAccessVector)",
+                    "cvssAccessComplexity": "$enc.json($vuln.cvssAccessComplexity)",
+                    "cvssAuthenticationr": "$enc.json($vuln.cvssAuthentication)",
+                    "cvssConfidentialImpact": "$enc.json($vuln.cvssConfidentialityImpact)",
+                    "cvssIntegrityImpact": "$enc.json($vuln.cvssIntegrityImpact)",
+                    "cvssAvailabilityImpact": "$enc.json($vuln.cvssAvailabilityImpact)",
+                #end
                 #if ($vuln.cvssScore<4.0) "severity": "Low",
                 #elseif ($vuln.cvssScore>=7.0) "severity": "High",
                 #else "severity": "Medium", 

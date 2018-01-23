@@ -20,6 +20,7 @@ package org.owasp.dependencycheck.reporting;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.util.Set;
+import javax.annotation.concurrent.ThreadSafe;
 import org.apache.commons.lang3.StringEscapeUtils;
 import org.owasp.dependencycheck.dependency.Identifier;
 import org.slf4j.Logger;
@@ -32,6 +33,7 @@ import org.slf4j.LoggerFactory;
  *
  * @author Jeremy Long
  */
+@ThreadSafe
 public class EscapeTool {
 
     /**
@@ -98,6 +100,20 @@ public class EscapeTool {
     }
 
     /**
+     * JavaScript encodes the provided text.
+     *
+     * @param text the text to encode
+     * @return the JavaScript encoded text
+     */
+    public String javascript(String text) {
+        if (text == null || text.isEmpty()) {
+            return text;
+        }
+        //until lang3 has escapeJavaScript we use this...
+        return org.apache.commons.lang.StringEscapeUtils.escapeJavaScript(text);
+    }
+
+    /**
      * Formats text for CSV format. This includes trimming whitespace, replace
      * line breaks with spaces, and if necessary quotes the text and/or escapes
      * contained quotes.
@@ -117,7 +133,7 @@ public class EscapeTool {
      * for display in a CSV.
      *
      * @param ids the set of identifiers
-     * @return the formated list of none CPE identifiers
+     * @return the formatted list of none CPE identifiers
      */
     public String csvIdentifiers(Set<Identifier> ids) {
         if (ids == null || ids.isEmpty()) {
@@ -143,7 +159,7 @@ public class EscapeTool {
      * for display in a CSV.
      *
      * @param ids the set of identifiers
-     * @return the formated list of CPE identifiers
+     * @return the formatted list of CPE identifiers
      */
     public String csvCpe(Set<Identifier> ids) {
         if (ids == null || ids.isEmpty()) {
@@ -163,4 +179,57 @@ public class EscapeTool {
         }
         return StringEscapeUtils.escapeCsv(sb.toString());
     }
+
+    /**
+     * Takes a set of Identifiers, filters them to just CPEs, and formats them
+     * for confidence display in a CSV.
+     *
+     * @param ids the set of identifiers
+     * @return the formatted list of confidence
+     */
+    public String csvCpeConfidence(Set<Identifier> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return "";
+        }
+        boolean addComma = false;
+        final StringBuilder sb = new StringBuilder();
+        for (Identifier id : ids) {
+            if ("cpe".equals(id.getType())) {
+                if (addComma) {
+                    sb.append(", ");
+                } else {
+                    addComma = true;
+                }
+                sb.append(id.getConfidence());
+            }
+        }
+        return StringEscapeUtils.escapeCsv(sb.toString());
+    }
+
+    /**
+     * Takes a set of Identifiers, filters them to just GAVs, and formats them
+     * for display in a CSV.
+     *
+     * @param ids the set of identifiers
+     * @return the formatted list of GAV identifiers
+     */
+    public String csvGav(Set<Identifier> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return "";
+        }
+        boolean addComma = false;
+        final StringBuilder sb = new StringBuilder();
+        for (Identifier id : ids) {
+            if ("maven".equals(id.getType())) {
+                if (addComma) {
+                    sb.append(", ");
+                } else {
+                    addComma = true;
+                }
+                sb.append(id.getValue());
+            }
+        }
+        return StringEscapeUtils.escapeCsv(sb.toString());
+    }
+
 }

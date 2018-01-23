@@ -20,16 +20,24 @@ package org.owasp.dependencycheck.dependency;
 import java.io.Serializable;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
+import java.util.ArrayList;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import javax.annotation.concurrent.ThreadSafe;
+
 import org.apache.commons.lang3.StringUtils;
 import org.owasp.dependencycheck.data.cpe.IndexEntry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A record containing information about vulnerable software. This is referenced from a vulnerability.
+ * A record containing information about vulnerable software. This is referenced
+ * from a vulnerability.
  *
  * @author Jeremy Long
  */
+@ThreadSafe
 public class VulnerableSoftware extends IndexEntry implements Serializable, Comparable<VulnerableSoftware> {
 
     /**
@@ -40,6 +48,26 @@ public class VulnerableSoftware extends IndexEntry implements Serializable, Comp
      * The serial version UID.
      */
     private static final long serialVersionUID = 307319490326651052L;
+
+    /**
+     * If present, indicates that previous version are vulnerable.
+     */
+    private String previousVersion;
+
+    /**
+     * The name of the cpe.
+     */
+    private String name;
+
+    /**
+     * The product version number.
+     */
+    private String version;
+
+    /**
+     * The product update version.
+     */
+    private String update;
 
     /**
      * Parse a CPE entry from the cpe string representation.
@@ -58,7 +86,8 @@ public class VulnerableSoftware extends IndexEntry implements Serializable, Comp
 
     /**
      * <p>
-     * Parses a name attribute value, from the cpe.xml, into its corresponding parts: vendor, product, version, update.</p>
+     * Parses a name attribute value, from the cpe.xml, into its corresponding
+     * parts: vendor, product, version, update.</p>
      * <p>
      * Example:</p>
      * <code>&nbsp;&nbsp;&nbsp;cpe:/a:apache:struts:1.1:rc2</code>
@@ -93,10 +122,6 @@ public class VulnerableSoftware extends IndexEntry implements Serializable, Comp
             }
         }
     }
-    /**
-     * If present, indicates that previous version are vulnerable.
-     */
-    private String previousVersion;
 
     /**
      * Indicates if previous versions of this software are vulnerable.
@@ -126,7 +151,8 @@ public class VulnerableSoftware extends IndexEntry implements Serializable, Comp
     }
 
     /**
-     * Standard equals implementation to compare this VulnerableSoftware to another object.
+     * Standard equals implementation to compare this VulnerableSoftware to
+     * another object.
      *
      * @param obj the object to compare
      * @return whether or not the objects are equal
@@ -156,13 +182,44 @@ public class VulnerableSoftware extends IndexEntry implements Serializable, Comp
     }
 
     /**
-     * Standard toString() implementation display the name and whether or not previous versions are also affected.
+     * Standard toString() implementation display the name and whether or not
+     * previous versions are also affected.
      *
      * @return a string representation of the object
      */
     @Override
     public String toString() {
         return "VulnerableSoftware{" + name + "[" + previousVersion + "]}";
+    }
+
+    /**
+     * Method that split versions for '.', '|' and '-". Then if a token start
+     * with a number and then contains letters, it will split it too. For
+     * example "12a" is split into ["12", "a"]. This is done to support correct
+     * comparison of "5.0.3a", "5.0.9" and "5.0.30".
+     *
+     * @param s the string to split
+     * @return an Array of String containing the tokens to be compared
+     */
+    private String[] split(String s) {
+        final Pattern pattern = Pattern.compile("^([\\d]+?)(.*)$");
+        final String[] splitted = s.split("(\\.|-)");
+
+        final ArrayList<String> res = new ArrayList<>();
+        for (String token : splitted) {
+            if (token.matches("^[\\d]+?[A-z]+")) {
+                final Matcher matcher = pattern.matcher(token);
+                matcher.find();
+                final String g1 = matcher.group(1);
+                final String g2 = matcher.group(2);
+
+                res.add(g1);
+                res.add(g2);
+                continue;
+            }
+            res.add(token);
+        }
+        return res.toArray(new String[res.size()]);
     }
 
     /**
@@ -179,8 +236,8 @@ public class VulnerableSoftware extends IndexEntry implements Serializable, Comp
         final int max = (left.length <= right.length) ? left.length : right.length;
         if (max > 0) {
             for (int i = 0; result == 0 && i < max; i++) {
-                final String[] subLeft = left[i].split("(\\.|-)");
-                final String[] subRight = right[i].split("(\\.|-)");
+                final String[] subLeft = split(left[i]);
+                final String[] subRight = split(right[i]);
                 final int subMax = (subLeft.length <= subRight.length) ? subLeft.length : subRight.length;
                 if (subMax > 0) {
                     for (int x = 0; result == 0 && x < subMax; x++) {
@@ -224,10 +281,9 @@ public class VulnerableSoftware extends IndexEntry implements Serializable, Comp
     }
 
     /**
-     * Determines if the string passed in is a positive integer.
-     * To be counted as a positive integer, the string must only contain 0-9
-     * and must not have any leading zeros (though "0" is a valid positive
-     * integer).
+     * Determines if the string passed in is a positive integer. To be counted
+     * as a positive integer, the string must only contain 0-9 and must not have
+     * any leading zeros (though "0" is a valid positive integer).
      *
      * @param str the string to test
      * @return true if the string only contains 0-9, otherwise false.
@@ -251,10 +307,6 @@ public class VulnerableSoftware extends IndexEntry implements Serializable, Comp
         }
         return true;
     }
-    /**
-     * The name of the cpe.
-     */
-    private String name;
 
     /**
      * Get the value of name.
@@ -273,10 +325,6 @@ public class VulnerableSoftware extends IndexEntry implements Serializable, Comp
     public void setName(String name) {
         this.name = name;
     }
-    /**
-     * The product version number.
-     */
-    private String version;
 
     /**
      * Get the value of version.
@@ -295,10 +343,6 @@ public class VulnerableSoftware extends IndexEntry implements Serializable, Comp
     public void setVersion(String version) {
         this.version = version;
     }
-    /**
-     * The product update version.
-     */
-    private String update;
 
     /**
      * Get the value of update.
@@ -341,7 +385,8 @@ public class VulnerableSoftware extends IndexEntry implements Serializable, Comp
     }
 
     /**
-     * Replaces '+' with '%2B' and then URL Decodes the string attempting first UTF-8, then ASCII, then default.
+     * Replaces '+' with '%2B' and then URL Decodes the string attempting first
+     * UTF-8, then ASCII, then default.
      *
      * @param string the string to URL Decode
      * @return the URL Decoded string
@@ -362,7 +407,8 @@ public class VulnerableSoftware extends IndexEntry implements Serializable, Comp
     }
 
     /**
-     * Call {@link java.net.URLDecoder#decode(String)} to URL decode using the default encoding.
+     * Call {@link java.net.URLDecoder#decode(String)} to URL decode using the
+     * default encoding.
      *
      * @param text www-form-encoded URL to decode
      * @return the newly decoded String
