@@ -43,6 +43,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import javax.json.Json;
+import javax.json.JsonArray;
 import javax.json.JsonException;
 import javax.json.JsonObject;
 import javax.json.JsonObjectBuilder;
@@ -147,7 +148,16 @@ public class NspAnalyzer extends AbstractFileTypeAnalyzer {
     @Override
     protected void analyzeDependency(Dependency dependency, Engine engine) throws AnalysisException {
         final File file = dependency.getActualFile();
+        if (!file.isFile() || file.length()==0) {
+            return;
+        }
         try (JsonReader jsonReader = Json.createReader(FileUtils.openInputStream(file))) {
+
+            // Do not scan the node_modules directory
+            if (file.getCanonicalPath().contains(File.separator + "node_modules" + File.separator)) {
+                LOGGER.debug("Skipping analysis of node module: " + file.getCanonicalPath());
+                return;
+            }
 
             // Retrieves the contents of package.json from the Dependency
             final JsonObject packageJson = jsonReader.readObject();
@@ -226,11 +236,11 @@ public class NspAnalyzer extends AbstractFileTypeAnalyzer {
                 processPackage(dependency, dependencies, "peerDependencies");
             }
             if (packageJson.containsKey("bundleDependencies")) {
-                final JsonObject dependencies = packageJson.getJsonObject("bundleDependencies");
+                final JsonArray dependencies = packageJson.getJsonArray("bundleDependencies");
                 processPackage(dependency, dependencies, "bundleDependencies");
             }
             if (packageJson.containsKey("bundledDependencies")) {
-                final JsonObject dependencies = packageJson.getJsonObject("bundledDependencies");
+                final JsonArray dependencies = packageJson.getJsonArray("bundledDependencies");
                 processPackage(dependency, dependencies, "bundledDependencies");
             }
 
@@ -238,7 +248,12 @@ public class NspAnalyzer extends AbstractFileTypeAnalyzer {
              * Adds the license if defined in package.json
              */
             if (packageJson.containsKey("license")) {
-                dependency.setLicense(packageJson.getString("license"));
+                final Object value = packageJson.get("license");
+                if (value instanceof JsonString) {
+                    dependency.setLicense(packageJson.getString("license"));
+                } else {
+                    dependency.setLicense(packageJson.getJsonObject("license").getString("type"));
+                }
             }
 
             /*
@@ -261,7 +276,24 @@ public class NspAnalyzer extends AbstractFileTypeAnalyzer {
     }
 
     /**
-     * Processes a part of package.json (as defined by JsobObject) and update
+     * Processes a part of package.json (as defined by JsonArray) and update
+     * the specified dependency with relevant info.
+     *
+     * @param dependency the Dependency to update
+     * @param jsonArray the jsonArray to parse
+     * @param depType the dependency type
+     */
+    private void processPackage(Dependency dependency, JsonArray jsonArray, String depType) {
+        JsonObjectBuilder builder = Json.createObjectBuilder();
+        for (JsonString str : jsonArray.getValuesAs(JsonString.class)) {
+            builder.add(str.toString(), "");
+        }
+        JsonObject jsonObject = builder.build();
+        processPackage(dependency, jsonObject, depType);
+    }
+
+    /**
+     * Processes a part of package.json (as defined by JsonObject) and update
      * the specified dependency with relevant info.
      *
      * @param dependency the Dependency to update

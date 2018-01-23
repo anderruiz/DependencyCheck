@@ -13,47 +13,54 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Copyright (c) 2012 Jeremy Long. All Rights Reserved.
+ * Copyright (c) 2017 Jeremy Long. All Rights Reserved.
  */
-package org.owasp.dependencycheck.data.nvdcve;
+package org.owasp.dependencycheck.exception;
 
 /**
- * An exception thrown if an operation against the database fails.
+ * An exception used when trying to obtain a lock on the H2 database.
  *
  * @author Jeremy Long
  */
-public class DatabaseException extends RuntimeException {
+public class H2DBLockException extends Exception {
 
     /**
-     * the serial version uid.
+     * The serial version uid.
      */
     private static final long serialVersionUID = 1L;
 
     /**
-     * Creates an DatabaseException.
-     *
-     * @param msg the exception message
+     * Creates a new H2DBLockException.
      */
-    public DatabaseException(String msg) {
+    public H2DBLockException() {
+        super();
+    }
+
+    /**
+     * Creates a new H2DBLockException.
+     *
+     * @param msg a message for the exception.
+     */
+    public H2DBLockException(String msg) {
         super(msg);
     }
 
     /**
-     * Creates an DatabaseException.
+     * Creates a new H2DBLockException.
      *
-     * @param ex the cause of the exception
+     * @param ex the cause of the exception.
      */
-    public DatabaseException(Throwable ex) {
+    public H2DBLockException(Throwable ex) {
         super(ex);
     }
 
     /**
-     * Creates an DatabaseException.
+     * Creates a new H2DBLockException.
      *
-     * @param msg the exception message
-     * @param ex the cause of the exception
+     * @param msg a message for the exception.
+     * @param ex the cause of the exception.
      */
-    public DatabaseException(String msg, Throwable ex) {
+    public H2DBLockException(String msg, Throwable ex) {
         super(msg, ex);
     }
 }

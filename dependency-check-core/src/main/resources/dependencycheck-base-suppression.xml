@@ -54,16 +54,18 @@
     </suppress>
     <suppress base="true">
         <notes><![CDATA[
-        Sandbox is a php blog platform and should not be flagged as a CPE for java or .net dependencies.
+        1. Sandbox is a php blog platform and should not be flagged as a CPE for java or .net dependencies.
+        2. Open media is php and won't be in a jar, dll, etc. See issue #814.
         ]]></notes>
-        <filePath regex="true">.*\.(jar|dll|exe|ear|war|pom)</filePath>
+        <filePath regex="true">.*(\.(dll|jar|ear|war|pom)|pom\.xml)$</filePath>
         <cpe>cpe:/a:sandbox:sandbox</cpe>
+        <cpe>cpe:/a:openmedia:openmedia</cpe>
     </suppress>
     <suppress base="true">
         <notes><![CDATA[
         Suppress false positives around dash.
         ]]></notes>
-        <filePath regex="true">.*\.(jar|ear|war|pom)</filePath>
+        <filePath regex="true">.*(\.(jar|ear|war|pom)|pom\.xml)$</filePath>
         <cpe>cpe:/a:dash:dash</cpe>
     </suppress>
     <suppress base="true">
@@ -291,10 +293,19 @@
     </suppress>
     <suppress base="true">
         <notes><![CDATA[
-        drop wizard false positives
+        drop wizard false positives. Updated per issue #796.
         ]]></notes>
         <gav regex="true">org\.eclipse\.jetty\.toolchain\.setuid:jetty-setuid-java:.*</gav>
         <cpe>cpe:/a:jetty:jetty</cpe>
+        <cpe>cpe:/a:eclipse:jetty</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        false positive per issue #796
+        ]]></notes>
+        <gav regex="true">^org\.eclipse\.jetty:jetty-io:.*$</gav>
+        <cpe>cpe:/a:jetty:jetty</cpe>
+        <cpe>cpe:/a:eclipse:jetty</cpe>
     </suppress>
     <suppress base="true">
         <notes><![CDATA[
@@ -328,21 +339,21 @@
         <notes><![CDATA[
         false positive in drop wizard
         ]]></notes>
-        <filePath regex="true">.*\.(jar|ear|war|pom)</filePath>
+        <filePath regex="true">.*(\.(jar|ear|war|pom)|pom\.xml)</filePath>
         <cpe>cpe:/a:tiger:tiger</cpe>
     </suppress>
     <suppress base="true">
         <notes><![CDATA[
         php cpe
         ]]></notes>
-        <filePath regex="true">.*\.(jar|exe|dll|ear|war|pom)</filePath>
+        <filePath regex="true">.*(\.(dll|jar|ear|war|pom)|pom\.xml)</filePath>
         <cpe>cpe:/a:class:class</cpe>
     </suppress>
     <suppress base="true">
         <notes><![CDATA[
         Linux ssh False Positives
         ]]></notes>
-        <filePath regex="true">.*\.(jar|ear|war|pom)</filePath>
+        <filePath regex="true">.*(\.(jar|ear|war|pom)|pom\.xml)</filePath>
         <cpe>cpe:/a:pam:pam</cpe>
         <cpe>cpe:/a:pam_ssh:pam_ssh</cpe>
         <cpe>cpe:/a:sun:linux</cpe>
@@ -431,7 +442,7 @@
         <notes><![CDATA[
         Drupal services false positive.
         ]]></notes>
-        <filePath regex="true">.*\.(jar|ear|war|pom)</filePath>
+        <filePath regex="true">.*(\.(jar|ear|war|pom)|pom\.xml)</filePath>
         <cpe>cpe:/a:services_project:services</cpe>
     </suppress>
     <suppress base="true">
@@ -478,18 +489,19 @@
     </suppress>
     <suppress base="true">
         <notes><![CDATA[
-            These CVEs only affect jackson-dataformat-xml. See issue #517 and #751.
+            These CVEs only affect jackson-dataformat-xml. See issue #517, #751, and #792.
       ]]></notes>
-        <gav regex="true">(org\.codehaus\.jackson|com\.fasterxml\.jackson\.core):jackson.*</gav>
+        <gav regex="true">(org\.codehaus\.jackson|com\.fasterxml\.jackson\.(core|module|datatype|jaxrs)):jackson.*</gav>
         <cve>CVE-2016-3720</cve>
         <cve>CVE-2016-7051</cve>
     </suppress>
     <suppress base="true">
         <notes><![CDATA[
-            This CVE only affects jackson-dataformat-xml. See issue #517.
+            These CVE only affects jackson-dataformat-xml. See issue #517.
         ]]></notes>
         <gav regex="true">com\.fasterxml\.jackson\.dataformat:jackson(?!\-dataformat\-xml).*</gav>
         <cve>CVE-2016-3720</cve>
+        <cve>CVE-2016-7051</cve>
     </suppress>
     <suppress base="true">
         <notes><![CDATA[
@@ -637,5 +649,33 @@
         ]]></notes>
         <filePath regex="true">.*newrelic-?agent.*\.jar[\\\/]instrumentation.*\.jar</filePath>
         <cpe regex="true">.*</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        False Positices per issue #823
+        ]]></notes>
+        <gav regex="true">^io\.swagger:.*$</gav>
+        <cpe>cpe:/a:sonatype:nexus</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        False positive per issue #838
+        ]]></notes>
+        <gav regex="true">^org\.springframework\.boot:.*$</gav>
+        <cpe>cpe:/a:pivotal_software:spring_data_jpa</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        False positive per issue #851
+        ]]></notes>
+        <gav regex="true">^com\.ibm\.icu:icu4j:.*$</gav>
+        <cpe>cpe:/a:icu_project:international_components_for_unicode</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        False positive per issue #854
+        ]]></notes>
+        <gav regex="true">^com\.vaadin\.external\.google:android-json:.*$</gav>
+        <cpe>cpe:/a:google:android</cpe>
     </suppress>
 </suppressions>

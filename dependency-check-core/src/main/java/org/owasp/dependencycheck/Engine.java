@@ -24,6 +24,7 @@ import org.owasp.dependencycheck.analyzer.FileTypeAnalyzer;
 import org.owasp.dependencycheck.data.nvdcve.ConnectionFactory;
 import org.owasp.dependencycheck.data.nvdcve.CveDB;
 import org.owasp.dependencycheck.data.nvdcve.DatabaseException;
+import org.owasp.dependencycheck.data.nvdcve.DatabaseProperties;
 import org.owasp.dependencycheck.data.update.CachedWebDataSource;
 import org.owasp.dependencycheck.data.update.UpdateService;
 import org.owasp.dependencycheck.data.update.exception.UpdateException;
@@ -31,6 +32,8 @@ import org.owasp.dependencycheck.dependency.Dependency;
 import org.owasp.dependencycheck.exception.ExceptionCollection;
 import org.owasp.dependencycheck.exception.InitializationException;
 import org.owasp.dependencycheck.exception.NoDataException;
+import org.owasp.dependencycheck.exception.ReportException;
+import org.owasp.dependencycheck.reporting.ReportGenerator;
 import org.owasp.dependencycheck.utils.InvalidSettingException;
 import org.owasp.dependencycheck.utils.Settings;
 import org.slf4j.Logger;
@@ -54,9 +57,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import org.owasp.dependencycheck.data.nvdcve.DatabaseProperties;
-import org.owasp.dependencycheck.exception.ReportException;
-import org.owasp.dependencycheck.reporting.ReportGenerator;
+
+import static org.owasp.dependencycheck.analyzer.AnalysisPhase.*;
 
 
 /**
@@ -67,7 +69,83 @@ import org.owasp.dependencycheck.reporting.ReportGenerator;
  *
  * @author Jeremy Long
  */
-public class Engine implements FileFilter {
+public class Engine implements FileFilter, AutoCloseable {
+
+    /**
+     * {@link Engine} execution modes.
+     */
+    public enum Mode {
+        /**
+         * In evidence collection mode the {@link Engine} only collects evidence
+         * from the scan targets, and doesn't require a database.
+         */
+        EVIDENCE_COLLECTION(
+                false,
+                INITIAL,
+                PRE_INFORMATION_COLLECTION,
+                INFORMATION_COLLECTION,
+                POST_INFORMATION_COLLECTION
+        ),
+        /**
+         * In evidence processing mode the {@link Engine} processes the evidence
+         * collected using the {@link #EVIDENCE_COLLECTION} mode. Dependencies
+         * should be injected into the {@link Engine} using
+         * {@link Engine#setDependencies(List)}.
+         */
+        EVIDENCE_PROCESSING(
+                true,
+                PRE_IDENTIFIER_ANALYSIS,
+                IDENTIFIER_ANALYSIS,
+                POST_IDENTIFIER_ANALYSIS,
+                PRE_FINDING_ANALYSIS,
+                FINDING_ANALYSIS,
+                POST_FINDING_ANALYSIS,
+                FINAL
+        ),
+        /**
+         * In standalone mode the {@link Engine} will collect and process
+         * evidence in a single execution.
+         */
+        STANDALONE(true, AnalysisPhase.values());
+
+        /**
+         * Whether the database is required in this mode.
+         */
+        private final boolean databaseRequired;
+        /**
+         * The analysis phases included in the mode.
+         */
+        private final AnalysisPhase[] phases;
+
+        /**
+         * Returns true if the database is required; otherwise false.
+         *
+         * @return whether or not the database is required
+         */
+        public boolean isDatabseRequired() {
+            return databaseRequired;
+        }
+
+        /**
+         * Returns the phases for this mode.
+         *
+         * @return the phases for this mode
+         */
+        public AnalysisPhase[] getPhases() {
+            return phases;
+        }
+
+        /**
+         * Constructs a new mode.
+         *
+         * @param databaseRequired if the database is required for the mode
+         * @param phases the analysis phases to include in the mode
+         */
+        Mode(boolean databaseRequired, AnalysisPhase... phases) {
+            this.databaseRequired = databaseRequired;
+            this.phases = phases;
+        }
+    }
 
     /**
      * The list of dependencies.
@@ -84,11 +162,16 @@ public class Engine implements FileFilter {
     private final Set<FileTypeAnalyzer> fileTypeAnalyzers = new HashSet<>();
 
     /**
+     * The engine execution mode indicating it will either collect evidence or
+     * process evidence or both.
+     */
+    private final Mode mode;
+
+    /**
      * The ClassLoader to use when dynamically loading Analyzer and Update
      * services.
      */
-    private ClassLoader serviceClassLoader = Thread.currentThread().getContextClassLoader();
-
+    private ClassLoader serviceClassLoader;
     /**
      * A reference to the database.
      */
@@ -99,24 +182,39 @@ public class Engine implements FileFilter {
     private static final Logger LOGGER = LoggerFactory.getLogger(Engine.class);
 
     /**
+     * Creates a new {@link Mode#STANDALONE} Engine.
+     */
+    public Engine() {
+        this(Mode.STANDALONE);
+    }
+
+    /**
      * Creates a new Engine.
      *
-     * @throws DatabaseException thrown if there is an error connecting to the
-     * database
+     * @param mode the mode of operation
      */
-    public Engine() throws DatabaseException {
-        initializeEngine();
+    public Engine(Mode mode) {
+        this(Thread.currentThread().getContextClassLoader(), mode);
+    }
+
+    /**
+     * Creates a new {@link Mode#STANDALONE} Engine.
+     *
+     * @param serviceClassLoader a reference the class loader being used
+     */
+    public Engine(ClassLoader serviceClassLoader) {
+        this(serviceClassLoader, Mode.STANDALONE);
     }
 
     /**
      * Creates a new Engine.
      *
      * @param serviceClassLoader a reference the class loader being used
-     * @throws DatabaseException thrown if there is an error connecting to the
-     * database
+     * @param mode the mode of the engine
      */
-    public Engine(ClassLoader serviceClassLoader) throws DatabaseException {
+    public Engine(ClassLoader serviceClassLoader, Mode mode) {
         this.serviceClassLoader = serviceClassLoader;
+        this.mode = mode;
         initializeEngine();
     }
 
@@ -127,8 +225,10 @@ public class Engine implements FileFilter {
      * @throws DatabaseException thrown if there is an error connecting to the
      * database
      */
-    protected void initializeEngine() throws DatabaseException {
-        ConnectionFactory.initialize();
+    protected void initializeEngine() {
+        if (mode.isDatabseRequired()) {
+            ConnectionFactory.initialize();
+        }
         loadAnalyzers();
     }
 
@@ -136,11 +236,18 @@ public class Engine implements FileFilter {
      * Properly cleans up resources allocated during analysis.
      */
     public void cleanup() {
-        if (database != null) {
-            database.close();
-            database = null;
+        if (mode.isDatabseRequired()) {
+            if (database != null) {
+                database.close();
+                database = null;
+            }
+            ConnectionFactory.cleanup();
         }
-        ConnectionFactory.cleanup();
+    }
+
+    @Override
+    public void close() {
+        cleanup();
     }
 
     /**
@@ -151,12 +258,12 @@ public class Engine implements FileFilter {
         if (!analyzers.isEmpty()) {
             return;
         }
-        for (AnalysisPhase phase : AnalysisPhase.values()) {
+        for (AnalysisPhase phase : mode.getPhases()) {
             analyzers.put(phase, new ArrayList<Analyzer>());
         }
 
         final AnalyzerService service = new AnalyzerService(serviceClassLoader);
-        final List<Analyzer> iterator = service.getAnalyzers();
+        final List<Analyzer> iterator = service.getAnalyzers(mode.getPhases());
         for (Analyzer a : iterator) {
             analyzers.get(a.getAnalysisPhase()).add(a);
             if (a instanceof FileTypeAnalyzer) {
@@ -467,7 +574,7 @@ public class Engine implements FileFilter {
                     }
                 }
             } else {
-                LOGGER.debug("Path passed to scanFile(File) is not a file: {}. Skipping the file.", file);
+                LOGGER.debug("Path passed to scanFile(File) is not a file that can be scanned by dependency-check: {}. Skipping the file.", file);
             }
         }
         return dependency;
@@ -509,7 +616,7 @@ public class Engine implements FileFilter {
         final long analysisStart = System.currentTimeMillis();
 
         // analysis phases
-        for (AnalysisPhase phase : AnalysisPhase.values()) {
+		for (AnalysisPhase phase : mode.getPhases()) {
         	if(skipPhase(phase)) {
         		continue;
         	}
@@ -550,7 +657,7 @@ public class Engine implements FileFilter {
                 }
             }
         }
-        for (AnalysisPhase phase : AnalysisPhase.values()) {
+        for (AnalysisPhase phase : mode.getPhases()) {
             final List<Analyzer> analyzerList = analyzers.get(phase);
 
             for (Analyzer a : analyzerList) {
@@ -575,7 +682,10 @@ public class Engine implements FileFilter {
      * @param exceptions a collection to store non-fatal exceptions
      * @throws ExceptionCollection thrown if fatal exceptions occur
      */
-    protected void initializeAndUpdateDatabase(final List<Throwable> exceptions) throws ExceptionCollection {
+	protected void initializeAndUpdateDatabase(final List<Throwable> exceptions) throws ExceptionCollection {
+        if (!mode.isDatabseRequired()) {
+            return;
+        }
         boolean autoUpdate = true;
         try {
             autoUpdate = Settings.getBoolean(Settings.KEYS.AUTO_UPDATE);
@@ -733,15 +843,19 @@ public class Engine implements FileFilter {
      * @throws UpdateException thrown if the operation fails
      */
     public void doUpdates() throws UpdateException {
-        LOGGER.info("Checking for updates");
-        final long updateStart = System.currentTimeMillis();
-        final UpdateService service = new UpdateService(serviceClassLoader);
-        final Iterator<CachedWebDataSource> iterator = service.getDataSources();
-        while (iterator.hasNext()) {
-            final CachedWebDataSource source = iterator.next();
-            source.update();
+        if (mode.isDatabseRequired()) {
+            LOGGER.info("Checking for updates");
+            final long updateStart = System.currentTimeMillis();
+            final UpdateService service = new UpdateService(serviceClassLoader);
+            final Iterator<CachedWebDataSource> iterator = service.getDataSources();
+            while (iterator.hasNext()) {
+                final CachedWebDataSource source = iterator.next();
+                source.update();
+            }
+            LOGGER.info("Check for updates complete ({} ms)", System.currentTimeMillis() - updateStart);
+        } else {
+            LOGGER.info("Skipping update check in evidence collection mode.");
         }
-        LOGGER.info("Check for updates complete ({} ms)", System.currentTimeMillis() - updateStart);
     }
 
     /**
@@ -752,7 +866,7 @@ public class Engine implements FileFilter {
      */
     public List<Analyzer> getAnalyzers() {
         final List<Analyzer> ret = new ArrayList<>();
-        for (AnalysisPhase phase : AnalysisPhase.values()) {
+        for (AnalysisPhase phase : mode.getPhases()) {
             final List<Analyzer> analyzerList = analyzers.get(phase);
             ret.addAll(analyzerList);
         }
@@ -806,7 +920,7 @@ public class Engine implements FileFilter {
      * @throws NoDataException thrown if no data exists in the CPE Index
      */
 	protected void ensureDataExists() throws NoDataException {
-        if (database == null || !database.dataExists()) {
+        if (mode.isDatabseRequired() && (database == null || !database.dataExists())) {
             throw new NoDataException("No documents exist");
         }
     }
@@ -841,7 +955,9 @@ public class Engine implements FileFilter {
      */
     public synchronized void writeReports(String applicationName, String groupId, String artifactId,
             String version, File outputDir, String format) throws ReportException {
-
+        if (mode == Mode.EVIDENCE_COLLECTION) {
+            throw new UnsupportedOperationException("Cannot generate report in evidence collection mode.");
+        }
         final DatabaseProperties prop = database.getDatabaseProperties();
         final ReportGenerator r = new ReportGenerator(applicationName, groupId, artifactId, version, dependencies, getAnalyzers(), prop);
         try {

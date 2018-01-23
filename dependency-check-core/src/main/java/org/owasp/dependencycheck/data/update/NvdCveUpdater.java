@@ -48,10 +48,12 @@ import org.owasp.dependencycheck.data.update.nvd.DownloadTask;
 import org.owasp.dependencycheck.data.update.nvd.NvdCveInfo;
 import org.owasp.dependencycheck.data.update.nvd.ProcessTask;
 import org.owasp.dependencycheck.data.update.nvd.UpdateableNvdCve;
+import org.owasp.dependencycheck.exception.H2DBLockException;
 import org.owasp.dependencycheck.utils.DateUtil;
 import org.owasp.dependencycheck.utils.Downloader;
 import org.owasp.dependencycheck.utils.FileUtils;
 import org.owasp.dependencycheck.utils.DownloadFailedException;
+import org.owasp.dependencycheck.utils.H2DBLock;
 import org.owasp.dependencycheck.utils.InvalidSettingException;
 import org.owasp.dependencycheck.utils.Settings;
 import org.slf4j.Logger;
@@ -109,48 +111,9 @@ public class NvdCveUpdater implements CachedWebDataSource {
         if (isUpdateConfiguredFalse()) {
             return;
         }
-        FileLock lock = null;
-        RandomAccessFile ulFile = null;
-        File lockFile = null;
+        H2DBLock dbupdate = new H2DBLock();
         try {
-            if (ConnectionFactory.isH2Connection()) {
-                final File dir = Settings.getDataDirectory();
-                lockFile = new File(dir, "odc.update.lock");
-                if (lockFile.isFile() && getFileAge(lockFile) > 5) {
-                	ConnectionFactory.h2DataFile().delete();
-                	if(!lockFile.delete()) {
-                		LOGGER.warn("An old db update lock file was found but the system was unable to delete the file. Consider manually deleting " + lockFile.getAbsolutePath());
-                	}
-                }
-                int ctr = 0;
-                do {
-                    try {
-                        if (!lockFile.exists() && lockFile.createNewFile()) {
-                            ulFile = new RandomAccessFile(lockFile, "rw");
-                            lock = ulFile.getChannel().lock();
-                        }
-                    } catch (IOException ex) {
-                        LOGGER.trace("Expected error as another thread has likely locked the file", ex);
-                    } finally {
-                        if (lock == null && ulFile != null) {
-                            ulFile.close();
-                        }
-                    }
-                    if (lock == null || !lock.isValid()) {
-                        try {
-                            LOGGER.debug("Sleeping thread {} for 5 seconds because we could not obtain the update lock.",
-                                    Thread.currentThread().getName());
-                            Thread.sleep(Math.abs(new Random().nextInt() % Settings.getInt(Settings.KEYS.UPDATE_WAIT_TIME, 5000)));
-                        } catch (InterruptedException ex) {
-                            LOGGER.trace("ignorable error, sleep was interrupted.", ex);
-                            Thread.currentThread().interrupt();
-                        }
-                    }
-                } while (++ctr < 60 && (lock == null || !lock.isValid()));
-                if (lock == null || !lock.isValid()) {
-                    throw new UpdateException("Unable to obtain the update lock, skipping the database update. Skippinig the database update.");
-                }
-            }
+            dbupdate.lock();
             initializeExecutorServices();
             cveDb = CveDB.getInstance();
             dbProperties = cveDb.getDatabaseProperties();
@@ -179,30 +142,14 @@ public class NvdCveUpdater implements CachedWebDataSource {
 				}
         	}
             throw new UpdateException("Database Exception, unable to update the data to use the most current data.", ex);
-        } catch (IOException ex) {
-            throw new UpdateException("Database Exception", ex);
+        } catch (H2DBLockException ex) {
+            throw new UpdateException("Unable to obtain an exclusive lock on the H2 database to perform updates", ex);
         } finally {
-            shutdownExecutorServices();
             if (cveDb != null) {
-				cveDb.close();
-			}
-            if (lock != null) {
-                try {
-                    lock.release();
-                } catch (IOException ex) {
-                    LOGGER.trace("Ignorable exception", ex);
-                }
+                cveDb.close();
             }
-            if (ulFile != null) {
-                try {
-                    ulFile.close();
-                } catch (IOException ex) {
-                    LOGGER.trace("Ignorable exception", ex);
-                }
-            }
-            if (lockFile != null && lockFile.isFile() && !lockFile.delete()) {
-                LOGGER.error("Lock file '{}' was unable to be deleted. Please manually delete this file.", lockFile.toString());
-            }
+            dbupdate.release();
+            shutdownExecutorServices();
         }
     }
 
@@ -227,18 +174,6 @@ public class NvdCveUpdater implements CachedWebDataSource {
             LOGGER.debug("Invalid setting for auto-update; using true.");
         }
         return !autoUpdate;
-    }
-
-    /**
-     * Returns the age of the file in minutes.
-     *
-     * @param file the file to calculate the age
-     * @return the age of the file
-     */
-    private long getFileAge(File file) {
-        final Date d = new Date();
-        final long modified = file.lastModified();
-        return (d.getTime() - modified) / 1000 / 60;
     }
 
     /**

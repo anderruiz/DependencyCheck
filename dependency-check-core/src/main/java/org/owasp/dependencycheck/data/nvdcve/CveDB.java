@@ -232,7 +232,7 @@ public final class CveDB implements Closeable {
      */
     private static String determineDatabaseProductName(Connection conn) {
         try {
-            final String databaseProductName = conn.getMetaData().getDatabaseProductName();
+            final String databaseProductName = conn.getMetaData().getDatabaseProductName().toLowerCase();
             LOGGER.debug("Database product: {}", databaseProductName);
             return databaseProductName;
         } catch (SQLException se) {
@@ -259,14 +259,19 @@ public final class CveDB implements Closeable {
      * database connection
      */
     private synchronized void open() throws DatabaseException {
-        if (!instance.isOpen()) {
-            instance.connection = ConnectionFactory.getConnection();
-            final String databaseProductName = determineDatabaseProductName(instance.connection);
-            instance.statementBundle = databaseProductName != null
-                    ? ResourceBundle.getBundle("data/dbStatements", new Locale(databaseProductName))
-                    : ResourceBundle.getBundle("data/dbStatements");
-            instance.prepareStatements();
-            instance.databaseProperties = new DatabaseProperties(instance);
+        try {
+            if (!instance.isOpen()) {
+                instance.connection = ConnectionFactory.getConnection();
+                final String databaseProductName = determineDatabaseProductName(instance.connection);
+                instance.statementBundle = databaseProductName != null
+                        ? ResourceBundle.getBundle("data/dbStatements", new Locale(databaseProductName))
+                        : ResourceBundle.getBundle("data/dbStatements");
+                instance.prepareStatements();
+                instance.databaseProperties = new DatabaseProperties(instance);
+            }
+        } catch (DatabaseException e) {
+            releaseResources();
+            throw e;
         }
     }
 
@@ -291,12 +296,19 @@ public final class CveDB implements Closeable {
                     LOGGER.error("There was an exception attempting to close the CveDB, see the log for more details.");
                     LOGGER.debug("", ex);
                 }
-                instance.statementBundle = null;
-                instance.preparedStatements.clear();
-                instance.databaseProperties = null;
-                instance.connection = null;
+                releaseResources();
             }
         }
+    }
+
+    /**
+     * Releases the resources used by CveDB.
+     */
+    private synchronized void releaseResources() {
+        instance.statementBundle = null;
+        instance.preparedStatements.clear();
+        instance.databaseProperties = null;
+        instance.connection = null;
     }
 
     /**
@@ -316,18 +328,24 @@ public final class CveDB implements Closeable {
      */
     private void prepareStatements() throws DatabaseException {
         for (PreparedStatementCveDb key : values()) {
-            final String statementString = statementBundle.getString(key.name());
-            final PreparedStatement preparedStatement;
+            PreparedStatement preparedStatement = null;
             try {
+                final String statementString = statementBundle.getString(key.name());
                 if (key == INSERT_VULNERABILITY || key == INSERT_CPE) {
                     preparedStatement = connection.prepareStatement(statementString, new String[]{"id"});
                 } else {
                     preparedStatement = connection.prepareStatement(statementString);
                 }
-            } catch (SQLException exception) {
-                throw new DatabaseException(exception);
+            } catch (SQLException ex) {
+                throw new DatabaseException(ex);
+            } catch (MissingResourceException ex) {
+                if (!ex.getMessage().contains("key MERGE_PROPERTY")) {
+                    throw new DatabaseException(ex);
+                }
             }
-            preparedStatements.put(key, preparedStatement);
+            if (preparedStatement != null) {
+                preparedStatements.put(key, preparedStatement);
+            }
         }
     }
 
@@ -349,6 +367,9 @@ public final class CveDB implements Closeable {
      * @throws SQLException thrown if a SQL Exception occurs
      */
     private synchronized PreparedStatement getPreparedStatement(PreparedStatementCveDb key) throws SQLException {
+        if (!preparedStatements.containsKey(key)) {
+            return null;
+        }
         final PreparedStatement preparedStatement = preparedStatements.get(key);
         preparedStatement.clearParameters();
         return preparedStatement;
@@ -488,12 +509,12 @@ public final class CveDB implements Closeable {
     public synchronized void saveProperty(String key, String value) {
         clearCache();
         try {
-            try {
-                final PreparedStatement mergeProperty = getPreparedStatement(MERGE_PROPERTY);
+            final PreparedStatement mergeProperty = getPreparedStatement(MERGE_PROPERTY);
+            if (mergeProperty != null) {
                 mergeProperty.setString(1, key);
                 mergeProperty.setString(2, value);
-                mergeProperty.executeUpdate();
-            } catch (MissingResourceException mre) {
+                mergeProperty.execute();
+            } else {
                 // No Merge statement, so doing an Update/Insert...
                 final PreparedStatement updateProperty = getPreparedStatement(UPDATE_PROPERTY);
                 updateProperty.setString(1, value);

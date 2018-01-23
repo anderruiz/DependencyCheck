@@ -31,18 +31,18 @@ public class SuppressionFile {
     private String path;
 
     /**
-     * Called by ant with the simple content of the suppressionFile xml element.
+     * Sets the path to the suppression file.
      *
-     * @param text the simple content.
+     * @param path the path to the suppression file
      */
-    public final void addText(String text) {
-        this.path = text;
+    public void setPath(String path) {
+        this.path = path;
     }
 
     /**
      * Gets the path to the suppression file.
      *
-     * @return the path.
+     * @return the path
      */
     public String getPath() {
         return path;
