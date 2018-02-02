@@ -76,7 +76,7 @@ import static org.owasp.dependencycheck.analyzer.AnalysisPhase.*;
  * @author Jeremy Long
  */
 @NotThreadSafe
-public class Engine implements FileFilter, AutoCloseable {
+public class Engine implements FileFilter {
 
     /**
      * {@link Engine} execution modes.
@@ -253,7 +253,6 @@ public class Engine implements FileFilter, AutoCloseable {
     /**
      * Properly cleans up resources allocated during analysis.
      */
-    @Override
     public void close() {
         if (mode.isDatabaseRequired()) {
             if (database != null) {

@@ -20,7 +20,7 @@ Copyright (c) 2012 - Jeremy Long
 
     <groupId>org.owasp</groupId>
     <artifactId>dependency-check-parent</artifactId>
-    <version>3.0.2.rc1.hdiv</version>
+    <version>3.0.2.rc2.hdiv</version>
     <packaging>pom</packaging>
 
     <modules>

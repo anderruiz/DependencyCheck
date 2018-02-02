@@ -62,7 +62,7 @@ import org.slf4j.LoggerFactory;
  * @author Jeremy Long
  */
 @ThreadSafe
-public final class CpeMemoryIndex implements AutoCloseable {
+public final class CpeMemoryIndex {
 
     /**
      * Singleton instance.
@@ -162,7 +162,6 @@ public final class CpeMemoryIndex implements AutoCloseable {
     /**
      * Closes the CPE Index.
      */
-    @Override
     public synchronized void close() {
         final int count = INSTANCE.usageCount.get() - 1;
         if (count <= 0) {
