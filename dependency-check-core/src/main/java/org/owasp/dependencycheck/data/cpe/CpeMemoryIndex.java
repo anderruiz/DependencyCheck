@@ -52,7 +52,7 @@ import org.slf4j.LoggerFactory;
  *
  * @author Jeremy Long
  */
-public final class CpeMemoryIndex implements AutoCloseable {
+public final class CpeMemoryIndex {
 
     /**
      * The logger.
@@ -162,7 +162,6 @@ public final class CpeMemoryIndex implements AutoCloseable {
     /**
      * Closes the CPE Index.
      */
-    @Override
     public synchronized void close() {
         INSTANCE.usageCount -= 1;
         if (INSTANCE.usageCount <= 0) {

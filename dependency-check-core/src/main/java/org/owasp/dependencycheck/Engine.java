@@ -69,7 +69,7 @@ import static org.owasp.dependencycheck.analyzer.AnalysisPhase.*;
  *
  * @author Jeremy Long
  */
-public class Engine implements FileFilter, AutoCloseable {
+public class Engine implements FileFilter {
 
     /**
      * {@link Engine} execution modes.
@@ -245,7 +245,6 @@ public class Engine implements FileFilter, AutoCloseable {
         }
     }
 
-    @Override
     public void close() {
         cleanup();
     }
