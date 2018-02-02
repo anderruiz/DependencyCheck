@@ -633,21 +633,6 @@ public class Engine implements FileFilter, AutoCloseable {
 
                 if (analyzer.isEnabled()) {
                     executeAnalysisTasks(analyzer, exceptions);
-                    
-                    
-                    for (Dependency dependency : dependencies) {
-                    		
-                    		
-                    		if(dependency.getActualFile().getName().contains("spring-core")) {
-                    			System.out.println("After analyzer:"+analyzer);
-                    			System.out.println(dependency.getIdentifiers());
-                    			System.out.println(dependency.getEvidence());
-                    		}
-                    		
-					}
-                    
-                    
-                    
 
                     final long analyzerDurationMillis = System.currentTimeMillis() - analyzerStart;
                     final long analyzerDurationSeconds = TimeUnit.MILLISECONDS.toSeconds(analyzerDurationMillis);
@@ -921,6 +906,7 @@ public class Engine implements FileFilter, AutoCloseable {
      */
 	protected void ensureDataExists() throws NoDataException {
         if (mode.isDatabseRequired() && (database == null || !database.dataExists())) {
+        		LOGGER.info("Data:"+database.dataExists());
             throw new NoDataException("No documents exist");
         }
     }
