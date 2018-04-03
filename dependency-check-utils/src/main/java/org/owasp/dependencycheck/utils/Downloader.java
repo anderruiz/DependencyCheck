@@ -309,7 +309,15 @@ public final class Downloader {
                 if (t >= 200 && t < 300) {
                     timestamp = conn.getLastModified();
                 } else {
-                    throw new DownloadFailedException(format("%s request returned a non-200 status code", httpMethod));
+                	conn = connFactory.createHttpURLConnection(byProxy(url));
+                    conn.setRequestMethod(httpMethod);
+                    conn.connect();
+                    final int t2 = conn.getResponseCode();
+                    if (t2 >= 200 && t2 < 300) {
+                        timestamp = conn.getLastModified();
+                    } else {
+                    	throw new DownloadFailedException(format("%s request returned a non-200 status code", httpMethod));
+                    }
                 }
             } catch (URLConnectionFailureException ex) {
                 throw new DownloadFailedException(format("Error creating URL Connection for HTTP %s request.", httpMethod), ex);
