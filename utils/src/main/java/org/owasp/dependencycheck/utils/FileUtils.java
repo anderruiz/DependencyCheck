@@ -18,12 +18,6 @@
 package org.owasp.dependencycheck.utils;
 
 import java.io.Closeable;
-
-import org.apache.commons.io.FilenameUtils;
-import org.apache.commons.io.filefilter.AgeFileFilter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.File;
 import java.io.FileFilter;
 import java.io.IOException;
@@ -31,7 +25,12 @@ import java.io.InputStream;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.UUID;
+
+import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.io.filefilter.AgeFileFilter;
 import org.apache.commons.lang3.SystemUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A collection of utilities for processing information about files.
@@ -40,147 +39,154 @@ import org.apache.commons.lang3.SystemUtils;
  */
 public final class FileUtils {
 
-    /**
-     * The logger.
-     */
-    private static final Logger LOGGER = LoggerFactory.getLogger(FileUtils.class);
-    /**
-     * Bit bucket for non-Windows systems
-     */
-    private static final String BIT_BUCKET_UNIX = "/dev/null";
+	/**
+	 * The logger.
+	 */
+	private static final Logger LOGGER = LoggerFactory.getLogger(FileUtils.class);
 
-    /**
-     * Bit bucket for Windows systems (yes, only one 'L')
-     */
-    private static final String BIT_BUCKET_WIN = "NUL";
+	/**
+	 * Bit bucket for non-Windows systems
+	 */
+	private static final String BIT_BUCKET_UNIX = "/dev/null";
 
-    private static final long TEMP_FILE_MAX_TIME = 1000 * 60 * 60;
-    
-    /**
-     * Private constructor for a utility class.
-     */
-    private FileUtils() {
-    }
+	/**
+	 * Bit bucket for Windows systems (yes, only one 'L')
+	 */
+	private static final String BIT_BUCKET_WIN = "NUL";
 
-    /**
-     * Returns the (lowercase) file extension for a specified file.
-     *
-     * @param fileName the file name to retrieve the file extension from.
-     * @return the file extension.
-     */
-    public static String getFileExtension(String fileName) {
-        final String fileExt = FilenameUtils.getExtension(fileName);
-        return null == fileExt || fileExt.isEmpty() ? null : fileExt.toLowerCase();
-    }
+	private static final long TEMP_FILE_MAX_TIME = 1000 * 60 * 60;
 
-    /**
-     * Deletes a file. If the File is a directory it will recursively delete the
-     * contents.
-     *
-     * @param file the File to delete
-     * @return true if the file was deleted successfully, otherwise false
-     */
-    public static boolean delete(File file) {
-        final boolean success = org.apache.commons.io.FileUtils.deleteQuietly(file);
-        if (!success) {
-            LOGGER.debug("Failed to delete file: {}; attempting to delete on exit.", file.getPath());
-            file.deleteOnExit();
-        }
-        return success;
-    }
+	/**
+	 * Private constructor for a utility class.
+	 */
+	private FileUtils() {
+	}
 
-    /**
-     * Creates a unique temporary directory in the given directory.
-     *
-     * @param base the base directory to create a temporary directory within
-     * @return the temporary directory
-     * @throws IOException thrown when a directory cannot be created within the
-     * base directory
-     */
-    public static File createTempDirectory(File base) throws IOException {
-        final File tempDir = new File(base, "dctemp" + UUID.randomUUID().toString());
-        if (tempDir.exists()) {
-            return createTempDirectory(base);
-        }
-        if (!tempDir.mkdirs()) {
-            throw new IOException("Could not create temp directory `" + tempDir.getAbsolutePath() + "`");
-        }
-        return tempDir;
-    }
+	/**
+	 * Returns the (lowercase) file extension for a specified file.
+	 *
+	 * @param fileName the file name to retrieve the file extension from.
+	 * @return the file extension.
+	 */
+	public static String getFileExtension(final String fileName) {
+		final String fileExt = FilenameUtils.getExtension(fileName);
+		return null == fileExt || fileExt.isEmpty() ? null : fileExt.toLowerCase();
+	}
 
-    /**
-     * Return the bit bucket for the OS. '/dev/null' for Unix and 'NUL' for
-     * Windows
-     *
-     * @return a String containing the bit bucket
-     */
-    public static String getBitBucket() {
-        if (SystemUtils.IS_OS_WINDOWS) {
-            return BIT_BUCKET_WIN;
-        } else {
-            return BIT_BUCKET_UNIX;
-        }
-    }
+	/**
+	 * Deletes a file. If the File is a directory it will recursively delete the contents.
+	 *
+	 * @param file the File to delete
+	 * @return true if the file was deleted successfully, otherwise false
+	 */
+	public static boolean delete(final File file) {
+		final boolean success = org.apache.commons.io.FileUtils.deleteQuietly(file);
+		if (!success) {
+			LOGGER.debug("Failed to delete file: {}; attempting to delete on exit.", file.getPath());
+			file.deleteOnExit();
+		}
+		return success;
+	}
 
-    /**
-     * Close the given {@link Closeable} instance, ignoring nulls, and logging
-     * any thrown {@link IOException}.
-     *
-     * @param closeable to be closed
-     */
-    public static void close(Closeable closeable) {
-        if (null != closeable) {
-            try {
-                closeable.close();
-            } catch (IOException ex) {
-                LOGGER.trace("", ex);
-            }
-        }
-    }
+	/**
+	 * Creates a unique temporary directory in the given directory.
+	 *
+	 * @param base the base directory to create a temporary directory within
+	 * @return the temporary directory
+	 * @throws IOException thrown when a directory cannot be created within the base directory
+	 */
+	public static File createTempDirectory(final File base) throws IOException {
+		final File tempDir = new File(base, "dctemp" + UUID.randomUUID().toString());
+		if (tempDir.exists()) {
+			return createTempDirectory(base);
+		}
+		if (!tempDir.mkdirs()) {
+			throw new IOException("Could not create temp directory `" + tempDir.getAbsolutePath() + "`");
+		}
+		return tempDir;
+	}
 
-    /**
-     * Gets the {@link InputStream} for this resource.
-     *
-     * @param resource path
-     * @return the input stream for the given resource
-     */
-    public static InputStream getResourceAsStream(String resource) {
-        return FileUtils.class.getClassLoader() != null
-                ? FileUtils.class.getClassLoader().getResourceAsStream(resource)
-                : ClassLoader.getSystemResourceAsStream(resource);
-    }
-    
-    public static void cleanOldTempFiles(Settings settings) throws IOException{
+	/**
+	 * Return the bit bucket for the OS. '/dev/null' for Unix and 'NUL' for Windows
+	 *
+	 * @return a String containing the bit bucket
+	 */
+	public static String getBitBucket() {
+		if (SystemUtils.IS_OS_WINDOWS) {
+			return BIT_BUCKET_WIN;
+		}
+		else {
+			return BIT_BUCKET_UNIX;
+		}
+	}
+
+	/**
+	 * Close the given {@link Closeable} instance, ignoring nulls, and logging any thrown {@link IOException}.
+	 *
+	 * @param closeable to be closed
+	 */
+	public static void close(final Closeable closeable) {
+		if (null != closeable) {
+			try {
+				closeable.close();
+			}
+			catch (IOException ex) {
+				LOGGER.trace("", ex);
+			}
+		}
+	}
+
+	/**
+	 * Gets the {@link InputStream} for this resource.
+	 *
+	 * @param resource path
+	 * @return the input stream for the given resource
+	 */
+	public static InputStream getResourceAsStream(final String resource) {
+		return FileUtils.class.getClassLoader() != null ? FileUtils.class.getClassLoader().getResourceAsStream(resource)
+				: ClassLoader.getSystemResourceAsStream(resource);
+	}
+
+	public static void cleanOldTempFiles(final Settings settings) throws IOException {
 		File dir = settings.getTempDirectory();
 		Date oldestAllowedFileDate = new Date(System.currentTimeMillis() - TEMP_FILE_MAX_TIME);
 		Iterator<File> filesToDelete = org.apache.commons.io.FileUtils.iterateFiles(dir, new AgeFileFilter(oldestAllowedFileDate), null);
 		LOGGER.info("Deleting old temp files");
-		while (filesToDelete.hasNext()) { 
+		while (filesToDelete.hasNext()) {
 			File file = filesToDelete.next();
-			LOGGER.debug("Deleting old temp file: "+file);
-            delete(file); 
-        } 
-    }
-    
-    public static void cleanOldTempFolders(Settings settings) throws IOException {
-    		final File baseTemp = new File(settings.getString(Settings.KEYS.TEMP_DIRECTORY, System.getProperty("java.io.tmpdir")));
-    		final File currentTempDir = settings.getTempDirectory();
-    		final Date oldestAllowedFileDate = new Date(System.currentTimeMillis() - TEMP_FILE_MAX_TIME);
-    		
-    		FileFilter filter = new FileFilter() {
+			LOGGER.debug("Deleting old temp file: " + file);
+			delete(file);
+		}
+	}
+
+	public static void cleanOldTempFolders(final Settings settings) throws IOException {
+		final File baseTemp = new File(settings.getString(Settings.KEYS.TEMP_DIRECTORY, System.getProperty("java.io.tmpdir")));
+		final File currentTempDir = settings.getTempDirectory();
+		final Date oldestAllowedFileDate = new Date(System.currentTimeMillis() - TEMP_FILE_MAX_TIME);
+
+		FileFilter filter = new FileFilter() {
 			@Override
-			public boolean accept(File file) {
+			public boolean accept(final File file) {
 				return file.isDirectory() && //
-						file.getName().startsWith("dctemp") && //
-						org.apache.commons.io.FileUtils.isFileOlder(file, oldestAllowedFileDate) && //
-						!file.equals(currentTempDir);
+				file.getName().startsWith("dctemp") && //
+				org.apache.commons.io.FileUtils.isFileOlder(file, oldestAllowedFileDate) && //
+				!file.equals(currentTempDir);
 			}
 		};
-    		File[] filesToDelete = baseTemp.listFiles(filter);
-    		LOGGER.info("Deleting old temp dirs. "+ filesToDelete.length);
-    		for (File file : filesToDelete) { 
-    			LOGGER.debug("Deleting old temp dir: "+file);
-    			org.apache.commons.io.FileUtils.deleteDirectory(file);
-        } 
-    }
+		File[] filesToDelete = baseTemp.listFiles(filter);
+		LOGGER.info("Deleting old temp dirs. " + filesToDelete.length);
+		IOException e = null;
+		for (File file : filesToDelete) {
+			LOGGER.debug("Deleting old temp dir: " + file);
+			try {
+				org.apache.commons.io.FileUtils.deleteDirectory(file);
+			}
+			catch (IOException ex) {
+				e = ex;
+			}
+		}
+		if (e != null) {
+			throw e;
+		}
+	}
 }
