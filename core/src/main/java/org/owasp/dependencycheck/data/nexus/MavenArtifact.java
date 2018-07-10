@@ -19,6 +19,8 @@ package org.owasp.dependencycheck.data.nexus;
 
 import javax.annotation.concurrent.ThreadSafe;
 
+import org.owasp.dependencycheck.utils.Settings;
+
 /**
  * Simple bean representing a Maven Artifact.
  *
@@ -27,201 +29,203 @@ import javax.annotation.concurrent.ThreadSafe;
 @ThreadSafe
 public class MavenArtifact {
 
-    /**
-     * The base URL for download artifacts from Central.
-     */
-    private static final String CENTRAL_CONTENT_URL = "//search.maven.org/remotecontent?filepath=";
+	/**
+	 * The base URL for download artifacts from Central.
+	 */
+	private static final String CENTRAL_CONTENT_URL = "//search.maven.org/remotecontent?filepath=";
 
-    /**
-     * The groupId
-     */
-    private String groupId;
+	/**
+	 * The groupId
+	 */
+	private String groupId;
 
-    /**
-     * The artifactId
-     */
-    private String artifactId;
+	/**
+	 * The artifactId
+	 */
+	private String artifactId;
 
-    /**
-     * The version
-     */
-    private String version;
+	/**
+	 * The version
+	 */
+	private String version;
 
-    /**
+	/**
      * The artifact url. This may change depending on which Nexus server the
      * search took place.
-     */
-    private String artifactUrl;
-    /**
-     * The url to download the POM from.
-     */
-    private String pomUrl;
+	 */
+	private String artifactUrl;
 
-    /**
-     * Creates an empty MavenArtifact.
-     */
-    public MavenArtifact() {
-    }
+	/**
+	 * The url to download the POM from.
+	 */
+	private String pomUrl;
 
-    /**
-     * Creates a MavenArtifact with the given attributes.
-     *
-     * @param groupId the groupId
-     * @param artifactId the artifactId
-     * @param version the version
-     */
+	/**
+	 * Creates an empty MavenArtifact.
+	 */
+	public MavenArtifact() {
+	}
+
+	/**
+	 * Creates a MavenArtifact with the given attributes.
+	 *
+	 * @param groupId the groupId
+	 * @param artifactId the artifactId
+	 * @param version the version
+	 */
     public MavenArtifact(String groupId, String artifactId, String version) {
-        this.groupId = groupId;
-        this.artifactId = artifactId;
-        this.version = version;
-    }
+		this.groupId = groupId;
+		this.artifactId = artifactId;
+		this.version = version;
+	}
 
-    /**
-     * Creates a MavenArtifact with the given attributes.
-     *
-     * @param groupId the groupId
-     * @param artifactId the artifactId
-     * @param version the version
-     * @param jarAvailable if the jar file is available from central
-     * @param pomAvailable if the pom file is available from central
-     * @param secureDownload if the jar and pom files should be downloaded using
-     * HTTPS.
-     */
-    public MavenArtifact(String groupId, String artifactId, String version, boolean jarAvailable, boolean pomAvailable, boolean secureDownload) {
-        this.groupId = groupId;
-        this.artifactId = artifactId;
-        this.version = version;
-        String base;
-        if (secureDownload) {
-            base = "https:" + CENTRAL_CONTENT_URL;
-        } else {
-            base = "http:" + CENTRAL_CONTENT_URL;
-        }
-        if (jarAvailable) {
-            //org/springframework/spring-core/3.2.0.RELEASE/spring-core-3.2.0.RELEASE.pom
+	/**
+	 * Creates a MavenArtifact with the given attributes.
+	 *
+	 * @param groupId the groupId
+	 * @param artifactId the artifactId
+	 * @param version the version
+	 * @param jarAvailable if the jar file is available from central
+	 * @param pomAvailable if the pom file is available from central
+	 * @param secureDownload if the jar and pom files should be downloaded using HTTPS.
+	 */
+	public MavenArtifact(String groupId, String artifactId, String version, boolean jarAvailable,
+			boolean pomAvailable, boolean useHttps, Settings settings) {
+		this.groupId = groupId;
+		this.artifactId = artifactId;
+		this.version = version;
+		String base;
+		if(useHttps) {
+			base = settings.getString(Settings.KEYS.ANALYZER_CENTRAL_SECURE_CONTENT_URL);
+		} else {
+			base = settings.getString(Settings.KEYS.ANALYZER_CENTRAL_INSECURE_CONTENT_URL);
+		}
+
+		if (jarAvailable) {
+			// org/springframework/spring-core/3.2.0.RELEASE/spring-core-3.2.0.RELEASE.pom
             this.artifactUrl = base + groupId.replace('.', '/') + '/' + artifactId + '/'
                     + version + '/' + artifactId + '-' + version + ".jar";
-        }
-        if (pomAvailable) {
-            //org/springframework/spring-core/3.2.0.RELEASE/spring-core-3.2.0.RELEASE.pom
+		}
+		if (pomAvailable) {
+			// org/springframework/spring-core/3.2.0.RELEASE/spring-core-3.2.0.RELEASE.pom
             this.pomUrl = base + groupId.replace('.', '/') + '/' + artifactId + '/'
                     + version + '/' + artifactId + '-' + version + ".pom";
-        }
-    }
+		}
+	}
 
-    /**
-     * Creates a MavenArtifact with the given attributes.
-     *
-     * @param groupId the groupId
-     * @param artifactId the artifactId
-     * @param version the version
-     * @param url the artifactLink url
-     */
+	/**
+	 * Creates a MavenArtifact with the given attributes.
+	 *
+	 * @param groupId the groupId
+	 * @param artifactId the artifactId
+	 * @param version the version
+	 * @param url the artifactLink url
+	 */
     public MavenArtifact(String groupId, String artifactId, String version, String url) {
-        this.groupId = groupId;
-        this.artifactId = artifactId;
-        this.version = version;
+		this.groupId = groupId;
+		this.artifactId = artifactId;
+		this.version = version;
         this.artifactUrl = url;
-    }
+	}
 
-    /**
-     * Returns the Artifact coordinates as a String.
-     *
-     * @return the String representation of the artifact coordinates
-     */
-    @Override
-    public String toString() {
-        return String.format("%s:%s:%s", groupId, artifactId, version);
-    }
+	/**
+	 * Returns the Artifact coordinates as a String.
+	 *
+	 * @return the String representation of the artifact coordinates
+	 */
+	@Override
+	public String toString() {
+		return String.format("%s:%s:%s", groupId, artifactId, version);
+	}
 
-    /**
-     * Sets the groupId.
-     *
-     * @param groupId the groupId
-     */
+	/**
+	 * Sets the groupId.
+	 *
+	 * @param groupId the groupId
+	 */
     public void setGroupId(String groupId) {
-        this.groupId = groupId;
-    }
+		this.groupId = groupId;
+	}
 
-    /**
-     * Gets the groupId.
-     *
-     * @return the groupId
-     */
-    public String getGroupId() {
-        return groupId;
-    }
+	/**
+	 * Gets the groupId.
+	 *
+	 * @return the groupId
+	 */
+	public String getGroupId() {
+		return groupId;
+	}
 
-    /**
-     * Sets the artifactId.
-     *
-     * @param artifactId the artifactId
-     */
+	/**
+	 * Sets the artifactId.
+	 *
+	 * @param artifactId the artifactId
+	 */
     public void setArtifactId(String artifactId) {
-        this.artifactId = artifactId;
-    }
+		this.artifactId = artifactId;
+	}
 
-    /**
-     * Gets the artifactId.
-     *
-     * @return the artifactId
-     */
-    public String getArtifactId() {
-        return artifactId;
-    }
+	/**
+	 * Gets the artifactId.
+	 *
+	 * @return the artifactId
+	 */
+	public String getArtifactId() {
+		return artifactId;
+	}
 
-    /**
-     * Sets the version.
-     *
-     * @param version the version
-     */
+	/**
+	 * Sets the version.
+	 *
+	 * @param version the version
+	 */
     public void setVersion(String version) {
-        this.version = version;
-    }
+		this.version = version;
+	}
 
-    /**
-     * Gets the version.
-     *
-     * @return the version
-     */
-    public String getVersion() {
-        return version;
-    }
+	/**
+	 * Gets the version.
+	 *
+	 * @return the version
+	 */
+	public String getVersion() {
+		return version;
+	}
 
-    /**
-     * Sets the artifactUrl.
-     *
-     * @param artifactUrl the artifactUrl
-     */
+	/**
+	 * Sets the artifactUrl.
+	 *
+	 * @param artifactUrl the artifactUrl
+	 */
     public void setArtifactUrl(String artifactUrl) {
-        this.artifactUrl = artifactUrl;
-    }
+		this.artifactUrl = artifactUrl;
+	}
 
-    /**
-     * Gets the artifactUrl.
-     *
-     * @return the artifactUrl
-     */
-    public String getArtifactUrl() {
-        return artifactUrl;
-    }
+	/**
+	 * Gets the artifactUrl.
+	 *
+	 * @return the artifactUrl
+	 */
+	public String getArtifactUrl() {
+		return artifactUrl;
+	}
 
-    /**
-     * Get the value of pomUrl.
-     *
-     * @return the value of pomUrl
-     */
-    public String getPomUrl() {
-        return pomUrl;
-    }
+	/**
+	 * Get the value of pomUrl.
+	 *
+	 * @return the value of pomUrl
+	 */
+	public String getPomUrl() {
+		return pomUrl;
+	}
 
-    /**
-     * Set the value of pomUrl.
-     *
-     * @param pomUrl new value of pomUrl
-     */
+	/**
+	 * Set the value of pomUrl.
+	 *
+	 * @param pomUrl new value of pomUrl
+	 */
     public void setPomUrl(String pomUrl) {
-        this.pomUrl = pomUrl;
-    }
+		this.pomUrl = pomUrl;
+	}
 
 }

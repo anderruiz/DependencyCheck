@@ -117,6 +117,12 @@ public final class Downloader {
 				else {
 					LOGGER.error("Error downloading from: " + url);
 				}
+				try {
+					Thread.sleep(500);
+				}
+				catch (Exception e2) {
+					// TODO: handle exception
+				}
 				retries--;
 			}
 		}
