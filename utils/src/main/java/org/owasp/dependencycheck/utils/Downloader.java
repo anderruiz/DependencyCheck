@@ -104,8 +104,8 @@ public final class Downloader {
 			}
 			catch (Exception e) {
 				LOGGER.info("Error downloading from: " + url);
-				LOGGER.info("Retrying with proxy.");
 				if (url.getProtocol().equals("https")) {
+					LOGGER.info("Retrying with proxy.");
 					try {
 						doFetchFile(byProxy(url), outputPath, useProxy);
 						retries = 0;

@@ -36,6 +36,7 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.List;
+import java.util.Collections;
 import javax.annotation.concurrent.ThreadSafe;
 import org.owasp.dependencycheck.dependency.EvidenceType;
 import org.owasp.dependencycheck.exception.InitializationException;
@@ -259,7 +260,7 @@ public class CentralAnalyzer extends AbstractFileTypeAnalyzer {
      */
     protected List<MavenArtifact> fetchMavenArtifacts(Dependency dependency) throws IOException {
         IOException lastException = null;
-        long sleepingTimeBetweenRetriesInMillis = 1000;
+        long sleepingTimeBetweenRetriesInMillis = 100;
         int triesLeft = NUMBER_OF_TRIES;
         while (triesLeft-- > 0) {
             try {
@@ -282,10 +283,8 @@ public class CentralAnalyzer extends AbstractFileTypeAnalyzer {
                 }
             }
         }
-
-        final String message = "Finally failed connecting to Central search."
-                + " Giving up after " + NUMBER_OF_TRIES + " tries.";
-        throw new IOException(message, lastException);
+        LOGGER.error("Could not connnect to Central search");
+        return Collections.emptyList();
     }
 
     /**
