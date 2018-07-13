@@ -96,14 +96,14 @@ public final class Downloader {
 	}
 
 	public void fetchFile(final URL url, final File outputPath, final boolean useProxy) throws DownloadFailedException {
-		int retries = 3;
+		int retries = 10;
 		while (retries-- > 0) {
 			try {
 				doFetchFile(url, outputPath, useProxy);
 				retries = 0;
 			}
 			catch (Exception e) {
-				LOGGER.info("Error downloading from: " + url);
+				errorDownloading(retries, url);
 				if (url.getProtocol().equals("https")) {
 					LOGGER.info("Retrying with proxy.");
 					try {
@@ -111,11 +111,9 @@ public final class Downloader {
 						retries = 0;
 					}
 					catch (Exception e1) {
-						LOGGER.error("Error downloading from: " + byProxy(url));
+						errorDownloading(retries, byProxy(url));
+						retries--;
 					}
-				}
-				else {
-					LOGGER.error("Error downloading from: " + url);
 				}
 				try {
 					Thread.sleep(500);
@@ -123,10 +121,19 @@ public final class Downloader {
 				catch (Exception e2) {
 					// TODO: handle exception
 				}
-				retries--;
+				
 			}
 		}
 	}
+	
+	private void errorDownloading(int retries, URL url) {
+		if(retries!=1) {
+			LOGGER.info("Error downloading("+retries+") from: " + url);
+		} else {
+			LOGGER.error("Error downloading("+retries+") from: " + url);
+		}
+	}
+	
 	private static URL byProxy(final URL url) {
 		if (url.getProtocol().equals("https")) {
 			try {
