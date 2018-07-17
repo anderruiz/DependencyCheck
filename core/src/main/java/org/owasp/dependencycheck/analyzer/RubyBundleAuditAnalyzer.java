@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -59,6 +60,12 @@ public class RubyBundleAuditAnalyzer extends AbstractFileTypeAnalyzer {
      * The logger.
      */
     private static final Logger LOGGER = LoggerFactory.getLogger(RubyBundleAuditAnalyzer.class);
+
+    /**
+     * A descriptor for the type of dependencies processed or added by this
+     * analyzer.
+     */
+    public static final String DEPENDENCY_ECOSYSTEM = "Ruby.Bundle";
 
     /**
      * The name of the analyzer.
@@ -179,7 +186,7 @@ public class RubyBundleAuditAnalyzer extends AbstractFileTypeAnalyzer {
             final String msg = String.format("Unexpected exit code from bundle-audit process. Disabling %s: %s", ANALYZER_NAME, exitValue);
             throw new InitializationException(msg);
         } else {
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getErrorStream(), "UTF-8"))) {
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getErrorStream(), StandardCharsets.UTF_8))) {
                 if (!reader.ready()) {
                     LOGGER.warn("Bundle-audit error stream unexpectedly not ready. Disabling {}", ANALYZER_NAME);
                     setEnabled(false);
@@ -287,13 +294,13 @@ public class RubyBundleAuditAnalyzer extends AbstractFileTypeAnalyzer {
             throw new AnalysisException(msg);
         }
         try {
-            try (BufferedReader errReader = new BufferedReader(new InputStreamReader(process.getErrorStream(), "UTF-8"))) {
+            try (BufferedReader errReader = new BufferedReader(new InputStreamReader(process.getErrorStream(), StandardCharsets.UTF_8))) {
                 while (errReader.ready()) {
                     final String error = errReader.readLine();
                     LOGGER.warn(error);
                 }
             }
-            try (BufferedReader rdr = new BufferedReader(new InputStreamReader(process.getInputStream(), "UTF-8"))) {
+            try (BufferedReader rdr = new BufferedReader(new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
                 processBundlerAuditOutput(dependency, engine, rdr);
             }
         } catch (IOException ioe) {
@@ -473,14 +480,17 @@ public class RubyBundleAuditAnalyzer extends AbstractFileTypeAnalyzer {
      * @throws IOException thrown if a temporary gem file could not be written
      */
     private Dependency createDependencyForGem(Engine engine, String parentName, String fileName, String filePath, String gem) throws IOException {
-        final File gemFile = new File(getSettings().getTempDirectory(), gem + "_Gemfile.lock");
-        if (!gemFile.createNewFile()) {
+        final File gemFile;
+        try {
+            gemFile = File.createTempFile(gem, "_Gemfile.lock", getSettings().getTempDirectory());
+        } catch (IOException ioe) {
             throw new IOException("Unable to create temporary gem file");
         }
         final String displayFileName = String.format("%s%c%s:%s", parentName, File.separatorChar, fileName, gem);
 
         FileUtils.write(gemFile, displayFileName, Charset.defaultCharset()); // unique contents to avoid dependency bundling
         final Dependency dependency = new Dependency(gemFile);
+        dependency.setEcosystem(DEPENDENCY_ECOSYSTEM);
         dependency.addEvidence(EvidenceType.PRODUCT, "bundler-audit", "Name", gem, Confidence.HIGHEST);
         dependency.setDisplayFileName(displayFileName);
         dependency.setFileName(fileName);

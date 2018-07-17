@@ -59,19 +59,19 @@ public class CPEAnalyzerIT extends BaseDBTestCase {
         CPEAnalyzer instance = new CPEAnalyzer();
         instance.initialize(getSettings());
         String queryText = instance.buildSearch(vendor, product, null, null);
-        String expResult = " product:( struts 2 core )  AND  vendor:( apache software foundation ) ";
+        String expResult = "product:(struts 2 core) AND vendor:(apache software foundation)";
         assertTrue(expResult.equals(queryText));
 
         queryText = instance.buildSearch(vendor, product, null, productWeightings);
-        expResult = " product:(  struts^5 struts2^5 2 core )  AND  vendor:( apache software foundation ) ";
+        expResult = "product:(struts^5 struts2^5 2 core) AND vendor:(apache software foundation)";
         assertTrue(expResult.equals(queryText));
 
         queryText = instance.buildSearch(vendor, product, vendorWeightings, null);
-        expResult = " product:( struts 2 core )  AND  vendor:(  apache^5 software foundation ) ";
+        expResult = "product:(struts 2 core) AND vendor:(apache^5 software foundation)";
         assertTrue(expResult.equals(queryText));
 
         queryText = instance.buildSearch(vendor, product, vendorWeightings, productWeightings);
-        expResult = " product:(  struts^5 struts2^5 2 core )  AND  vendor:(  apache^5 software foundation ) ";
+        expResult = "product:(struts^5 struts2^5 2 core) AND vendor:(apache^5 software foundation)";
         assertTrue(expResult.equals(queryText));
         instance.close();
     }
@@ -103,13 +103,18 @@ public class CPEAnalyzerIT extends BaseDBTestCase {
             fp.initialize(getSettings());
             fp.prepare(e);
 
-            callDetermineCPE_full("hazelcast-2.5.jar", null, cpeAnalyzer, fnAnalyzer, jarAnalyzer, hAnalyzer, fp);
-            callDetermineCPE_full("spring-context-support-2.5.5.jar", "cpe:/a:springsource:spring_framework:2.5.5", cpeAnalyzer, fnAnalyzer, jarAnalyzer, hAnalyzer, fp);
-            callDetermineCPE_full("spring-core-3.0.0.RELEASE.jar", "cpe:/a:vmware:springsource_spring_framework:3.0.0", cpeAnalyzer, fnAnalyzer, jarAnalyzer, hAnalyzer, fp);
-            callDetermineCPE_full("jaxb-xercesImpl-1.5.jar", null, cpeAnalyzer, fnAnalyzer, jarAnalyzer, hAnalyzer, fp);
-            callDetermineCPE_full("ehcache-core-2.2.0.jar", null, cpeAnalyzer, fnAnalyzer, jarAnalyzer, hAnalyzer, fp);
-            callDetermineCPE_full("org.mortbay.jetty.jar", "cpe:/a:mortbay_jetty:jetty:4.2.27", cpeAnalyzer, fnAnalyzer, jarAnalyzer, hAnalyzer, fp);
-            callDetermineCPE_full("xstream-1.4.8.jar", "cpe:/a:x-stream:xstream:1.4.8", cpeAnalyzer, fnAnalyzer, jarAnalyzer, hAnalyzer, fp);
+            CpeSuppressionAnalyzer cpeSuppression = new CpeSuppressionAnalyzer();
+            cpeSuppression.initialize(getSettings());
+            cpeSuppression.prepare(e);
+
+            callDetermineCPE_full("hazelcast-2.5.jar", null, cpeAnalyzer, fnAnalyzer, jarAnalyzer, hAnalyzer, fp, cpeSuppression);
+            callDetermineCPE_full("spring-context-support-2.5.5.jar", "cpe:/a:springsource:spring_framework:2.5.5", cpeAnalyzer, fnAnalyzer, jarAnalyzer, hAnalyzer, fp, cpeSuppression);
+            callDetermineCPE_full("spring-core-3.0.0.RELEASE.jar", "cpe:/a:vmware:springsource_spring_framework:3.0.0", cpeAnalyzer, fnAnalyzer, jarAnalyzer, hAnalyzer, fp, cpeSuppression);
+            callDetermineCPE_full("jaxb-xercesImpl-1.5.jar", null, cpeAnalyzer, fnAnalyzer, jarAnalyzer, hAnalyzer, fp, cpeSuppression);
+            callDetermineCPE_full("ehcache-core-2.2.0.jar", null, cpeAnalyzer, fnAnalyzer, jarAnalyzer, hAnalyzer, fp, cpeSuppression);
+            callDetermineCPE_full("org.mortbay.jetty.jar", "cpe:/a:mortbay_jetty:jetty:4.2.27", cpeAnalyzer, fnAnalyzer, jarAnalyzer, hAnalyzer, fp, cpeSuppression);
+            //callDetermineCPE_full("xstream-1.4.8.jar", "cpe:/a:x-stream:xstream:1.4.8", cpeAnalyzer, fnAnalyzer, jarAnalyzer, hAnalyzer, fp, cpeSuppression);
+            callDetermineCPE_full("xstream-1.4.8.jar", "cpe:/a:xstream_project:xstream:1.4.8", cpeAnalyzer, fnAnalyzer, jarAnalyzer, hAnalyzer, fp, cpeSuppression);
         } finally {
             cpeAnalyzer.close();
         }
@@ -121,7 +126,7 @@ public class CPEAnalyzerIT extends BaseDBTestCase {
      * @throws Exception is thrown when an exception occurs
      */
     public void callDetermineCPE_full(String depName, String expResult, CPEAnalyzer cpeAnalyzer, FileNameAnalyzer fnAnalyzer,
-            JarAnalyzer jarAnalyzer, HintAnalyzer hAnalyzer, FalsePositiveAnalyzer fp) throws Exception {
+            JarAnalyzer jarAnalyzer, HintAnalyzer hAnalyzer, FalsePositiveAnalyzer fp, CpeSuppressionAnalyzer cpeSuppression) throws Exception {
 
         //File file = new File(this.getClass().getClassLoader().getResource(depName).getPath());
         File file = BaseTest.getResourceAsFile(this, depName);
@@ -133,6 +138,7 @@ public class CPEAnalyzerIT extends BaseDBTestCase {
         hAnalyzer.analyze(dep, null);
         cpeAnalyzer.analyze(dep, null);
         fp.analyze(dep, null);
+        cpeSuppression.analyze(dep, null);
 
         if (expResult != null) {
             boolean found = false;

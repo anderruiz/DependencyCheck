@@ -17,6 +17,14 @@
  */
 package org.owasp.dependencycheck.dependency;
 
+import org.apache.commons.lang3.builder.EqualsBuilder;
+import org.apache.commons.lang3.builder.HashCodeBuilder;
+import org.owasp.dependencycheck.data.nexus.MavenArtifact;
+import org.owasp.dependencycheck.utils.Checksum;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.annotation.concurrent.ThreadSafe;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
@@ -27,14 +35,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
-import javax.annotation.concurrent.ThreadSafe;
-
-import org.apache.commons.lang3.builder.EqualsBuilder;
-import org.apache.commons.lang3.builder.HashCodeBuilder;
-import org.owasp.dependencycheck.data.nexus.MavenArtifact;
-import org.owasp.dependencycheck.utils.Checksum;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * A program dependency. This object is one of the core components within
@@ -55,6 +55,61 @@ public class Dependency extends EvidenceCollection implements Serializable {
      * The logger.
      */
     private static final Logger LOGGER = LoggerFactory.getLogger(Dependency.class);
+    /**
+     * The MD5 hashing function.
+     */
+    private static final HashingFunction MD5_HASHING_FUNCTION = new HashingFunction() {
+        @Override
+        public String hash(File file) throws IOException, NoSuchAlgorithmException {
+            return Checksum.getMD5Checksum(file);
+        }
+    };
+    /**
+     * The SHA1 hashing function.
+     */
+    private static final HashingFunction SHA1_HASHING_FUNCTION = new HashingFunction() {
+        @Override
+        public String hash(File file) throws IOException, NoSuchAlgorithmException {
+            return Checksum.getSHA1Checksum(file);
+        }
+    };
+    /**
+     * The SHA256 hashing function.
+     */
+    private static final HashingFunction SHA256_HASHING_FUNCTION = new HashingFunction() {
+        @Override
+        public String hash(File file) throws IOException, NoSuchAlgorithmException {
+            return Checksum.getSHA256Checksum(file);
+        }
+    };
+    /**
+     * A list of Identifiers.
+     */
+    private final Set<Identifier> identifiers = new TreeSet<>();
+    /**
+     * A set of identifiers that have been suppressed.
+     */
+    private final Set<Identifier> suppressedIdentifiers = new TreeSet<>();
+    /**
+     * A set of vulnerabilities that have been suppressed.
+     */
+    private final Set<Vulnerability> suppressedVulnerabilities = new HashSet<>();
+    /**
+     * A list of vulnerabilities for this dependency.
+     */
+    private final Set<Vulnerability> vulnerabilities = new HashSet<>();
+    /**
+     * A collection of related dependencies.
+     */
+    private final Set<Dependency> relatedDependencies = new HashSet<>();
+    /**
+     * A list of projects that reference this dependency.
+     */
+    private final Set<String> projectReferences = new HashSet<>();
+    /**
+     * A list of available versions.
+     */
+    private final List<String> availableVersions = new ArrayList<>();
     /**
      * The actual file path of the dependency on disk.
      */
@@ -80,21 +135,13 @@ public class Dependency extends EvidenceCollection implements Serializable {
      */
     private String sha1sum;
     /**
-     * A list of Identifiers.
+     * The SHA256 hash of the dependency.
      */
-    private final Set<Identifier> identifiers = new TreeSet<>();
+    private String sha256sum;
     /**
      * The file name to display in reports.
      */
     private String displayName = null;
-    /**
-     * A set of identifiers that have been suppressed.
-     */
-    private final Set<Identifier> suppressedIdentifiers = new TreeSet<>();
-    /**
-     * A set of vulnerabilities that have been suppressed.
-     */
-    private final Set<Vulnerability> suppressedVulnerabilities = new HashSet<>();
     /**
      * The description of the JAR file.
      */
@@ -103,23 +150,6 @@ public class Dependency extends EvidenceCollection implements Serializable {
      * The license that this dependency uses.
      */
     private String license;
-    /**
-     * A list of vulnerabilities for this dependency.
-     */
-    private final Set<Vulnerability> vulnerabilities = new HashSet<>();
-    /**
-     * A collection of related dependencies.
-     */
-    private final Set<Dependency> relatedDependencies = new HashSet<>();
-    /**
-     * A list of projects that reference this dependency.
-     */
-    private final Set<String> projectReferences = new HashSet<>();
-    /**
-     * A list of available versions.
-     */
-    private final List<String> availableVersions = new ArrayList<>();
-
     /**
      * Defines an actual or virtual dependency.
      */
@@ -140,24 +170,6 @@ public class Dependency extends EvidenceCollection implements Serializable {
      * or collected evidence about it
      */
     private String ecosystem;
-
-    /**
-     * Returns the package path.
-     *
-     * @return the package path
-     */
-    public String getPackagePath() {
-        return packagePath;
-    }
-
-    /**
-     * Sets the package path.
-     *
-     * @param packagePath the package path
-     */
-    public void setPackagePath(String packagePath) {
-        this.packagePath = packagePath;
-    }
 
     /**
      * Constructs a new Dependency object.
@@ -189,7 +201,53 @@ public class Dependency extends EvidenceCollection implements Serializable {
         this.filePath = this.actualFilePath;
         this.fileName = file.getName();
         this.packagePath = filePath;
-        determineHashes(file);
+        if (!isVirtual && file.isFile()) {
+            calculateChecksums(file);
+        }
+    }
+
+    /**
+     * Calculates the checksums for the given file.
+     *
+     * @param file the file used to calculate the checksums
+     */
+    private void calculateChecksums(File file) {
+        try {
+            this.md5sum = Checksum.getMD5Checksum(file);
+            this.sha1sum = Checksum.getSHA1Checksum(file);
+            this.sha256sum = Checksum.getSHA256Checksum(file);
+        } catch (NoSuchAlgorithmException | IOException ex) {
+            LOGGER.debug(String.format("Unable to calculate checksums on %s", file), ex);
+        }
+    }
+
+    /**
+     * Constructs a new Dependency object.
+     *
+     * @param isVirtual specifies if the dependency is virtual indicating the
+     * file doesn't actually exist.
+     */
+    public Dependency(boolean isVirtual) {
+        this();
+        this.isVirtual = isVirtual;
+    }
+
+    /**
+     * Returns the package path.
+     *
+     * @return the package path
+     */
+    public String getPackagePath() {
+        return packagePath;
+    }
+
+    /**
+     * Sets the package path.
+     *
+     * @param packagePath the package path
+     */
+    public void setPackagePath(String packagePath) {
+        this.packagePath = packagePath;
     }
 
     /**
@@ -211,19 +269,6 @@ public class Dependency extends EvidenceCollection implements Serializable {
     }
 
     /**
-     * Sets the actual file path of the dependency on disk.
-     *
-     * @param actualFilePath the file path of the dependency
-     */
-    public void setActualFilePath(String actualFilePath) {
-        this.actualFilePath = actualFilePath;
-        if (this.sha1sum == null) {
-            final File file = new File(this.actualFilePath);
-            determineHashes(file);
-        }
-    }
-
-    /**
      * Gets the file path of the dependency.
      *
      * @return the file path of the dependency
@@ -231,7 +276,23 @@ public class Dependency extends EvidenceCollection implements Serializable {
     public String getActualFilePath() {
         return this.actualFilePath;
     }
-    
+
+    /**
+     * Sets the actual file path of the dependency on disk.
+     *
+     * @param actualFilePath the file path of the dependency
+     */
+    public void setActualFilePath(String actualFilePath) {
+        this.actualFilePath = actualFilePath;
+        this.sha1sum = null;
+        this.sha256sum = null;
+        this.md5sum = null;
+        final File file = getActualFile();
+        if (file.isFile()) {
+            calculateChecksums(this.getActualFile());
+        }
+    }
+
     /**
      * Gets a reference to the File object.
      *
@@ -239,27 +300,6 @@ public class Dependency extends EvidenceCollection implements Serializable {
      */
     public File getActualFile() {
         return new File(this.actualFilePath);
-    }
-
-    /**
-     * Sets the file path of the dependency.
-     *
-     * @param filePath the file path of the dependency
-     */
-    public void setFilePath(String filePath) {
-        if (this.packagePath == null || this.packagePath.equals(this.filePath)) {
-            this.packagePath = filePath;
-        }
-        this.filePath = filePath;
-    }
-
-    /**
-     * Sets the file name to display in reports.
-     *
-     * @param displayName the name to display
-     */
-    public void setDisplayFileName(String displayName) {
-        this.displayName = displayName;
     }
 
     /**
@@ -283,6 +323,15 @@ public class Dependency extends EvidenceCollection implements Serializable {
     }
 
     /**
+     * Sets the file name to display in reports.
+     *
+     * @param displayName the name to display
+     */
+    public void setDisplayFileName(String displayName) {
+        this.displayName = displayName;
+    }
+
+    /**
      * <p>
      * Gets the file path of the dependency.</p>
      * <p>
@@ -297,11 +346,27 @@ public class Dependency extends EvidenceCollection implements Serializable {
     }
 
     /**
+     * Sets the file path of the dependency.
+     *
+     * @param filePath the file path of the dependency
+     */
+    public void setFilePath(String filePath) {
+//        if (this.packagePath == null || this.packagePath.equals(this.filePath)) {
+//            this.packagePath = filePath;
+//        }
+        this.filePath = filePath;
+    }
+
+    /**
      * Returns the MD5 Checksum of the dependency file.
      *
      * @return the MD5 Checksum
      */
     public String getMd5sum() {
+        if (md5sum == null) {
+            this.md5sum = determineHashes(MD5_HASHING_FUNCTION);
+        }
+
         return this.md5sum;
     }
 
@@ -320,6 +385,9 @@ public class Dependency extends EvidenceCollection implements Serializable {
      * @return the SHA1 Checksum
      */
     public String getSha1sum() {
+        if (sha1sum == null) {
+            this.sha1sum = determineHashes(SHA1_HASHING_FUNCTION);
+        }
         return this.sha1sum;
     }
 
@@ -330,6 +398,22 @@ public class Dependency extends EvidenceCollection implements Serializable {
      */
     public void setSha1sum(String sha1sum) {
         this.sha1sum = sha1sum;
+    }
+
+    /**
+     * Returns the SHA256 Checksum of the dependency.
+     *
+     * @return the SHA256 Checksum of the dependency
+     */
+    public String getSha256sum() {
+        if (sha256sum == null) {
+            this.sha256sum = determineHashes(SHA256_HASHING_FUNCTION);
+        }
+        return sha256sum;
+    }
+
+    public void setSha256sum(String sha256sum) {
+        this.sha256sum = sha256sum;
     }
 
     /**
@@ -405,8 +489,8 @@ public class Dependency extends EvidenceCollection implements Serializable {
         if (mavenArtifact.getVersion() != null && !mavenArtifact.getVersion().isEmpty()) {
             this.addEvidence(EvidenceType.VERSION, source, "version", mavenArtifact.getVersion(), confidence);
         }
+        boolean found = false;
         if (mavenArtifact.getArtifactUrl() != null && !mavenArtifact.getArtifactUrl().isEmpty()) {
-            boolean found = false;
             synchronized (this) {
                 for (Identifier i : this.identifiers) {
                     if ("maven".equals(i.getType()) && i.getValue().equals(mavenArtifact.toString())) {
@@ -420,10 +504,10 @@ public class Dependency extends EvidenceCollection implements Serializable {
                     }
                 }
             }
-            if (!found) {
-                LOGGER.debug("Adding new maven identifier {}", mavenArtifact);
-                this.addIdentifier("maven", mavenArtifact.toString(), mavenArtifact.getArtifactUrl(), Confidence.HIGHEST);
-            }
+        }
+        if (!found && mavenArtifact.getGroupId() != null && mavenArtifact.getArtifactId() != null && mavenArtifact.getVersion() != null) {
+            LOGGER.debug("Adding new maven identifier {}", mavenArtifact);
+            this.addIdentifier("maven", mavenArtifact.toString(), mavenArtifact.getArtifactUrl(), Confidence.HIGHEST);
         }
     }
 
@@ -471,13 +555,13 @@ public class Dependency extends EvidenceCollection implements Serializable {
      * @return the unmodifiable list set of vulnerabilities
      */
     public synchronized Set<Vulnerability> getVulnerabilities(boolean sorted) {
-        Set<Vulnerability> r;
+        final Set<Vulnerability> vulnerabilitySet;
         if (sorted) {
-            r = new TreeSet<>(vulnerabilities);
+            vulnerabilitySet = new TreeSet<>(vulnerabilities);
         } else {
-            r = vulnerabilities;
+            vulnerabilitySet = vulnerabilities;
         }
-        return Collections.unmodifiableSet(r);
+        return Collections.unmodifiableSet(vulnerabilitySet);
     }
 
     /**
@@ -496,13 +580,13 @@ public class Dependency extends EvidenceCollection implements Serializable {
      * @return the unmodifiable sorted set of suppressedVulnerabilities
      */
     public synchronized Set<Vulnerability> getSuppressedVulnerabilities(boolean sorted) {
-        Set<Vulnerability> r;
+        final Set<Vulnerability> vulnerabilitySet;
         if (sorted) {
-            r = new TreeSet<>(suppressedVulnerabilities);
+            vulnerabilitySet = new TreeSet<>(suppressedVulnerabilities);
         } else {
-            r = suppressedVulnerabilities;
+            vulnerabilitySet = suppressedVulnerabilities;
         }
-        return Collections.unmodifiableSet(r);
+        return Collections.unmodifiableSet(vulnerabilitySet);
     }
 
     /**
@@ -567,26 +651,24 @@ public class Dependency extends EvidenceCollection implements Serializable {
     /**
      * Determines the SHA1 and MD5 sum for the given file.
      *
-     * @param file the file to create checksums for
+     * @param hashFunction the hashing function
+     * @return the checksum
      */
-    private void determineHashes(File file) {
-        String md5 = null;
-        String sha1 = null;
+    private String determineHashes(HashingFunction hashFunction) {
         if (isVirtual) {
-            return;
+            return null;
         }
         try {
-            md5 = Checksum.getMD5Checksum(file);
-            sha1 = Checksum.getSHA1Checksum(file);
-        } catch (IOException ex) {
-            LOGGER.warn("Unable to read '{}' to determine hashes.", file.getName());
+            final File file = getActualFile();
+            return hashFunction.hash(file);
+        } catch (IOException | RuntimeException ex) {
+            LOGGER.warn("Unable to read '{}' to determine hashes.", actualFilePath);
             LOGGER.debug("", ex);
         } catch (NoSuchAlgorithmException ex) {
             LOGGER.warn("Unable to use MD5 or SHA1 checksums.");
             LOGGER.debug("", ex);
         }
-        this.setMd5sum(md5);
-        this.setSha1sum(sha1);
+        return null;
     }
 
     /**
@@ -661,7 +743,8 @@ public class Dependency extends EvidenceCollection implements Serializable {
      */
     public synchronized void addRelatedDependency(Dependency dependency) {
         if (this == dependency) {
-            LOGGER.warn("Attempted to add a circular reference");
+            LOGGER.warn("Attempted to add a circular reference - please post the log file to issue #172 here "
+                    + "https://github.com/jeremylong/DependencyCheck/issues/172");
             LOGGER.debug("this: {}", this);
             LOGGER.debug("dependency: {}", dependency);
         } else if (!relatedDependencies.add(dependency)) {
@@ -728,6 +811,7 @@ public class Dependency extends EvidenceCollection implements Serializable {
                 .append(this.packagePath, other.packagePath)
                 .append(this.md5sum, other.md5sum)
                 .append(this.sha1sum, other.sha1sum)
+                .append(this.sha256sum, other.sha256sum)
                 .append(this.identifiers, other.identifiers)
                 .append(this.description, other.description)
                 .append(this.license, other.license)
@@ -754,6 +838,7 @@ public class Dependency extends EvidenceCollection implements Serializable {
                 .append(packagePath)
                 .append(md5sum)
                 .append(sha1sum)
+                .append(sha256sum)
                 .append(identifiers)
                 .append(description)
                 .append(license)
@@ -898,6 +983,22 @@ public class Dependency extends EvidenceCollection implements Serializable {
      */
     public void setEcosystem(String ecosystem) {
         this.ecosystem = ecosystem;
+    }
+
+    /**
+     * A hashing function shortcut.
+     */
+    interface HashingFunction {
+
+        /**
+         * Calculates the checksum for the given file.
+         *
+         * @param file the source for the checksum
+         * @return the string representation of the checksum
+         * @throws IOException thrown if there is an I/O error
+         * @throws NoSuchAlgorithmException thrown if the algorithm is not found
+         */
+        String hash(File file) throws IOException, NoSuchAlgorithmException;
     }
 
 }

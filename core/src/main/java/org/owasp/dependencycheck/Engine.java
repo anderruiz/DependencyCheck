@@ -66,7 +66,6 @@ import org.owasp.dependencycheck.utils.H2DBLock;
 import static org.owasp.dependencycheck.analyzer.AnalysisPhase.*;
 //CSON: AvoidStarImport
 
-
 /**
  * Scans files, directories, etc. for Dependencies. Analyzers are loaded and
  * used to process the files found by the scan, if a file is encountered and an
@@ -620,7 +619,7 @@ public class Engine implements FileFilter {
         }
         return dependency;
     }
-    
+
     protected boolean skipPhase(AnalysisPhase phase) {
     	return false;
     }
@@ -657,7 +656,7 @@ public class Engine implements FileFilter {
         final long analysisStart = System.currentTimeMillis();
 
         // analysis phases
-		for (AnalysisPhase phase : mode.getPhases()) {
+        for (AnalysisPhase phase : mode.getPhases()) {
         	if(skipPhase(phase)) {
         		continue;
         	}
@@ -730,6 +729,13 @@ public class Engine implements FileFilter {
                         + "data instead. Results may not include recent vulnerabilities.");
                 LOGGER.debug("Update Error", ex);
             } catch (DatabaseException ex) {
+                final String msg;
+                if (ex.getMessage().contains("Unable to connect") && ConnectionFactory.isH2Connection(settings)) {
+                    msg = "Unable to update connect to the database - if this error persists it may be "
+                            + "due to a corrupt database. Consider running `purge` to delete the existing database";
+                } else {
+                    msg = "Unable to connect to the database";
+                }
                 throw new ExceptionCollection("Unable to connect to the database", ex);
             }
         } else {
@@ -742,7 +748,6 @@ public class Engine implements FileFilter {
             } catch (IOException ex) {
                 throw new ExceptionCollection(new DatabaseException("Autoupdate is disabled and unable to connect to the database"), true);
             } catch (DatabaseException ex) {
-            	ex.printStackTrace();
                 throwFatalExceptionCollection("Unable to connect to the dependency-check database.", ex, exceptions);
             }
         }
@@ -762,7 +767,8 @@ public class Engine implements FileFilter {
         final ExecutorService executorService = getExecutorService(analyzer);
 
         try {
-            final List<Future<Void>> results = executorService.invokeAll(analysisTasks, 10, TimeUnit.MINUTES);
+            final int timeout = settings.getInt(Settings.KEYS.ANALYSIS_TIMEOUT, 20);
+            final List<Future<Void>> results = executorService.invokeAll(analysisTasks, timeout, TimeUnit.MINUTES);
 
             // ensure there was no exception during execution
             for (Future<Void> result : results) {
@@ -771,7 +777,7 @@ public class Engine implements FileFilter {
                 } catch (ExecutionException e) {
                     throwFatalExceptionCollection("Analysis task failed with a fatal exception.", e, exceptions);
                 } catch (CancellationException e) {
-                    throwFatalExceptionCollection("Analysis task timed out.", e, exceptions);
+                    throwFatalExceptionCollection("Analysis task was cancelled.", e, exceptions);
                 }
             }
         } catch (InterruptedException e) {
@@ -805,8 +811,8 @@ public class Engine implements FileFilter {
      * @return the executor service
      */
     protected ExecutorService getExecutorService(Analyzer analyzer) {
-    	final int maximumNumberOfThreads = Settings.availableProcessors();
-        if (maximumNumberOfThreads!=1 && analyzer.supportsParallelProcessing()) {
+        if (analyzer.supportsParallelProcessing()) {
+            final int maximumNumberOfThreads = Runtime.getRuntime().availableProcessors();
             LOGGER.debug("Parallel processing with up to {} threads: {}.", maximumNumberOfThreads, analyzer.getName());
             return Executors.newFixedThreadPool(maximumNumberOfThreads);
         } else {
@@ -868,6 +874,7 @@ public class Engine implements FileFilter {
      * them.
      *
      * @throws UpdateException thrown if the operation fails
+     * @throws DatabaseException if the operation fails due to a local database failure
      */
     public void doUpdates() throws UpdateException {
         doUpdates(false);
@@ -880,6 +887,7 @@ public class Engine implements FileFilter {
      * @param remainOpen whether or not the database connection should remain
      * open
      * @throws UpdateException thrown if the operation fails
+     * @throws DatabaseException if the operation fails due to a local database failure
      */
     public void doUpdates(boolean remainOpen) throws UpdateException {
         if (mode.isDatabaseRequired()) {
@@ -968,9 +976,11 @@ public class Engine implements FileFilter {
                         final File tempDB = new File(temp, db.getName());
                         Files.copy(db.toPath(), tempDB.toPath());
                         LOGGER.debug("copying complete '{}'", temp.toPath());
-                        settings.setString(Settings.KEYS.DATA_DIRECTORY, temp.getPath());
+                        settings.setString(Settings.KEYS.H2_DATA_DIRECTORY, temp.getPath());
                         final String connStr = settings.getString(Settings.KEYS.DB_CONNECTION_STRING);
-                        settings.setString(Settings.KEYS.DB_CONNECTION_STRING, connStr + "ACCESS_MODE_DATA=r");
+                        if (!connStr.contains("ACCESS_MODE_DATA")) {
+                            settings.setString(Settings.KEYS.DB_CONNECTION_STRING, connStr + "ACCESS_MODE_DATA=r");
+                        }
                         database = new CveDB(settings);
                     }
                 } catch (IOException ex) {
@@ -1050,6 +1060,15 @@ public class Engine implements FileFilter {
     }
 
     /**
+     * Returns the mode of the engine.
+     *
+     * @return the mode of the engine
+     */
+    public Mode getMode() {
+        return mode;
+    }
+
+    /**
      * Adds a file type analyzer. This has been added solely to assist in unit
      * testing the Engine.
      *
@@ -1065,7 +1084,7 @@ public class Engine implements FileFilter {
      *
      * @throws NoDataException thrown if no data exists in the CPE Index
      */
-	protected void ensureDataExists() throws NoDataException {
+    protected void ensureDataExists() throws NoDataException {
         if (mode.isDatabaseRequired() && (database == null || !database.dataExists())) {
             throw new NoDataException("No documents exist");
         }
@@ -1126,5 +1145,4 @@ public class Engine implements FileFilter {
     public void writeReports(String applicationName, File outputDir, String format) throws ReportException {
         writeReports(applicationName, null, null, null, outputDir, format);
     }
-
 }

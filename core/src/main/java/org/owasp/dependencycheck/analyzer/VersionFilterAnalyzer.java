@@ -148,11 +148,10 @@ public class VersionFilterAnalyzer extends AbstractAnalyzer {
             final DependencyVersion dvFile = new DependencyVersion(fileVersion);
             final DependencyVersion dvPom = new DependencyVersion(pomVersion);
             final DependencyVersion dvManifest = new DependencyVersion(manifestVersion);
-            final boolean fileMatch = equals(dvFile, dvPom) || equals(dvFile, dvManifest);
-            final boolean manifestMatch = equals(dvManifest, dvPom) || equals(dvManifest, dvFile);
-            final boolean pomMatch = equals(dvPom, dvFile) || equals(dvPom, dvManifest);
+            final boolean fileMatch = equals(dvFile, dvPom) || Objects.equals(dvFile, dvManifest);
+            final boolean manifestMatch = equals(dvManifest, dvPom) || Objects.equals(dvManifest, dvFile);
+            final boolean pomMatch = equals(dvPom, dvFile) || Objects.equals(dvPom, dvManifest);
             if (fileMatch || manifestMatch || pomMatch) {
-
                 final Set<Evidence> remove = new HashSet<>();
                 for (Evidence e : dependency.getEvidence(EvidenceType.VERSION)) {
                     if (!(pomMatch && VERSION.equals(e.getName())

@@ -20,6 +20,7 @@ package org.owasp.dependencycheck.data.nvdcve;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.sql.PreparedStatement;
 import java.sql.Connection;
 import java.sql.Driver;
@@ -272,7 +273,7 @@ public final class ConnectionFactory {
      * @throws IOException thrown if there is an error
      */
     public static File getH2DataFile(Settings configuration) throws IOException {
-        final File dir = configuration.getDataDirectory();
+        final File dir = configuration.getH2DataDirectory();
         final String fileName = configuration.getString(Settings.KEYS.DB_FILE_NAME);
         final File file = new File(dir, fileName);
         return file;
@@ -294,7 +295,7 @@ public final class ConnectionFactory {
      * @return true if the connection string is for an H2 database
      */
     public static boolean isH2Connection(Settings configuration) {
-        String connStr;
+        final String connStr;
         try {
             connStr = configuration.getConnectionString(
                     Settings.KEYS.DB_CONNECTION_STRING,
@@ -319,6 +320,7 @@ public final class ConnectionFactory {
         try {
             is = FileUtils.getResourceAsStream(DB_STRUCTURE_RESOURCE);
             final String dbStructure = IOUtils.toString(is, "UTF-8");
+
 
             Statement statement = null;
             try {
@@ -369,7 +371,7 @@ public final class ConnectionFactory {
                 if (is == null) {
                     throw new DatabaseException(String.format("Unable to load update file '%s'", updateFile));
                 }
-                final String dbStructureUpdate = IOUtils.toString(is, "UTF-8");
+                final String dbStructureUpdate = IOUtils.toString(is, StandardCharsets.UTF_8);
 
                 Statement statement = null;
                 try {
@@ -396,6 +398,7 @@ public final class ConnectionFactory {
             final int c0 = Integer.parseInt(currentDbVersion.getVersionParts().get(0));
             final int e1 = Integer.parseInt(appExpectedVersion.getVersionParts().get(1));
             final int c1 = Integer.parseInt(currentDbVersion.getVersionParts().get(1));
+            //CSOFF: EmptyBlock
             if (e0 == c0 && e1 < c1) {
                 LOGGER.warn("A new version of dependency-check is available; consider upgrading");
                 settings.setBoolean(Settings.KEYS.AUTO_UPDATE, false);
@@ -406,6 +409,7 @@ public final class ConnectionFactory {
                         UPGRADE_HELP_URL);
                 throw new DatabaseException("Database schema is out of date");
             }
+            //CSON: EmptyBlock
         }
     }
 

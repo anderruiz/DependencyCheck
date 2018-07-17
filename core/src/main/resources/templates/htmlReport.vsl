@@ -556,6 +556,10 @@ Copyright (c) 2012 Jeremy Long. All Rights Reserved.
             .sortable:hover {
                 text-decoration:underline;
             }
+            pre {
+                white-space: pre-wrap;
+                font: 13px "Droid Sans",Arial,"Helvetica Neue","Lucida Grande",sans-serif
+            }
         </style>
     </head>
     <body>
@@ -584,6 +588,9 @@ Getting Help: <a href="https://groups.google.com/forum/#!forum/dependency-check"
 <a href="https://github.com/jeremylong/DependencyCheck/issues" target="_blank">github issues</a></h3>
 ]]#
             <h2 class="">Project:&nbsp;$enc.html($applicationName)</h2>
+            #if ($groupID && $artifactID && $applicationVersion)
+            <h4>$enc.html($groupID):$enc.html($artifactID):$enc.html($applicationVersion)</h4>
+            #end
             <div class="">
                 #set($depCount=$dependencies.size())
                 #set($vulnDepCount=0)
@@ -623,7 +630,7 @@ Getting Help: <a href="https://groups.google.com/forum/#!forum/dependency-check"
                     <thead><tr style="text-align:left">
                         <th class="sortable" data-sort="string" title="The name of the dependency">Dependency</th>
                         <th class="sortable" data-sort="string" title="The Common Platform Enumeration">CPE</th>
-                        <th class="sortable" data-sort="string" title="The Maven GAV Coordinates">GAV</th>
+                        <th class="sortable" data-sort="string" title="The Build Coordinates">Coordinates</th>
                         <th class="sortable" data-sort="int" title="The highest CVE Severity">Highest Severity</th>
                         <th class="sortable" data-sort="int" title="The number of Common Vulnerability and Exposure (CVE) entries">CVE Count</th>
                         <th class="sortable" data-sort="string" title="The confidence rating dependency-check has for the identified CPE">CPE Confidence</th>
@@ -638,7 +645,7 @@ Getting Help: <a href="https://groups.google.com/forum/#!forum/dependency-check"
                         #set($cpeIdConf="")
                         #set($sortValue="")
                         #foreach($id in $dependency.getIdentifiers())
-                            #if ($id.type!="maven")
+                            #if ($id.type!="maven" && $id.type!="npm")
                                 #set($sortValue=$sortValue+$id.value)
                             #end
                         #end
@@ -646,7 +653,7 @@ Getting Help: <a href="https://groups.google.com/forum/#!forum/dependency-check"
                         #set($sortValue="")
                         #set($cpeSort=0)
                         #foreach($id in $dependency.getIdentifiers())
-                            #if ($id.type=="maven")
+                            #if ($id.type=="maven" || $id.type=="npm")
                                 #if ($mavenlink=="" || !$mavenlink.url)
                                     #set($mavenlink=$id)
                                 #end
@@ -713,7 +720,7 @@ Getting Help: <a href="https://groups.google.com/forum/#!forum/dependency-check"
                     <h3 class="subsectionheader standardsubsection#if($dependency.getVulnerabilities().size()==0) notvulnerable#end"><a name="l${lnkcnt}_$enc.html($dependency.Sha1sum)"></a>$enc.html($dependency.DisplayFileName)</h3>
                     <div class="subsectioncontent#if($dependency.getVulnerabilities().size()==0) notvulnerable#end">
                         #if ($dependency.description)
-                            <p><b>Description:</b>&nbsp;$enc.html($dependency.description)<br/></p>
+                            <p><b>Description:</b><pre>&nbsp;$enc.html($dependency.description)</pre></p>
                         #end
                         <p>
                         #if ($dependency.license)
@@ -724,8 +731,11 @@ Getting Help: <a href="https://groups.google.com/forum/#!forum/dependency-check"
                             #end
                         #end
                             <b>File&nbsp;Path:</b>&nbsp;$enc.html($dependency.FilePath)<br/>
+                            #if(!$dependency.isVirtual())
                             <b>MD5:</b>&nbsp;$enc.html($dependency.Md5sum)<br/>
-                            <b>SHA1:</b>&nbsp;$enc.html($dependency.Sha1sum)
+                            <b>SHA1:</b>&nbsp;$enc.html($dependency.Sha1sum)<br/>
+                            <b>SHA256:</b>$enc.html($dependency.Sha256sum)
+                            #end
                             #if ($dependency.projectReferences.size()==1)
                                 <br/><b>Referenced In Project/Scope:</b>
                                 #foreach($ref in $dependency.projectReferences)
@@ -765,8 +775,11 @@ Getting Help: <a href="https://groups.google.com/forum/#!forum/dependency-check"
                                 <li>$enc.html($related.DisplayFileName)
                                     <ul>
                                         <li>File Path:&nbsp;$enc.html($related.FilePath)</li>
-                                        <li>SHA1:&nbsp;#if($related.Sha1sum)$enc.html($related.Sha1sum)#end</li>
-                                        <li>MD5:&nbsp;#if($related.Md5sum)$enc.html($related.Md5sum)#end</li>
+                                        #if(!$related.isVirtual())
+                                        <li>MD5:&nbsp;$enc.html($related.Md5sum)</li>
+                                        <li>SHA1:&nbsp;$enc.html($related.Sha1sum)</li>
+                                        <li>SHA256:&nbsp;$enc.html($related.Sha256sum)</li>
+                                        #end
                                         #foreach($id in $related.getIdentifiers())
                                             #if( $id.url )                                                
                                                 #if ($id.type=="maven")
@@ -778,7 +791,7 @@ Getting Help: <a href="https://groups.google.com/forum/#!forum/dependency-check"
                                                 </li>
                                             #end
                                             #if ($id.type=="npm")
-                                                <li>$enc.html($id.value): $enc.html($id.description)</li>
+                                                <li>$enc.html($id.value)</li>
                                             #end
                                         #end
                                      </ul>
@@ -849,6 +862,8 @@ Getting Help: <a href="https://groups.google.com/forum/#!forum/dependency-check"
                                 <p><b><a target="_blank" href="http://web.nvd.nist.gov/view/vuln/detail?vulnId=$enc.url($vuln.name)">$enc.html($vuln.name)</a></b>&nbsp;&nbsp;<button class="copybutton" title="Generate Suppression XML for this CCE for this file" onclick="copyText('$enc.javascript($dependency.DisplayFileName)', '$enc.javascript($dependency.Sha1sum)', '$enc.javascript($suppressGav)', 'cve', '$enc.javascript($vuln.name)')">suppress</button></p>
                             #elseif($vuln.getSource().name().equals("NSP"))
                                 <p><b><a target="_blank" href="https://nodesecurity.io/advisories/$enc.url($vuln.name)">NSP-$enc.html($vuln.name)</a></b></p>
+                            #elseif($vuln.getSource().name().equals("RETIREJS"))
+                                <p><b>$enc.html($vuln.name)</b> (RetireJS)</p>
                             #end
                             <p>Severity:
                             #if ($vuln.cvssScore<4.0)
@@ -869,7 +884,7 @@ Getting Help: <a href="https://groups.google.com/forum/#!forum/dependency-check"
                             #if ($vuln.notes)
                                 <br/>Notes: $enc.html($vuln.notes)
                             #end</p>
-                            <p>$enc.html($vuln.description)
+                            <p><pre>$enc.html($vuln.description)</pre>
                             #if ($vuln.getReferences().size()>0)
                                 <ul>
                                 #foreach($ref in $vuln.getReferences(true))
@@ -922,7 +937,7 @@ Getting Help: <a href="https://groups.google.com/forum/#!forum/dependency-check"
                             <h3 class="subsectionheader standardsubsection">$enc.html($dependency.DisplayFileName)</h3>
                             <div class="subsectioncontent">
                                 #if ($dependency.description)
-                                    <p><b>Description:</b>&nbsp;$enc.html($dependency.description)<br/></p>
+                                    <p><b>Description:</b><pre>&nbsp;$enc.html($dependency.description)</pre></p>
                                 #end
                                 <p>
                                 #if ($dependency.license)
@@ -933,8 +948,11 @@ Getting Help: <a href="https://groups.google.com/forum/#!forum/dependency-check"
                                     #end
                                 #end
                                     <b>File&nbsp;Path:</b>&nbsp;$enc.html($dependency.FilePath)<br/>
+                                    #if(!$dependency.isVirtual())
                                     <b>MD5:</b>&nbsp;$enc.html($dependency.Md5sum)<br/>
-                                    <b>SHA1:</b>&nbsp;$enc.html($dependency.Sha1sum)
+                                    <b>SHA1:</b>&nbsp;$enc.html($dependency.Sha1sum)<br/>
+                                    <b>SHA256:</b>&nbsp;$enc.html($dependency.Sha255sum)
+                                    #end
                                 </p>
                                 #set($cnt=$cnt+1)
                                 <h4 id="header$cnt" class="subsectionheader expandable expandablesubsection white">Evidence</h4>
@@ -961,8 +979,10 @@ Getting Help: <a href="https://groups.google.com/forum/#!forum/dependency-check"
                                         <li>$enc.html($related.DisplayFileName)
                                             <ul>
                                                 <li>File Path:&nbsp;$enc.html($related.FilePath)</li>
-                                                <li>SHA1:&nbsp;#if($related.Sha1sum)$enc.html($related.Sha1sum)#end</li>
-                                                <li>MD5:&nbsp;#if($related.Md5sum)$enc.html($related.Md5sum)#end</li>
+                                                #if(!$related.isVirtual())<li>MD5:&nbsp;$enc.html($related.Md5sum)</li>
+                                                <li>SHA1:&nbsp;$enc.html($related.Sha1sum)</li>
+                                                <li>SHA256:&nbsp;$enc.html($related.Sha256sum)</li>
+                                                #end
                                              </ul>
                                         </li>
                                     #end
@@ -1021,6 +1041,8 @@ Getting Help: <a href="https://groups.google.com/forum/#!forum/dependency-check"
                                         <p><b><a target="_blank" href="http://web.nvd.nist.gov/view/vuln/detail?vulnId=$enc.url($vuln.name)">$enc.html($vuln.name)</a></b>&nbsp;&nbsp;<span class="suppressedLabel" >suppressed</span></p>
                                     #elseif($vuln.getSource().name().equals("NSP"))
                                         <p><b><a target="_blank" href="https://nodesecurity.io/advisories/$enc.url($vuln.name)">NSP-$enc.html($vuln.name)</a></b>&nbsp;&nbsp;<span class="suppressedLabel" >suppressed</span></p>
+                                    #elseif($vuln.getSource().name().equals("RETIREJS"))
+                                        <p><b>$enc.html($vuln.name)</b> (RetireJS)&nbsp;&nbsp;<span class="suppressedLabel" >suppressed</span></p>
                                     #end
                                     <p>Severity:
                                     #if ($vuln.cvssScore<4.0)
@@ -1037,7 +1059,7 @@ Getting Help: <a href="https://groups.google.com/forum/#!forum/dependency-check"
                                     #if ($vuln.notes)
                                         <br/>Notes: $enc.xml($vuln.notes)
                                     #end</p>
-                                    <p>$enc.html($vuln.description)
+                                    <p><pre>$enc.html($vuln.description)</pre>
                                         #if ($vuln.getReferences().size()>0)
                                             <ul>
                                             #foreach($ref in $vuln.getReferences(true))

@@ -26,6 +26,8 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Enumeration;
@@ -116,6 +118,10 @@ public class JarAnalyzer extends AbstractFileTypeAnalyzer {
             "ignore-package",
             "export-package",
             "importpackage",
+            "import-template",
+            "importtemplate",
+            "export-template",
+            "exporttemplate",
             "ignorepackage",
             "exportpackage",
             "sealed",
@@ -260,7 +266,7 @@ public class JarAnalyzer extends AbstractFileTypeAnalyzer {
             }
             final boolean hasManifest = parseManifest(dependency, classNames);
             final boolean hasPOM = analyzePOM(dependency, classNames, engine);
-            final boolean addPackagesAsEvidence = !(hasManifest && hasPOM) || dependency.getFileName().startsWith("jstl");
+            final boolean addPackagesAsEvidence = !(hasManifest && hasPOM);
             analyzePackageNames(classNames, dependency, addPackagesAsEvidence);
             dependency.setEcosystem(DEPENDENCY_ECOSYSTEM);
         } catch (IOException ex) {
@@ -280,7 +286,7 @@ public class JarAnalyzer extends AbstractFileTypeAnalyzer {
      * metadata file
      */
     private boolean isMacOSMetaDataFile(final Dependency dependency, final Engine engine) {
-        final String fileName = new File(dependency.getActualFilePath()).getName().toString();
+        final String fileName = Paths.get(dependency.getActualFilePath()).getFileName().toString();
         return fileName.startsWith("._") && hasDependencyWithFilename(engine.getDependencies(), fileName.substring(2));
     }
 
@@ -296,7 +302,7 @@ public class JarAnalyzer extends AbstractFileTypeAnalyzer {
      */
     private boolean hasDependencyWithFilename(final Dependency[] dependencies, final String fileName) {
         for (final Dependency dependency : dependencies) {
-            if (new File(dependency.getActualFilePath()).getName().toString().equalsIgnoreCase(fileName.toLowerCase())) {
+            if (Paths.get(dependency.getActualFilePath()).getFileName().toString().equalsIgnoreCase(fileName)) {
                 return true;
             }
         }
@@ -345,8 +351,8 @@ public class JarAnalyzer extends AbstractFileTypeAnalyzer {
         try (JarFile jar = new JarFile(dependency.getActualFilePath())) {
             final List<String> pomEntries = retrievePomListing(jar);
             if (pomEntries != null && pomEntries.size() <= 1) {
-                String path;
-                File pomFile;
+                final String path;
+                final File pomFile;
                 Properties pomProperties = null;
                 if (pomEntries.size() == 1) {
                     path = pomEntries.get(0);
@@ -390,7 +396,28 @@ public class JarAnalyzer extends AbstractFileTypeAnalyzer {
                     newDependency.setActualFilePath(pomFile.getAbsolutePath());
                     newDependency.setFileName(displayName);
                     newDependency.setFilePath(displayPath);
+                    newDependency.setEcosystem(DEPENDENCY_ECOSYSTEM);
+                    String groupId = pom.getGroupId();
+                    String version = pom.getVersion();
+                    if (groupId == null) {
+                        groupId = pom.getParentGroupId();
+                    }
+                    if (version == null) {
+                        version = pom.getParentVersion();
+                    }
+                    if (groupId == null) {
+                        newDependency.setName(pom.getArtifactId());
+                        newDependency.setPackagePath(String.format("%s:%s", pom.getArtifactId(), version));
+                    } else {
+                        newDependency.setName(String.format("%s:%s", groupId, pom.getArtifactId()));
+                        newDependency.setPackagePath(String.format("%s:%s:%s", groupId, pom.getArtifactId(), version));
+                    }
+                    newDependency.setDisplayFileName(String.format("%s (%s)", dependency.getDisplayFileName(), newDependency.getPackagePath()));
+                    newDependency.setVersion(version);
                     setPomEvidence(newDependency, pom, null);
+                    if (dependency.getProjectReferences().size() > 0) {
+                        newDependency.addAllProjectReferences(dependency.getProjectReferences());
+                    }
                     engine.addDependency(newDependency);
                 } catch (AnalysisException ex) {
                     LOGGER.warn("An error occurred while analyzing '{}'.", dependency.getActualFilePath());
@@ -417,7 +444,7 @@ public class JarAnalyzer extends AbstractFileTypeAnalyzer {
         final String propPath = path.substring(0, path.length() - 7) + "pom.properies";
         final ZipEntry propEntry = jar.getEntry(propPath);
         if (propEntry != null) {
-            try (Reader reader = new InputStreamReader(jar.getInputStream(propEntry), "UTF-8")) {
+            try (Reader reader = new InputStreamReader(jar.getInputStream(propEntry), StandardCharsets.UTF_8)) {
                 pomProperties = new Properties();
                 pomProperties.load(reader);
                 LOGGER.debug("Read pom.properties: {}", propPath);
@@ -501,7 +528,8 @@ public class JarAnalyzer extends AbstractFileTypeAnalyzer {
         String version = pom.getVersion();
         String parentVersion = pom.getParentVersion();
 
-        if ("org.sonatype.oss".equals(parentGroupId) && "oss-parent".equals(parentArtifactId)) {
+        if (("org.sonatype.oss".equals(parentGroupId) && "oss-parent".equals(parentArtifactId))
+                || ("org.springframework.boot".equals(parentGroupId) && "spring-boot-starter-parent".equals(parentArtifactId))) {
             parentGroupId = null;
             parentArtifactId = null;
             parentVersion = null;
@@ -607,7 +635,10 @@ public class JarAnalyzer extends AbstractFileTypeAnalyzer {
 
         //Description
         final String description = pom.getDescription();
-        if (description != null && !description.isEmpty() && !description.startsWith("POM was created by")) {
+        if (description != null && !description.isEmpty()
+                && !description.startsWith("POM was created by")
+                && !description.startsWith("Sonatype helps open source projects")
+                && !description.endsWith("project for Spring Boot")) {
             foundSomething = true;
             final String trimmedDescription = addDescription(dependency, description, "pom", "description");
             addMatchingValues(classes, trimmedDescription, dependency, EvidenceType.VENDOR);
@@ -687,6 +718,7 @@ public class JarAnalyzer extends AbstractFileTypeAnalyzer {
      * @return whether evidence was identified parsing the manifest
      * @throws IOException if there is an issue reading the JAR file
      */
+    //CSOFF: MethodLength
     protected boolean parseManifest(Dependency dependency, List<ClassNameInformation> classInformation)
             throws IOException {
         boolean foundSomething = false;
@@ -697,8 +729,7 @@ public class JarAnalyzer extends AbstractFileTypeAnalyzer {
                         && !dependency.getFileName().toLowerCase().endsWith("-javadoc.jar")
                         && !dependency.getFileName().toLowerCase().endsWith("-src.jar")
                         && !dependency.getFileName().toLowerCase().endsWith("-doc.jar")) {
-                    LOGGER.debug("Jar file '{}' does not contain a manifest.",
-                            dependency.getFileName());
+                    LOGGER.debug("Jar file '{}' does not contain a manifest.", dependency.getFileName());
                 }
                 return false;
             }
@@ -716,7 +747,6 @@ public class JarAnalyzer extends AbstractFileTypeAnalyzer {
                     value = value.substring(15);
                 }
                 if (IGNORE_VALUES.contains(value)) {
-                    //noinspection UnnecessaryContinue
                     continue;
                 } else if (key.equalsIgnoreCase(Attributes.Name.IMPLEMENTATION_TITLE.toString())) {
                     foundSomething = true;
@@ -737,9 +767,11 @@ public class JarAnalyzer extends AbstractFileTypeAnalyzer {
                     dependency.addEvidence(EvidenceType.VENDOR, source, key, value, Confidence.MEDIUM);
                     addMatchingValues(classInformation, value, dependency, EvidenceType.VENDOR);
                 } else if (key.equalsIgnoreCase(BUNDLE_DESCRIPTION)) {
-                    foundSomething = true;
-                    addDescription(dependency, value, "manifest", key);
-                    addMatchingValues(classInformation, value, dependency, EvidenceType.PRODUCT);
+                    if (!value.startsWith("Sonatype helps open source projects")) {
+                        foundSomething = true;
+                        addDescription(dependency, value, "manifest", key);
+                        addMatchingValues(classInformation, value, dependency, EvidenceType.PRODUCT);
+                    }
                 } else if (key.equalsIgnoreCase(BUNDLE_NAME)) {
                     foundSomething = true;
                     dependency.addEvidence(EvidenceType.PRODUCT, source, key, value, Confidence.MEDIUM);
@@ -753,6 +785,10 @@ public class JarAnalyzer extends AbstractFileTypeAnalyzer {
                     //noinspection UnnecessaryContinue
                     continue;
                     //skipping main class as if this has important information to add it will be added during class name analysis...
+                } else if ("implementation-url".equalsIgnoreCase(key)
+                        && value != null
+                        && value.startsWith("https://projects.spring.io/spring-boot/#/spring-boot-starter-parent/parent/")) {
+                    continue;
                 } else {
                     key = key.toLowerCase();
                     if (!IGNORE_KEYS.contains(key)
@@ -799,7 +835,9 @@ public class JarAnalyzer extends AbstractFileTypeAnalyzer {
                         } else if (key.contains("license")) {
                             addLicense(dependency, value);
                         } else if (key.contains("description")) {
-                            addDescription(dependency, value, "manifest", key);
+                            if (!value.startsWith("Sonatype helps open source projects")) {
+                                addDescription(dependency, value, "manifest", key);
+                            }
                         } else {
                             dependency.addEvidence(EvidenceType.PRODUCT, source, key, value, Confidence.LOW);
                             dependency.addEvidence(EvidenceType.VENDOR, source, key, value, Confidence.LOW);
@@ -850,6 +888,7 @@ public class JarAnalyzer extends AbstractFileTypeAnalyzer {
         }
         return foundSomething;
     }
+    //CSON: MethodLength
 
     /**
      * Adds a description to the given dependency. If the description contains
@@ -965,12 +1004,13 @@ public class JarAnalyzer extends AbstractFileTypeAnalyzer {
     @Override
     public void closeAnalyzer() {
         if (tempFileLocation != null && tempFileLocation.exists()) {
-            LOGGER.debug("Attempting to delete temporary files");
+            LOGGER.debug("Attempting to delete temporary files from `{}`", tempFileLocation.toString());
             final boolean success = FileUtils.delete(tempFileLocation);
             if (!success && tempFileLocation.exists()) {
                 final String[] l = tempFileLocation.list();
                 if (l != null && l.length > 0) {
-                    LOGGER.warn("Failed to delete some temporary files, see the log for more details");
+                    LOGGER.warn("Failed to delete the JAR Analyzder's temporary files from `{}`, "
+                            + "see the log for more details", tempFileLocation.getAbsolutePath());
                 }
             }
         }

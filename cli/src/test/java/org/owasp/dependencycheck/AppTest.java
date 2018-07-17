@@ -153,6 +153,7 @@ public class AppTest extends BaseTest {
         classUnderTest.populateSettings(cli);
 
         // THEN the suppression file is set in the settings for use in the application core
+<<<<<<< HEAD
         assertThat("Expected the suppression file to be set in the Settings", getSettings().getString(KEYS.SUPPRESSION_FILE), is("another-file.xml"));
     }
 
@@ -177,6 +178,33 @@ public class AppTest extends BaseTest {
 
         // THEN the suppression file is set in the settings for use in the application core
         assertThat("Expected the suppression files to be set in the Settings with a separator", getSettings().getString(KEYS.SUPPRESSION_FILE), is("first-file.xml,another-file.xml"));
+=======
+        String[] suppressionFiles = getSettings().getArray(KEYS.SUPPRESSION_FILE);
+        assertThat("Expected the suppression file to be set in the Settings", suppressionFiles[0], is("another-file.xml"));
+    }
+
+    /**
+     * Assert that multiple suppression files can be set using the CLI.
+     *
+     * @throws Exception the unexpected {@link Exception}.
+     */
+    @Test
+    public void testPopulatingSuppressionSettingsWithMultipleFiles() throws Exception {
+        // GIVEN CLI properties with the mandatory arguments
+        File prop = new File(this.getClass().getClassLoader().getResource("sample.properties").toURI().getPath());
+
+        // AND a single suppression file
+        String[] args = {"-P", prop.getAbsolutePath(), "--suppression", "first-file.xml", "another-file.xml"};
+
+        // WHEN parsing the CLI arguments
+        final CliParser cli = new CliParser(getSettings());
+        cli.parse(args);
+        final App classUnderTest = new App(getSettings());
+        classUnderTest.populateSettings(cli);
+
+        // THEN the suppression file is set in the settings for use in the application core
+        assertThat("Expected the suppression files to be set in the Settings with a separator", getSettings().getString(KEYS.SUPPRESSION_FILE), is("[\"first-file.xml\",\"another-file.xml\"]"));
+>>>>>>> refs/heads/master
     }
 
     private boolean testBooleanProperties(String[] args, Map<String, Boolean> expected) throws URISyntaxException, FileNotFoundException, ParseException, InvalidSettingException {

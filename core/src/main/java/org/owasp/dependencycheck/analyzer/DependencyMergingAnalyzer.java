@@ -90,6 +90,7 @@ public class DependencyMergingAnalyzer extends AbstractDependencyComparingAnalyz
     @Override
     protected boolean evaluateDependencies(final Dependency dependency, final Dependency nextDependency, final Set<Dependency> dependenciesToRemove) {
         Dependency main;
+        //CSOFF: InnerAssignment
         if ((main = getMainGemspecDependency(dependency, nextDependency)) != null) {
             if (main == dependency) {
                 mergeDependencies(dependency, nextDependency, dependenciesToRemove);
@@ -105,6 +106,7 @@ public class DependencyMergingAnalyzer extends AbstractDependencyComparingAnalyz
                 return true; //since we merged into the next dependency - skip forward to the next in mainIterator
             }
         }
+        //CSON: InnerAssignment
         return false;
     }
 
@@ -118,7 +120,8 @@ public class DependencyMergingAnalyzer extends AbstractDependencyComparingAnalyz
      * removed from the main analysis loop, this function adds to this
      * collection
      */
-    private void mergeDependencies(final Dependency dependency, final Dependency relatedDependency, final Set<Dependency> dependenciesToRemove) {
+    public static void mergeDependencies(final Dependency dependency, final Dependency relatedDependency,
+            final Set<Dependency> dependenciesToRemove) {
         LOGGER.debug("Merging '{}' into '{}'", relatedDependency.getFilePath(), dependency.getFilePath());
         dependency.addRelatedDependency(relatedDependency);
         for (Evidence e : relatedDependency.getEvidence(EvidenceType.VENDOR)) {
@@ -135,10 +138,10 @@ public class DependencyMergingAnalyzer extends AbstractDependencyComparingAnalyz
             dependency.addRelatedDependency(d);
             relatedDependency.removeRelatedDependencies(d);
         }
-        if (dependency.getSha1sum().equals(relatedDependency.getSha1sum())) {
-            dependency.addAllProjectReferences(relatedDependency.getProjectReferences());
+        dependency.addAllProjectReferences(relatedDependency.getProjectReferences());
+        if (dependenciesToRemove != null) {
+            dependenciesToRemove.add(relatedDependency);
         }
-        dependenciesToRemove.add(relatedDependency);
     }
 
     /**

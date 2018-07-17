@@ -61,7 +61,7 @@ public class CentralAnalyzerTest {
         new Expectations() {
             {
                 centralSearch.searchSha1(SHA1_SUM);
-                returns(expectedMavenArtifacts);
+                returns(expectedMavenArtifacts, expectedMavenArtifacts);
             }
         };
 
@@ -84,8 +84,7 @@ public class CentralAnalyzerTest {
         new Expectations() {
             {
                 centralSearch.searchSha1(SHA1_SUM);
-                result = new IOException("Could not connect to MavenCentral (500): Internal Server Error");
-                result = new IOException("Could not connect to MavenCentral (500): Internal Server Error");
+                //result = new IOException("Could not connect to MavenCentral (500): Internal Server Error");
                 result = expectedMavenArtifacts;
             }
         };
@@ -135,26 +134,6 @@ public class CentralAnalyzerTest {
         instance.fetchMavenArtifacts(dependency);
     }
 
-    @Test(expected = AnalysisException.class)
-    @SuppressWarnings("PMD.NonStaticInitializer")
-    public void testFetchMavenArtifactsAlwaysThrowsIOExceptionLetsTheAnalysisFail(
-            @Mocked final CentralSearch centralSearch, @Mocked final Dependency dependency)
-            throws AnalysisException, IOException {
-
-        CentralAnalyzer instance = new CentralAnalyzer();
-        instance.setCentralSearch(centralSearch);
-        specifySha1SumFor(dependency);
-
-        new Expectations() {
-            {
-                centralSearch.searchSha1(SHA1_SUM);
-                result = new IOException("no internet connection");
-            }
-        };
-
-        instance.analyze(dependency, null);
-    }
-
     /**
      * We do not want to waste time in unit tests.
      */
@@ -177,7 +156,7 @@ public class CentralAnalyzerTest {
         new Expectations() {
             {
                 dependency.getSha1sum();
-                returns(SHA1_SUM);
+                returns(SHA1_SUM, SHA1_SUM);
             }
         };
     }

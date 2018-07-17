@@ -48,6 +48,11 @@ public class SSLSocketFactoryEx extends SSLSocketFactory {
     private final Settings settings;
 
     /**
+     * Simple boolean flag to prevent logging the protocols repeatedly.
+     */
+    private static boolean protocolsLogged = false;
+
+    /**
      * Constructs a new SSLSocketFactory.
      *
      * @param settings reference to the configured settings
@@ -275,12 +280,16 @@ public class SSLSocketFactoryEx extends SSLSocketFactory {
 
             availableProtocols = socket.getSupportedProtocols();
             Arrays.sort(availableProtocols);
-            if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug("Available Protocols:"+Arrays.asList(availableProtocols));
+            if (LOGGER.isDebugEnabled() && !protocolsLogged) {
+                protocolsLogged = true;
+                LOGGER.debug("Available Protocols:");
+                for (String p : availableProtocols) {
+                    LOGGER.debug(p);
+                }
             }
         } catch (Exception ex) {
-            LOGGER.debug("Error getting protocol list, using TLSv1", ex);
-            return new String[]{"TLSv1"};
+            LOGGER.debug("Error getting protocol list, using TLSv1.1-1.3", ex);
+            return new String[]{"TLSv1", "TLSv1.1", "TLSv1.2", "TLSv1.3"};
         } finally {
             if (socket != null) {
                 try {

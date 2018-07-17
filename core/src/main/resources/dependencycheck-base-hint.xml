@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<hints xmlns="https://jeremylong.github.io/DependencyCheck/dependency-hint.1.2.xsd">
+<hints xmlns="https://jeremylong.github.io/DependencyCheck/dependency-hint.1.3.xsd">
     <hint>
         <given><!-- NOTE: these are OR conditions -->
             <evidence type="product" source="Manifest" name="Implementation-Title" value="Spring Framework" confidence="HIGH"/>
@@ -34,6 +34,14 @@
             <evidence type="product" source="hint analyzer" name="product" value="springsource_spring_framework" confidence="HIGH"/>
             <evidence type="vendor" source="hint analyzer" name="vendor" value="vmware" confidence="HIGH"/>
             <evidence type="vendor" source="hint analyzer" name="vendor" value="pivotal software" confidence="HIGH"/>
+        </add>
+    </hint>
+    <hint>
+        <given>
+            <evidence type="product" source="Manifest" name="Implementation-Title" regex="true" value="spring-.*" confidence="HIGH"/>
+        </given>
+        <add>
+            <evidence type="vendor" source="hint analyzer" name="vendor" value="pivotal software" confidence="HIGHEST"/>
         </add>
     </hint>
     <hint>
@@ -195,6 +203,33 @@
         <add>
             <evidence type="product" source="hint analyzer" name="product" value="not_yet_commons_ssl" confidence="HIGHEST"/>
             <evidence type="vendor" source="hint analyzer" name="vendor" value="not_yet_commons_ssl_project" confidence="HIGHEST"/>
+        </add>
+    </hint>
+    <hint>
+        <given>
+            <evidence regex="true" type="vendor" source="pom" name="url" value=".*wordpress.*" confidence="HIGHEST"/>
+            <evidence regex="true" type="product" source="pom" name="url" value=".*wordpress.*" confidence="HIGHEST"/>
+        </given>
+        <remove>
+            <evidence regex="true" type="vendor" source="pom" name="url" value=".*wordpress.*" confidence="HIGHEST"/>
+            <evidence regex="true" type="product" source="pom" name="url" value=".*wordpress.*" confidence="HIGHEST"/>
+        </remove>
+    </hint>
+    <hint>
+        <given>
+            <evidence type="vendor" source="Manifest" name="Implementation-Vendor-Id" value="org.primefaces" confidence="MEDIUM"/>
+            <evidence type="vendor" source="pom" name="groupid" value="primefaces" confidence="HIGHEST"/>
+        </given>
+        <add>
+            <evidence type="vendor" source="hint analyzer" name="vendor" value="primetek" confidence="HIGHEST"/>
+        </add>
+    </hint>
+    <hint>
+        <given>
+            <evidence type="vendor" source="Manifest" name="Implementation-Vendor" value="JBoss Inc." confidence="HIGH"/>
+        </given>
+        <add>
+            <evidence type="vendor" source="hint analyzer" name="vendor" value="redhat" confidence="HIGH"/>
         </add>
     </hint>
 </hints>

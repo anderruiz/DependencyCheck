@@ -76,8 +76,8 @@ public final class URLConnectionFactory {
      */
     @SuppressFBWarnings(value = "RCN_REDUNDANT_NULLCHECK_OF_NULL_VALUE", justification = "Just being extra safe")
     public HttpURLConnection createHttpURLConnection(URL url) throws URLConnectionFailureException {
-    		url = proxyedUrl(url);
-        HttpURLConnection conn = null;
+    	url = proxyedUrl(url);
+    	HttpURLConnection conn = null;
         final String proxyHost = settings.getString(Settings.KEYS.PROXY_SERVER);
 
         try {
@@ -114,9 +114,9 @@ public final class URLConnectionFactory {
             } else {
                 conn = (HttpURLConnection) url.openConnection();
             }
-            final int timeout = settings.getInt(Settings.KEYS.CONNECTION_TIMEOUT, 10000);
+            final int connectionTimeout = settings.getInt(Settings.KEYS.CONNECTION_TIMEOUT, 10000);
             final int rtimeout = settings.getInt(Settings.KEYS.READ_TIMEOUT, 30000);
-            conn.setConnectTimeout(timeout);
+            conn.setConnectTimeout(connectionTimeout);
             conn.setReadTimeout(rtimeout);
             conn.setInstanceFollowRedirects(true);
         } catch (IOException ex) {
@@ -129,6 +129,8 @@ public final class URLConnectionFactory {
             }
             throw new URLConnectionFailureException("Error getting connection.", ex);
         }
+        //conn.setRequestProperty("user-agent",
+        //  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/65.0.3325.181 Safari/537.36");
         configureTLS(url, conn);
         return conn;
     }
@@ -204,7 +206,7 @@ public final class URLConnectionFactory {
         configureTLS(url, conn);
         return conn;
     }
-    
+
     private static URL proxyedUrl(URL url) throws URLConnectionFailureException{
     		
     		boolean useSSL;

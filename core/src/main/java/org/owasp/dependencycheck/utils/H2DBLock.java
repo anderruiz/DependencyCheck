@@ -30,6 +30,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * The H2 DB lock file implementation; creates a custom lock file so that only a
+ * single instance of dependency-check can update the embedded h2 database.
  *
  * @author Jeremy Long
  */
@@ -70,6 +72,12 @@ public class H2DBLock {
     private final String magic;
 
     /**
+     * The shutdown hook used to remove the lock file in case of an unexpected
+     * shutdown.
+     */
+    private H2DBShutdownHook hook = null;
+
+    /**
      * Constructs a new H2DB Lock object with the configured settings.
      *
      * @param settings the configured settings
@@ -100,16 +108,7 @@ public class H2DBLock {
         try {
             final File dir = settings.getDataDirectory();
             lockFile = new File(dir, "dc.update.lock");
-            if (!lockFile.getParentFile().isDirectory() && !lockFile.mkdir()) {
-                throw new H2DBLockException("Unable to create path to data directory.");
-            }
-            if (lockFile.isFile() && getFileAge(lockFile) > 30) {
-                LOGGER.debug("An old db update lock file was found: {}", lockFile.getAbsolutePath());
-                if (!lockFile.delete()) {
-                    LOGGER.warn("An old db update lock file was found but the system was unable to delete "
-                            + "the file. Consider manually deleting {}", lockFile.getAbsolutePath());
-                }
-            }
+            checkState();
             int ctr = 0;
             do {
                 try {
@@ -126,6 +125,7 @@ public class H2DBLock {
                             lock = null;
                             LOGGER.debug("Another process obtained a lock first ({})", Thread.currentThread().getName());
                         } else {
+                            addShutdownHook();
                             final Timestamp timestamp = new Timestamp(System.currentTimeMillis());
                             LOGGER.debug("Lock file created ({}) {} @ {}", Thread.currentThread().getName(), magic, timestamp.toString());
                         }
@@ -145,8 +145,8 @@ public class H2DBLock {
                 if (lock == null || !lock.isValid()) {
                     try {
                         final Timestamp timestamp = new Timestamp(System.currentTimeMillis());
-                        LOGGER.debug("Sleeping thread {} ({}) for 10 seconds because an exclusive lock on the database could not be obtained ({})",
-                                Thread.currentThread().getName(), magic, timestamp.toString());
+                        LOGGER.debug("Sleeping thread {} ({}) for {} seconds because an exclusive lock on the database could not be obtained ({})",
+                                Thread.currentThread().getName(), magic, SLEEP_DURATION / 1000, timestamp.toString());
                         Thread.sleep(SLEEP_DURATION);
                     } catch (InterruptedException ex) {
                         LOGGER.debug("sleep was interrupted.", ex);
@@ -159,6 +159,32 @@ public class H2DBLock {
             }
         } catch (IOException ex) {
             throw new H2DBLockException(ex.getMessage(), ex);
+        }
+    }
+
+    /**
+     * Checks the state of the custom h2 lock file and under some conditions
+     * will attempt to remove the lock file.
+     *
+     * @throws H2DBLockException thrown if the lock directory does not exist and
+     * cannot be created
+     */
+    private void checkState() throws H2DBLockException {
+        if (!lockFile.getParentFile().isDirectory() && !lockFile.mkdir()) {
+            throw new H2DBLockException("Unable to create path to data directory.");
+        }
+        if (lockFile.isFile()) {
+            //TODO - this 30 minute check needs to be configurable.
+            if (getFileAge(lockFile) > 30) {
+                LOGGER.debug("An old db update lock file was found: {}", lockFile.getAbsolutePath());
+                if (!lockFile.delete()) {
+                    LOGGER.warn("An old db update lock file was found but the system was unable to delete "
+                            + "the file. Consider manually deleting {}", lockFile.getAbsolutePath());
+                }
+            } else {
+                LOGGER.info("Lock file found `{}`", lockFile);
+                LOGGER.info("Existing update in progress; waiting for update to complete");
+            }
         }
     }
 
@@ -196,6 +222,7 @@ public class H2DBLock {
             }
         }
         lockFile = null;
+        removeShutdownHook();
         final Timestamp timestamp = new Timestamp(System.currentTimeMillis());
         LOGGER.debug("Lock released ({}) {} @ {}", Thread.currentThread().getName(), magic, timestamp.toString());
     }
@@ -212,5 +239,26 @@ public class H2DBLock {
         final double time = (d.getTime() - modified) / 1000.0 / 60.0;
         LOGGER.debug("Lock file age is {} minutes", time);
         return time;
+    }
+
+    /**
+     * Adds the shutdown hook to the JVM.
+     */
+    private void addShutdownHook() {
+        if (hook == null) {
+            hook = H2DBShutdownHookFactory.getHook(settings);
+            hook.add(this);
+
+        }
+    }
+
+    /**
+     * Removes the shutdown hook.
+     */
+    private void removeShutdownHook() {
+        if (hook != null) {
+            hook.remove();
+            hook = null;
+        }
     }
 }

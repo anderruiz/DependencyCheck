@@ -33,6 +33,7 @@ suppressionFiles            | The file paths to the XML suppression files \- use
 hintsFile                   | The file path to the XML hints file \- used to resolve [false negatives](../general/hints.html).       | &nbsp;
 enableExperimental          | Enable the [experimental analyzers](../analyzers/index.html). If not enabled the experimental analyzers (see below) will not be loaded or used. | false
 enableRetired               | Enable the [retired analyzers](../analyzers/index.html). If not enabled the retired analyzers (see below) will not be loaded or used. | false
+<<<<<<< HEAD
 
 Analyzer Configuration
 ====================
@@ -81,6 +82,86 @@ cveUrl12Base         | Base URL for each year's CVE 1.2, the %d will be replaced
 cveUrl20Base         | Base URL for each year's CVE 2.0, the %d will be replaced with the year.                    | https://nvd.nist.gov/feeds/xml/cve/2.0/nvdcve-2.0-%d.xml.gz
 connectionTimeout    | Sets the URL Connection Timeout used when downloading external data.                        | &nbsp;
 dataDirectory        | Sets the data directory to hold SQL CVEs contents. This should generally not be changed.    | &nbsp;
+=======
+versionCheckEnabled         | Whether dependency-check should check if a new version of dependency-check-maven exists. | true
+
+Analyzer Configuration
+====================
+The following properties are used to configure the various file type analyzers.
+These properties can be used to turn off specific analyzers if it is not needed.
+Note, that specific analyzers will automatically disable themselves if no file
+types that they support are detected - so specifically disabling them may not
+be needed.
+
+Property                      | Description                                                               | Default Value
+------------------------------|---------------------------------------------------------------------------|------------------
+archiveAnalyzerEnabled        | Sets whether the Archive Analyzer will be used.                           | true
+zipExtensions                 | A comma-separated list of additional file extensions to be treated like a ZIP file, the contents will be extracted and analyzed. | &nbsp;
+jarAnalyzerEnabled            | Sets whether Jar Analyzer will be used.                                   | true
+centralAnalyzerEnabled        | Sets whether Central Analyzer will be used. If this analyzer is being disabled there is a good chance you also want to disable the Nexus Analyzer (see below). | true
+nexusAnalyzerEnabled          | Sets whether Nexus Analyzer will be used (requires Nexus Pro). This analyzer is superceded by the Central Analyzer; however, you can configure this to run against a Nexus Pro installation. | true
+nexusUrl                      | Defines the Nexus Server's web service end point (example http://domain.enterprise/service/local/). If not set the Nexus Analyzer will be disabled. | &nbsp;
+nexusUsesProxy                | Whether or not the defined proxy should be used when connecting to Nexus. | true
+artifactoryAnalyzerEnabled    | Sets whether Artifactory analyzer will be used | false
+artifactoryAnalyzerUrl        | The Artifactory server URL. | &nbsp;
+artifactoryAnalyzerUseProxy   | Whether Artifactory should be accessed through a proxy or not. | false
+artifactoryAnalyzerParallelAnalysis | Whether the Artifactory analyzer should be run in parallel or not | true
+artifactoryAnalyzerServerId   | The id of a server defined in the settings.xml to retrieve the credentials (username and API token) to connect to Artifactory instance. It is used in priority to artifactoryAnalyzerUsername and artifactoryAnalyzerApiToken | artifactory
+artifactoryAnalyzerUsername   | The user name (only used with API token) to connect to Artifactory instance | &nbsp;
+artifactoryAnalyzerApiToken   | The API token to connect to Artifactory instance, only used if the username or the API key are not defined by artifactoryAnalyzerServerId,artifactoryAnalyzerUsername or artifactoryAnalyzerApiToken | &nbsp;
+artifactoryAnalyzerBearerToken   | The bearer token to connect to Artifactory instance | &nbsp;
+pyDistributionAnalyzerEnabled | Sets whether the [experimental](../analyzers/index.html) Python Distribution Analyzer will be used.               | true
+pyPackageAnalyzerEnabled      | Sets whether the [experimental](../analyzers/index.html) Python Package Analyzer will be used.                    | true
+rubygemsAnalyzerEnabled       | Sets whether the [experimental](../analyzers/index.html) Ruby Gemspec Analyzer will be used.                      | true
+opensslAnalyzerEnabled        | Sets whether the openssl Analyzer should be used.                  | true
+cmakeAnalyzerEnabled          | Sets whether the [experimental](../analyzers/index.html) CMake Analyzer should be used.                    | true
+autoconfAnalyzerEnabled       | Sets whether the [experimental](../analyzers/index.html) autoconf Analyzer should be used.                 | true
+composerAnalyzerEnabled       | Sets whether the [experimental](../analyzers/index.html) PHP Composer Lock File Analyzer should be used.   | true
+nodeAnalyzerEnabled           | Sets whether the [retired](../analyzers/index.html) Node.js Analyzer should be used.                       | true
+nspAnalyzerEnabled            | Sets whether the NSP Analyzer should be used.                                                              | true
+retireJsAnalyzerEnabled       | Sets whether the [experimental](../analyzers/index.html) RetireJS Analyzer should be used.                                                         | true
+nuspecAnalyzerEnabled         | Sets whether the .NET Nuget Nuspec Analyzer will be used.                                                  | true
+cocoapodsAnalyzerEnabled      | Sets whether the [experimental](../analyzers/index.html) Cocoapods Analyzer should be used.                | true
+bundleAuditAnalyzerEnabled    | Sets whether the [experimental](../analyzers/index.html) Bundle Audit Analyzer should be used.             | true
+bundleAuditPath               | Sets the path to the bundle audit executable; only used if bundle audit analyzer is enabled and experimental analyzers are enabled.  | &nbsp;
+swiftPackageManagerAnalyzerEnabled | Sets whether the [experimental](../analyzers/index.html) Switft Package Analyzer should be used.             | true
+assemblyAnalyzerEnabled       | Sets whether the .NET Assembly Analyzer should be used.            | true
+pathToMono                    | The path to Mono for .NET assembly analysis on non-windows systems.       | &nbsp;
+
+RetireJS Configuration
+====================
+If using the [experimental](../analyzers/index.html) RetireJS Analyzer the following configuration options are available
+to control the included JS files
+
+###Example
+<pre>
+    &lt;retirejs&gt;
+        &lt;filters&gt;
+            &lt;filter&gt;Copyright\(c\) Jeremy Long&lt;/filter&gt;
+        &lt;/filters&gt;
+        &lt;filterNonVulnerable&gt;true&lt;/filterNonVulnerable&gt;
+    &lt;/retirejs&gt;
+</pre>
+
+Property            | Description                                                                                                                                                                                                            | Default Value
+--------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------
+filters             | A list of file content filters used to exclude JS files based on content. This is most commonly used to exclude JS files based on your organizations copyright so that your JS files do not get listed as a dependency.| &nbsp;
+filterNonVulnerable | A boolean controlling whether or not the Retire JS Analyzer should exclude non-vulnerable JS files from the report.                                                                                                    | false
+
+Advanced Configuration
+====================
+The following properties can be configured in the plugin. However, they are less frequently changed. One exception
+may be the cvedUrl properties, which can be used to host a mirror of the NVD within an enterprise environment.
+
+Property             | Description                                                                                 | Default Value
+---------------------|---------------------------------------------------------------------------------------------|------------------
+cveUrl12Modified     | URL for the modified CVE 1.2.                                                               | https://nvd.nist.gov/feeds/xml/cve/1.2/nvdcve-modified.xml.gz
+cveUrl20Modified     | URL for the modified CVE 2.0.                                                               | https://nvd.nist.gov/feeds/xml/cve/2.0/nvdcve-2.0-Modified.xml.gz
+cveUrl12Base         | Base URL for each year's CVE 1.2, the %d will be replaced with the year.                    | https://nvd.nist.gov/feeds/xml/cve/1.2/nvdcve-%d.xml.gz
+cveUrl20Base         | Base URL for each year's CVE 2.0, the %d will be replaced with the year.                    | https://nvd.nist.gov/feeds/xml/cve/2.0/nvdcve-2.0-%d.xml.gz
+connectionTimeout    | Sets the URL Connection Timeout used when downloading external data.                        | &nbsp;
+dataDirectory        | Sets the data directory to hold SQL CVEs contents. This should generally not be changed.    | ~/.m2/repository/org/owasp/dependency-check-data/
+>>>>>>> refs/heads/master
 databaseDriverName   | The name of the database driver. Example: org.h2.Driver.                                    | &nbsp;
 databaseDriverPath   | The path to the database driver JAR file; only used if the driver is not in the class path. | &nbsp;
 connectionString     | The connection string used to connect to the database.                                      | &nbsp;

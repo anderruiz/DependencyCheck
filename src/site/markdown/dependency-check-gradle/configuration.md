@@ -1,11 +1,12 @@
 Tasks
 ====================
 
-Task                                               | Description
----------------------------------------------------|-----------------------
-dependencyCheckAnalyze                             | Runs dependency-check against the project and generates a report.
-[dependencyCheckUpdate](configuration-update.html) | Updates the local cache of the NVD data from NIST.
-[dependencyCheckPurge](configuration-purge.html)   | Deletes the local copy of the NVD. This is used to force a refresh of the data.
+Task                                                     | Description
+---------------------------------------------------------|-----------------------
+dependencyCheckAnalyze                                   | Runs dependency-check against the project and generates a report.
+[dependencyCheckAggregate](configuration-aggregate.html) | Runs dependency-check against a multi-project build and generates a report.
+[dependencyCheckUpdate](configuration-update.html)       | Updates the local cache of the NVD data from NIST.
+[dependencyCheckPurge](configuration-purge.html)         | Deletes the local copy of the NVD. This is used to force a refresh of the data.
 
 Configuration:
 ====================
@@ -34,7 +35,8 @@ format               | The report format to be generated (HTML, XML, CSV, JSON, 
 outputDirectory      | The location to write the report(s). This directory will be located in the build directory.                        | build/reports
 skipTestGroups       | When set to true (the default) all dependency groups that being with 'test' will be skipped.                       | true
 suppressionFile      | The file path to the XML suppression file \- used to suppress [false positives](../general/suppression.html)       | &nbsp;
-hintsFile            | The file path to the XML hints file \- used to resolve [false negatives](../general/hints.html)       | &nbsp;
+hintsFile            | The file path to the XML hints file \- used to resolve [false negatives](../general/hints.html)                    | &nbsp;
+skip                 | If set to true dependency-check analysis will be skipped.                                                          | false
 skipConfigurations   | A list of configurations that will be skipped. This is mutually exclusive with the scanConfigurations property.    | `[]` which means no configuration is skipped.
 scanConfigurations   | A list of configurations that will be scanned, all other configurations are skipped. This is mutually exclusive with the skipConfigurations property.    | `[]` which implicitly means all configurations get scanned.
 
@@ -129,11 +131,34 @@ analyzers    | bundleAuditEnabled    | Sets whether or not the [experimental](..
 analyzers    | pathToBundleAudit     | The path to bundle audit.                                                                                         | &nbsp;
 analyzers    | retiredEnabled        | Sets whether the [retired analyzers](../analyzers/index.html) will be used. If not set to true the analyzers marked as experimental (see below) will not be used | false
 
+#### Additional Analyzer Configuration
+
+Config Group | Property              | Description                                                                                                       | Default Value
+-------------|-----------------------|-------------------------------------------------------------------------------------------------------------------|------------------
+artifactory  | enabled               | Sets whether Artifactory analyzer will be used                                                                    | false
+artifactory  | url                   | The Artifactory server URL.                                                                                       | &nbsp;
+artifactory  | usesProxy             | Whether Artifactory should be accessed through a proxy or not.                                                    | false
+artifactory  | parallelAnalysis      | Whether the Artifactory analyzer should be run in parallel or not.                                                | true
+artifactory  | username              | The user name (only used with API token) to connect to Artifactory instance.                                      | &nbsp;
+artifactory  | apiToken              | The API token to connect to Artifactory instance, only used if the username or the API key are not defined by artifactoryAnalyzerServerId,artifactoryAnalyzerUsername or artifactoryAnalyzerApiToken | &nbsp;
+artifactory  | bearerToken           | The bearer token to connect to Artifactory instance                                                               | &nbsp;
+retirejs     | enabled               | Sets whether the [experimental](../analyzers/index.html) RetireJS Analyzer should be used.                        | true
+retirejs     | filterNonVulnerable   | Configures the RetireJS Analyzer to remove non-vulnerable JS dependencies from the report.                        | false
+retirejs     | filters               | Configures the list of regular expessions used to filter JS files based on content.                               | &nbsp;
+
+
 #### Example
 ```groovy
 dependencyCheck {
     analyzers {
         assemblyEnabled=false
+        artifactory {
+            enabled=true
+            url='https://internal.artifactory.url'
+        }
+        retirejs {
+            filters = ['(i)copyright Jeremy Long']
+        }
     }
 }
 ```

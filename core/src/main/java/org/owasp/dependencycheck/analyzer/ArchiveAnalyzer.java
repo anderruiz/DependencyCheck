@@ -206,12 +206,13 @@ public class ArchiveAnalyzer extends AbstractFileTypeAnalyzer {
     @Override
     public void closeAnalyzer() throws Exception {
         if (tempFileLocation != null && tempFileLocation.exists()) {
-            LOGGER.debug("Attempting to delete temporary files");
+            LOGGER.debug("Attempting to delete temporary files from `{}`", tempFileLocation.toString());
             final boolean success = FileUtils.delete(tempFileLocation);
             if (!success && tempFileLocation.exists()) {
                 final String[] l = tempFileLocation.list();
                 if (l != null && l.length > 0) {
-                    LOGGER.warn("Failed to delete some temporary files, see the log for more details");
+                    LOGGER.warn("Failed to delete the Archive Analyzer's temporary files from `{}`, "
+                            + "see the log for more details", tempFileLocation.toString());
                 }
             }
         }
@@ -309,9 +310,13 @@ public class ArchiveAnalyzer extends AbstractFileTypeAnalyzer {
             final File tmpLoc = new File(tempDir, fileName.substring(0, fileName.length() - 3) + "jar");
             //store the archives sha1 and change it so that the engine doesn't think the zip and jar file are the same
             // and add it is a related dependency.
+            final String archiveMd5 = dependency.getMd5sum();
             final String archiveSha1 = dependency.getSha1sum();
+            final String archiveSha256 = dependency.getSha256sum();
             try {
+                dependency.setMd5sum("");
                 dependency.setSha1sum("");
+                dependency.setSha256sum("");
                 org.apache.commons.io.FileUtils.copyFile(dependency.getActualFile(), tmpLoc);
                 final List<Dependency> dependencySet = findMoreDependencies(engine, tmpLoc);
                 if (dependencySet != null && !dependencySet.isEmpty()) {
@@ -333,7 +338,9 @@ public class ArchiveAnalyzer extends AbstractFileTypeAnalyzer {
             } catch (IOException ex) {
                 LOGGER.debug("Unable to perform deep copy on '{}'", dependency.getActualFile().getPath(), ex);
             } finally {
+                dependency.setMd5sum(archiveMd5);
                 dependency.setSha1sum(archiveSha1);
+                dependency.setSha256sum(archiveSha256);
             }
         }
     }
@@ -388,8 +395,9 @@ public class ArchiveAnalyzer extends AbstractFileTypeAnalyzer {
             try {
                 fis = new FileInputStream(archive);
             } catch (FileNotFoundException ex) {
-                LOGGER.debug("", ex);
-                throw new AnalysisException("Archive file was not found.", ex);
+                final String msg = String.format("Error extracting file `%s`: %s", archive.getAbsolutePath(), ex.getMessage());
+                LOGGER.debug(msg, ex);
+                throw new AnalysisException(msg);
             }
             BufferedInputStream in = null;
             ZipArchiveInputStream zin = null;
@@ -410,6 +418,13 @@ public class ArchiveAnalyzer extends AbstractFileTypeAnalyzer {
                     final String uncompressedName = GzipUtils.getUncompressedFilename(archive.getName());
                     final File f = new File(destination, uncompressedName);
                     if (engine.accept(f)) {
+                        final String destPath = destination.getCanonicalPath();
+                        if (!f.getCanonicalPath().startsWith(destPath)) {
+                            final String msg = String.format(
+                                    "Archive (%s) contains a file that would be written outside of the destination directory",
+                                    archive.getPath());
+                            throw new AnalysisException(msg);
+                        }
                         in = new BufferedInputStream(fis);
                         gin = new GzipCompressorInputStream(in);
                         decompressFile(gin, f);
@@ -418,6 +433,13 @@ public class ArchiveAnalyzer extends AbstractFileTypeAnalyzer {
                     final String uncompressedName = BZip2Utils.getUncompressedFilename(archive.getName());
                     final File f = new File(destination, uncompressedName);
                     if (engine.accept(f)) {
+                        final String destPath = destination.getCanonicalPath();
+                        if (!f.getCanonicalPath().startsWith(destPath)) {
+                            final String msg = String.format(
+                                    "Archive (%s) contains a file that would be written outside of the destination directory",
+                                    archive.getPath());
+                            throw new AnalysisException(msg);
+                        }
                         in = new BufferedInputStream(fis);
                         bzin = new BZip2CompressorInputStream(in);
                         decompressFile(bzin, f);
@@ -471,6 +493,8 @@ public class ArchiveAnalyzer extends AbstractFileTypeAnalyzer {
                 boolean stillLooking = true;
                 int chr;
                 int nxtChr;
+                //CSOFF: InnerAssignment
+                //CSOFF: NestedIfDepth
                 while (stillLooking && (chr = in.read()) != -1) {
                     if (chr == '\n' || chr == '\r') {
                         in.mark(4);
@@ -488,6 +512,8 @@ public class ArchiveAnalyzer extends AbstractFileTypeAnalyzer {
                         }
                     }
                 }
+                //CSON: InnerAssignment
+                //CSON: NestedIfDepth
             } else {
                 in.reset();
             }
@@ -506,8 +532,15 @@ public class ArchiveAnalyzer extends AbstractFileTypeAnalyzer {
     private void extractArchive(ArchiveInputStream input, File destination, Engine engine) throws ArchiveExtractionException {
         ArchiveEntry entry;
         try {
+            final String destPath = destination.getCanonicalPath();
             while ((entry = input.getNextEntry()) != null) {
                 final File file = new File(destination, entry.getName());
+                if (!file.getCanonicalPath().startsWith(destPath)) {
+                    final String msg = String.format(
+                            "Archive contains a file (%s) that would be extracted outside of the target directory.",
+                            file.getName());
+                    throw new ArchiveExtractionException(msg);
+                }
                 if (entry.isDirectory()) {
                     if (!file.exists() && !file.mkdirs()) {
                         final String msg = String.format("Unable to create directory '%s'.", file.getAbsolutePath());

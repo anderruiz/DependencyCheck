@@ -17,16 +17,21 @@
  */
 package org.owasp.dependencycheck.analyzer;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.concurrent.ThreadSafe;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.builder.CompareToBuilder;
 import org.apache.lucene.analysis.util.CharArraySet;
 import org.apache.lucene.document.Document;
@@ -81,9 +86,11 @@ public class CPEAnalyzer extends AbstractAnalyzer {
     private static final String WEIGHTING_BOOST = "^5";
     /**
      * A string representation of a regular expression defining characters
-     * utilized within the CPE Names.
+     * utilized within the CPE Names. Note, the :/ are included so URLs are
+     * passed into the Lucene query so that the specialized tokenizer can parse
+     * them.
      */
-    private static final String CLEANSE_CHARACTER_RX = "[^A-Za-z0-9 ._-]";
+    private static final String CLEANSE_CHARACTER_RX = "[^A-Za-z0-9 ._:/-]";
     /**
      * A string representation of a regular expression used to remove all but
      * alpha characters.
@@ -106,6 +113,19 @@ public class CPEAnalyzer extends AbstractAnalyzer {
      * The CVE Database.
      */
     private CveDB cve;
+    /**
+     * The list of ecosystems to skip during analysis. These are skipped because
+     * there is generally a more accurate vulnerability analyzer in the
+     * pipeline.
+     */
+    private List<String> skipEcosystems;
+    /**
+     * A reference to the suppression analyzer; for timing reasons we need to
+     * test for suppressions immediately after identifying the match because a
+     * higher confidence match on a FP can mask a lower confidence, yet valid
+     * match.
+     */
+    private CpeSuppressionAnalyzer suppression;
 
     /**
      * Returns the name of this analyzer.
@@ -136,6 +156,7 @@ public class CPEAnalyzer extends AbstractAnalyzer {
      */
     @Override
     public void prepareAnalyzer(Engine engine) throws InitializationException {
+        super.prepareAnalyzer(engine);
         try {
             this.open(engine.getDatabase());
         } catch (IOException ex) {
@@ -145,6 +166,17 @@ public class CPEAnalyzer extends AbstractAnalyzer {
             LOGGER.debug("Exception accessing the database", ex);
             throw new InitializationException("An exception occurred accessing the database", ex);
         }
+        final String[] tmp = engine.getSettings().getArray(Settings.KEYS.ECOSYSTEM_SKIP_CPEANALYZER);
+        if (tmp == null) {
+            skipEcosystems = new ArrayList<>();
+        } else {
+            LOGGER.info("Skipping CPE Analysis for {}", StringUtils.join(tmp, ","));
+            skipEcosystems = Arrays.asList(tmp);
+        }
+
+        suppression = new CpeSuppressionAnalyzer();
+        suppression.initialize(engine.getSettings());
+        suppression.prepareAnalyzer(engine);
     }
 
     /**
@@ -186,12 +218,13 @@ public class CPEAnalyzer extends AbstractAnalyzer {
      * the given dependency based on the evidence contained within. The
      * dependency passed in is updated with any identified CPE values.
      *
-     * @param dependency the dependency to search for CPE entries on.
-     * @throws CorruptIndexException is thrown when the Lucene index is corrupt.
-     * @throws IOException is thrown when an IOException occurs.
-     * @throws ParseException is thrown when the Lucene query cannot be parsed.
+     * @param dependency the dependency to search for CPE entries on
+     * @throws CorruptIndexException is thrown when the Lucene index is corrupt
+     * @throws IOException is thrown when an IOException occurs
+     * @throws ParseException is thrown when the Lucene query cannot be parsed
+     * @throws AnalysisException thrown if the suppression rules failed
      */
-    protected void determineCPE(Dependency dependency) throws CorruptIndexException, IOException, ParseException {
+    protected void determineCPE(Dependency dependency) throws CorruptIndexException, IOException, ParseException, AnalysisException {
         String vendors = "";
         String products = "";
         for (Confidence confidence : Confidence.values()) {
@@ -227,29 +260,32 @@ public class CPEAnalyzer extends AbstractAnalyzer {
     }
 
     /**
+     * <p>
      * Returns the text created by concatenating the text and the values from
      * the EvidenceCollection (filtered for a specific confidence). This
-     * attempts to prevent duplicate terms from being added.<br/<br/> Note, if
-     * the evidence is longer then 200 characters it will be truncated.
+     * attempts to prevent duplicate terms from being added.</p>
+     * <p>
+     * Note, if the evidence is longer then 200 characters it will be
+     * truncated.</p>
      *
      * @param text the base text
      * @param evidence an iterable set of evidence to concatenate
      * @return the new evidence text
      */
-    private String addEvidenceWithoutDuplicateTerms(final String text, final Iterable<Evidence> evidence) {
+    @SuppressWarnings("null")
+    protected String addEvidenceWithoutDuplicateTerms(final String text, final Iterable<Evidence> evidence) {
         final String txt = (text == null) ? "" : text;
-        final StringBuilder sb = new StringBuilder();
+        final StringBuilder sb = new StringBuilder(txt.length() * 2);
         sb.append(' ').append(txt).append(' ');
         for (Evidence e : evidence) {
-            final String value = e.getValue();
-            //removed as the URLTokenizingFilter was created
-            //hack to get around the fact that lucene does a really good job of recognizing domains and not splitting them.
-//            if (value.startsWith("http://")) {
-//                value = value.substring(7).replaceAll("\\.", " ");
-//            }
-//            if (value.startsWith("https://")) {
-//                value = value.substring(8).replaceAll("\\.", " ");
-//            }
+            String value = e.getValue();
+            if (value.length() > 1000) {
+                value = value.substring(0, 1000);
+                final int pos = value.lastIndexOf(" ");
+                if (pos > 0) {
+                    value = value.substring(0, pos);
+                }
+            }
             if (sb.indexOf(" " + value + " ") < 0) {
                 sb.append(value).append(' ');
             }
@@ -358,7 +394,7 @@ public class CPEAnalyzer extends AbstractAnalyzer {
      * @return if the append was successful.
      */
     private boolean appendWeightedSearch(StringBuilder sb, String field, String searchText, Set<String> weightedText) {
-        sb.append(' ').append(field).append(":( ");
+        sb.append(field).append(":(");
 
         final String cleanText = cleanseText(searchText);
 
@@ -369,6 +405,7 @@ public class CPEAnalyzer extends AbstractAnalyzer {
         if (weightedText == null || weightedText.isEmpty()) {
             LuceneUtils.appendEscapedLuceneQuery(sb, cleanText);
         } else {
+            boolean addSpace = false;
             final StringTokenizer tokens = new StringTokenizer(cleanText);
             while (tokens.hasMoreElements()) {
                 final String word = tokens.nextToken();
@@ -380,14 +417,20 @@ public class CPEAnalyzer extends AbstractAnalyzer {
                         LuceneUtils.appendEscapedLuceneQuery(temp, word);
                         temp.append(WEIGHTING_BOOST);
                         if (!word.equalsIgnoreCase(weightedStr)) {
-                            temp.append(' ');
+                            if (temp.length() > 0) {
+                                temp.append(' ');
+                            }
                             LuceneUtils.appendEscapedLuceneQuery(temp, weightedStr);
                             temp.append(WEIGHTING_BOOST);
                         }
                         break;
                     }
                 }
-                sb.append(' ');
+                if (addSpace) {
+                    sb.append(' ');
+                } else {
+                    addSpace = true;
+                }
                 if (temp == null) {
                     LuceneUtils.appendEscapedLuceneQuery(sb, word);
                 } else {
@@ -395,7 +438,7 @@ public class CPEAnalyzer extends AbstractAnalyzer {
                 }
             }
         }
-        sb.append(" ) ");
+        sb.append(")");
         return true;
     }
 
@@ -525,6 +568,9 @@ public class CPEAnalyzer extends AbstractAnalyzer {
      */
     @Override
     protected void analyzeDependency(Dependency dependency, Engine engine) throws AnalysisException {
+        if (skipEcosystems.contains(dependency.getEcosystem())) {
+            return;
+        }
         try {
             determineCPE(dependency);
         } catch (CorruptIndexException ex) {
@@ -551,9 +597,10 @@ public class CPEAnalyzer extends AbstractAnalyzer {
      * @return <code>true</code> if an identifier was added to the dependency;
      * otherwise <code>false</code>
      * @throws UnsupportedEncodingException is thrown if UTF-8 is not supported
+     * @throws AnalysisException thrown if the suppression rules failed
      */
     protected boolean determineIdentifiers(Dependency dependency, String vendor, String product,
-            Confidence currentConfidence) throws UnsupportedEncodingException {
+            Confidence currentConfidence) throws UnsupportedEncodingException, AnalysisException {
         final Set<VulnerableSoftware> cpes = cve.getCPEs(vendor, product);
         if (cpes.isEmpty()) {
             return false;
@@ -573,7 +620,7 @@ public class CPEAnalyzer extends AbstractAnalyzer {
                     continue;
                 }
                 for (VulnerableSoftware vs : cpes) {
-                    DependencyVersion dbVer;
+                    final DependencyVersion dbVer;
                     if (vs.getUpdate() != null && !vs.getUpdate().isEmpty()) {
                         dbVer = DependencyVersionUtil.parseVersion(vs.getVersion() + '.' + vs.getUpdate());
                     } else {
@@ -581,11 +628,11 @@ public class CPEAnalyzer extends AbstractAnalyzer {
                     }
                     if (dbVer == null) { //special case, no version specified - everything is vulnerable
                         hasBroadMatch = true;
-                        final String url = String.format(NVD_SEARCH_URL, URLEncoder.encode(vs.getName(), "UTF-8"));
+                        final String url = String.format(NVD_SEARCH_URL, URLEncoder.encode(vs.getName(), StandardCharsets.UTF_8.name()));
                         final IdentifierMatch match = new IdentifierMatch("cpe", vs.getName(), url, IdentifierConfidence.BROAD_MATCH, conf);
                         collected.add(match);
                     } else if (evVer.equals(dbVer)) { //yeah! exact match
-                        final String url = String.format(NVD_SEARCH_URL, URLEncoder.encode(vs.getName(), "UTF-8"));
+                        final String url = String.format(NVD_SEARCH_URL, URLEncoder.encode(vs.getName(), StandardCharsets.UTF_8.name()));
                         final IdentifierMatch match = new IdentifierMatch("cpe", vs.getName(), url, IdentifierConfidence.EXACT_MATCH, conf);
                         collected.add(match);
 
@@ -611,7 +658,7 @@ public class CPEAnalyzer extends AbstractAnalyzer {
         String url = null;
         if (hasBroadMatch) { //if we have a broad match we can add the URL to the best guess.
             final String cpeUrlName = String.format("cpe:/a:%s:%s", vendor, product);
-            url = String.format(NVD_SEARCH_URL, URLEncoder.encode(cpeUrlName, "UTF-8"));
+            url = String.format(NVD_SEARCH_URL, URLEncoder.encode(cpeUrlName, StandardCharsets.UTF_8.name()));
         }
         if (bestGuessConf
                 == null) {
@@ -634,8 +681,12 @@ public class CPEAnalyzer extends AbstractAnalyzer {
                 } else {
                     i.setConfidence(bestEvidenceQuality);
                 }
+                //TODO - while this gets the job down it is slow; consider refactoring
                 dependency.addIdentifier(i);
-                identifierAdded = true;
+                suppression.analyze(dependency, null);
+                if (dependency.getIdentifiers().contains(i)) {
+                    identifierAdded = true;
+                }
             }
         }
         return identifierAdded;
@@ -650,7 +701,6 @@ public class CPEAnalyzer extends AbstractAnalyzer {
     @Override
     protected String getAnalyzerEnabledSettingKey() {
         return Settings.KEYS.ANALYZER_CPE_ENABLED;
-
     }
 
     /**
@@ -831,6 +881,47 @@ public class CPEAnalyzer extends AbstractAnalyzer {
                     .append(evidenceConfidence, o.evidenceConfidence)
                     .append(identifier, o.identifier)
                     .toComparison();
+        }
+    }
+
+    /**
+     * Command line tool for querying the Lucene CPE Index.
+     *
+     * @param args not used
+     */
+    public static void main(String[] args) {
+        final Settings props = new Settings();
+        Engine en = new Engine(Engine.Mode.EVIDENCE_PROCESSING, props);
+        try {
+            en.openDatabase(false, false);
+            final CPEAnalyzer analyzer = new CPEAnalyzer();
+            analyzer.initialize(props);
+            analyzer.prepareAnalyzer(en);
+            LOGGER.error("test");
+            System.out.println("Memory index query for ODC");
+            try (BufferedReader br = new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8))) {
+                while (true) {
+                    System.out.print("Vendor: ");
+                    final String vendor = br.readLine();
+                    System.out.print("Product: ");
+                    final String product = br.readLine();
+                    final List<IndexEntry> list = analyzer.searchCPE(vendor, product, null, null);
+                    if (list == null || list.isEmpty()) {
+                        System.out.println("No results found");
+                    } else {
+                        for (IndexEntry e : list) {
+                            System.out.println(String.format("%s:%s (%f)", e.getVendor(), e.getProduct(), e.getSearchScore()));
+                        }
+                    }
+                    System.out.println();
+                    System.out.println();
+                }
+            }
+        } catch (InitializationException | IOException ex) {
+            System.err.println("Lucene ODC search tool failed:");
+            System.err.println(ex.getMessage());
+        } finally {
+        	en.close();
         }
     }
 }

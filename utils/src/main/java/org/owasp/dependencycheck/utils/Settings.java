@@ -17,6 +17,7 @@
  */
 package org.owasp.dependencycheck.utils;
 
+import com.google.gson.Gson;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,12 +30,12 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.security.ProtectionDomain;
 import java.util.Enumeration;
+import java.util.List;
 import java.util.Properties;
 import java.util.UUID;
-
-import org.apache.commons.lang3.StringUtils;
 
 /**
  * A simple settings container that wraps the dependencycheck.properties file.
@@ -114,9 +115,14 @@ public final class Settings {
          */
         public static final String DB_PASSWORD = "data.password";
         /**
-         * The base path to use for the data directory (for embedded db).
+         * The base path to use for the data directory (for embedded db and
+         * other cached resources from the Internet).
          */
         public static final String DATA_DIRECTORY = "data.directory";
+        /**
+         * The base path to use for the H2 data directory (for embedded db).
+         */
+        public static final String H2_DATA_DIRECTORY = "data.h2.directory";
         /**
          * The database file name.
          */
@@ -242,6 +248,10 @@ public final class Settings {
          */
         public static final String MAX_DOWNLOAD_THREAD_POOL_SIZE = "max.download.threads";
         /**
+         * The properties key for the analysis timeout.
+         */
+        public static final String ANALYSIS_TIMEOUT = "odc.analysis.timeout";
+        /**
          * The key for the suppression file.
          */
         public static final String SUPPRESSION_FILE = "suppression.file";
@@ -276,9 +286,34 @@ public final class Settings {
          */
         public static final String ANALYZER_NSP_PACKAGE_ENABLED = "analyzer.nsp.package.enabled";
         /**
-         * The properties key for whether the Nexus analyzer is enabled.
+         * The properties key for supplying the URL to the Node Security
+         * Platform API.
          */
         public static final String ANALYZER_NSP_URL = "analyzer.nsp.url";
+        /**
+         * The properties key for whether the RetireJS analyzer is enabled.
+         */
+        public static final String ANALYZER_RETIREJS_ENABLED = "analyzer.retirejs.enabled";
+        /**
+         * The properties key for whether the RetireJS analyzer file content
+         * filters.
+         */
+        public static final String ANALYZER_RETIREJS_FILTERS = "analyzer.retirejs.filters";
+        /**
+         * The properties key for whether the RetireJS analyzer should filter
+         * out non-vulnerable dependencies.
+         */
+        public static final String ANALYZER_RETIREJS_FILTER_NON_VULNERABLE = "analyzer.retirejs.filternonvulnerable";
+
+        /**
+         * The properties key for defining the URL to the RetireJS repository.
+         */
+        public static final String ANALYZER_RETIREJS_REPO_JS_URL = "analyzer.retirejs.repo.js.url";
+        /**
+         * The properties key to control the skipping of the check for CVE
+         * updates.
+         */
+        public static final String ANALYZER_RETIREJS_REPO_VALID_FOR_HOURS = "analyzer.retirejs.repo.validforhours";
         /**
          * The properties key for whether the composer lock file analyzer is
          * enabled.
@@ -320,6 +355,11 @@ public final class Settings {
          */
         public static final String ANALYZER_NUSPEC_ENABLED = "analyzer.nuspec.enabled";
         /**
+         * The properties key for whether the .NET MSBuild Project analyzer is
+         * enabled.
+         */
+        public static final String ANALYZER_MSBUILD_PROJECT_ENABLED = "analyzer.msbuildproject.enabled";
+        /**
          * The properties key for whether the Nexus analyzer is enabled.
          */
         public static final String ANALYZER_NEXUS_ENABLED = "analyzer.nexus.enabled";
@@ -332,9 +372,53 @@ public final class Settings {
          */
         public static final String ANALYZER_NEXUS_USES_PROXY = "analyzer.nexus.proxy";
         /**
+         * The properties key for whether the Artifactory analyzer is enabled.
+         */
+        public static final String ANALYZER_ARTIFACTORY_ENABLED = "analyzer.artifactory.enabled";
+        /**
+         * The properties key for the Artifactory search URL.
+         */
+        public static final String ANALYZER_ARTIFACTORY_URL = "analyzer.artifactory.url";
+        /**
+         * The properties key for the Artifactory username.
+         */
+        public static final String ANALYZER_ARTIFACTORY_API_USERNAME = "analyzer.artifactory.api.username";
+        /**
+         * The properties key for the Artifactory API token.
+         */
+        public static final String ANALYZER_ARTIFACTORY_API_TOKEN = "analyzer.artifactory.api.token";
+        /**
+         * The properties key for the Artifactory bearer token
+         * (https://www.jfrog.com/confluence/display/RTF/Access+Tokens). It can
+         * be generated using:
+         * <pre>curl -u yourUserName -X POST \
+         *    "https://artifactory.techno.ingenico.com/artifactory/api/security/token" \
+         *    -d "username=yourUserName"</pre>.
+         */
+        public static final String ANALYZER_ARTIFACTORY_BEARER_TOKEN = "analyzer.artifactory.bearer.token";
+        /**
+         * The properties key for using the proxy to reach Artifactory.
+         */
+        public static final String ANALYZER_ARTIFACTORY_USES_PROXY = "analyzer.artifactory.proxy";
+        /**
+         * The properties key for whether the Artifactory analyzer should use
+         * parallel processing.
+         */
+        public static final String ANALYZER_ARTIFACTORY_PARALLEL_ANALYSIS = "analyzer.artifactory.parallel.analysis";
+        /**
          * The properties key for whether the Central analyzer is enabled.
          */
         public static final String ANALYZER_CENTRAL_ENABLED = "analyzer.central.enabled";
+        /**
+         * The properties key for whether the Central analyzer should use
+         * parallel processing.
+         */
+        public static final String ANALYZER_CENTRAL_PARALLEL_ANALYSIS = "analyzer.central.parallel.analysis";
+        /**
+         * The properties key for whether the Central analyzer should use
+         * parallel processing.
+         */
+        public static final String ANALYZER_CENTRAL_RETRY_COUNT = "analyzer.central.retry.count";
         /**
          * The properties key for whether the OpenSSL analyzer is enabled.
          */
@@ -451,10 +535,25 @@ public final class Settings {
          */
         public static final String UPDATE_VERSION_CHECK_ENABLED = "updater.versioncheck.enabled";
         /**
-         * The key to determine if dependency-check should check if there is a
-         * new version available.
+         * The key to determine which ecosystems should skip the CPE analysis.
          */
-        public static final String UPDATE_WAIT_TIME = "updater.wait.time";
+        public static final String ECOSYSTEM_SKIP_CPEANALYZER = "ecosystem.skip.cpeanalyzer";
+
+        /**
+         *
+         * Adds capabilities to batch insert. Tested on PostgreSQL and H2.
+         */
+        public static final String ENABLE_BATCH_UPDATES = "database.batchinsert.enabled";
+        /**
+         * Size of database batch inserts.
+         */
+        public static final String MAX_BATCH_SIZE = "database.batchinsert.maxsize";
+        /**
+         * The key that specifies the class name of the H2 database shutdown
+         * hook.
+         */
+        public static final String H2DB_SHUTDOWN_HOOK = "data.h2.shutdownhook";
+
         /**
          * private constructor because this is a "utility" class containing
          * constants
@@ -516,6 +615,7 @@ public final class Settings {
      */
     public synchronized void cleanup(boolean deleteTemporary) {
         if (deleteTemporary && tempDirectory != null && tempDirectory.exists()) {
+            LOGGER.debug("Deleting ALL temporary files from `{}`", tempDirectory.toString());
             FileUtils.delete(tempDirectory);
             tempDirectory = null;
         }
@@ -595,7 +695,19 @@ public final class Settings {
      */
     public void setArrayIfNotEmpty(String key, String[] value) {
         if (null != value && value.length > 0) {
-            setString(key, StringUtils.join(value, ARRAY_SEP));
+            setString(key, new Gson().toJson(value));
+        }
+    }
+
+    /**
+     * Sets a property value only if the array value is not null and not empty.
+     *
+     * @param key the key for the property
+     * @param value the value for the property
+     */
+    public void setArrayIfNotEmpty(String key, List<String> value) {
+        if (null != value && value.size() > 0) {
+            setString(key, new Gson().toJson(value));
         }
     }
 
@@ -752,12 +864,12 @@ public final class Settings {
     private File getJarPath() {
         String decodedPath = ".";
         String jarPath = "";
-        ProtectionDomain domain = Settings.class.getProtectionDomain();
-        if(domain!=null&& domain.getCodeSource()!=null && domain.getCodeSource().getLocation()!=null) {
-        	 jarPath = Settings.class.getProtectionDomain().getCodeSource().getLocation().getPath();
+        final ProtectionDomain domain = Settings.class.getProtectionDomain();
+        if (domain != null && domain.getCodeSource() != null && domain.getCodeSource().getLocation() != null) {
+            jarPath = Settings.class.getProtectionDomain().getCodeSource().getLocation().getPath();
         }
         try {
-            decodedPath = URLDecoder.decode(jarPath, "UTF-8");
+            decodedPath = URLDecoder.decode(jarPath, StandardCharsets.UTF_8.name());
         } catch (UnsupportedEncodingException ex) {
             LOGGER.trace("", ex);
         }
@@ -823,7 +935,11 @@ public final class Settings {
     public String[] getArray(final String key) {
         final String string = getString(key);
         if (string != null) {
-            return string.split(ARRAY_SEP);
+            if (string.charAt(0) == '{' || string.charAt(0) == '[') {
+                return new Gson().fromJson(string, String[].class);
+            } else {
+                return string.split(ARRAY_SEP);
+            }
         }
         return null;
     }
@@ -955,7 +1071,8 @@ public final class Settings {
             throw new InvalidSettingException(msg);
         }
         if (connStr.contains("%s")) {
-            final File directory = getDataDirectory();
+            final File directory = getH2DataDirectory();
+            LOGGER.debug("Data directory: {}", directory);
             String fileName = null;
             if (dbFileNameKey != null) {
                 fileName = getString(dbFileNameKey);
@@ -978,9 +1095,8 @@ public final class Settings {
     }
 
     /**
-     * Retrieves the directory that the JAR file exists in so that we can ensure
-     * we always use a common data directory for the embedded H2 database. This
-     * is public solely for some unit tests; otherwise this should be private.
+     * Retrieves the primary data directory that is used for caching web
+     * content.
      *
      * @return the data directory to store data files
      * @throws IOException is thrown if an IOException occurs of course...
@@ -993,13 +1109,27 @@ public final class Settings {
         throw new IOException(String.format("Unable to create the data directory '%s'",
                 (path == null) ? "unknown" : path.getAbsolutePath()));
     }
-    
-    public static int availableProcessors() {
-	    	if(System.getProperty("available.processors")!=null) {
-	    		return Integer.parseInt(System.getProperty("available.processors"));
-	    	} else {
-	    		return Runtime.getRuntime().availableProcessors();
-	    	}
+
+    /**
+     * Retrieves the H2 data directory - if the database has been moved to the
+     * temp directory this method will return the temp directory.
+     *
+     * @return the data directory to store data files
+     * @throws IOException is thrown if an IOException occurs of course...
+     */
+    public File getH2DataDirectory() throws IOException {
+        final String h2Test = getString(Settings.KEYS.H2_DATA_DIRECTORY);
+        final File path;
+        if (h2Test != null && !h2Test.isEmpty()) {
+            path = getDataFile(Settings.KEYS.H2_DATA_DIRECTORY);
+        } else {
+            path = getDataFile(Settings.KEYS.DATA_DIRECTORY);
+        }
+        if (path != null && (path.exists() || path.mkdirs())) {
+            return path;
+        }
+        throw new IOException(String.format("Unable to create the h2 data directory '%s'",
+                (path == null) ? "unknown" : path.getAbsolutePath()));
     }
 
     /**

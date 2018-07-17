@@ -10,6 +10,7 @@ Vulnerability Database (NVD) hosted by NIST: https://nvd.nist.gov
 After the first batch download, as long as the plug-in is executed at least once every
 seven days the update will only take a few seconds.
 
+<<<<<<< HEAD
 #set( $H = '#' )
 
 $H$H$H Example 1:
@@ -141,6 +142,144 @@ Create the DependencyCheck-report.html and skip artifacts not bundled in distrib
 
 $H$H$H Example 5:
 Create the DependencyCheck-report.html and use internal mirroring of CVE contents.
+=======
+### Default Phase
+The dependency-check plugin is, by default, tied to the `verify` or `site` phase
+depending on if it is configured as a build or reporting plugin. The examples
+below can be executed using `mvn verify` or in the reporting example `mvn site`.
+
+#set( $H = '#' )
+
+$H$H$H Example 1:
+Create the dependency-check-report.html in the target directory.
+
+```xml
+<project>
+    ...
+    <build>
+        ...
+        <plugins>
+            ...
+            <plugin>
+              <groupId>org.owasp</groupId>
+              <artifactId>dependency-check-maven</artifactId>
+              <version>${project.version}</version>
+              <executions>
+                  <execution>
+                      <goals>
+                          <goal>check</goal>
+                      </goals>
+                  </execution>
+              </executions>
+            </plugin>
+            ...
+        </plugins>
+        ...
+    </build>
+    ...
+</project>
+```
+
+$H$H$H Example 2:
+Create an aggregated dependency-check report within the site.
+
+```xml
+<project>
+    ...
+    <reporting>
+        ...
+        <plugins>
+            ...
+            <plugin>
+                <groupId>org.owasp</groupId>
+                <artifactId>dependency-check-maven</artifactId>
+                <version>${project.version}</version>
+                <reportSets>
+                    <reportSet>
+                        <reports>
+                            <report>aggregate</report>
+                        </reports>
+                    </reportSet>
+                </reportSets>
+            </plugin>
+            ...
+        </plugins>
+        ...
+    </reporting>
+    ...
+</project>
+```
+
+$H$H$H Example 3:
+Create the dependency-check-report.html and fail the build for CVSS greater than or equal to 8.
+
+```xml
+<project>
+    ...
+    <build>
+        ...
+        <plugins>
+            ...
+            <plugin>
+              <groupId>org.owasp</groupId>
+              <artifactId>dependency-check-maven</artifactId>
+              <version>${project.version}</version>
+              <configuration>
+                  <failBuildOnCVSS>8</failBuildOnCVSS>
+              </configuration>
+              <executions>
+                  <execution>
+                      <goals>
+                          <goal>check</goal>
+                      </goals>
+                  </execution>
+              </executions>
+            </plugin>
+            ...
+        </plugins>
+        ...
+    </build>
+    ...
+</project>
+```
+
+$H$H$H Example 4:
+Create the dependency-check-report.html and skip artifacts not bundled in distribution (Provided and Runtime scope).
+
+```xml
+<project>
+    ...
+    <build>
+        ...
+        <plugins>
+            ...
+            <plugin>
+                <groupId>org.owasp</groupId>
+                <artifactId>dependency-check-maven</artifactId>
+                <version>${project.version}</version>
+                <configuration>
+                    <skipProvidedScope>true</skipProvidedScope>
+                    <skipRuntimeScope>true</skipRuntimeScope>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            ...
+        </plugins>
+        ...
+    </build>
+    ...
+</project>
+```
+
+$H$H$H Example 5:
+Create the dependency-check-report.html and use internal mirroring of CVE contents.
+>>>>>>> refs/heads/master
 
 ```xml
 <project>

@@ -148,7 +148,7 @@ public class CMakeAnalyzer extends AbstractFileTypeAnalyzer {
         dependency.setEcosystem(DEPENDENCY_ECOSYSTEM);
         final File file = dependency.getActualFile();
         final String name = file.getName();
-        String contents;
+        final String contents;
         try {
             contents = FileUtils.readFileToString(file, Charset.defaultCharset()).trim();
         } catch (IOException e) {
@@ -208,6 +208,7 @@ public class CMakeAnalyzer extends AbstractFileTypeAnalyzer {
                 currentDep.setFilePath(filePath);
 
                 currentDep.setSha1sum(Checksum.getSHA1Checksum(filePath));
+                currentDep.setSha256sum(Checksum.getSHA256Checksum(filePath));
                 currentDep.setMd5sum(Checksum.getMD5Checksum(filePath));
                 engine.addDependency(currentDep);
             }
