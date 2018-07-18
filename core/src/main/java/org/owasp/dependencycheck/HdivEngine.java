@@ -264,7 +264,10 @@ for (Dependency dependency : dependencies) {
 		int previous = settings.getInt(Settings.KEYS.CVE_CHECK_VALID_FOR_HOURS);
 		settings.setInt(Settings.KEYS.CVE_CHECK_VALID_FOR_HOURS, -1);
 		settings.setInt(Settings.KEYS.CVE_MODIFIED_VALID_FOR_DAYS, -1);
+		openDatabase(false, false);
 		update.update(this);
+        database.close();
+        openDatabase(true, false);
 		settings.setInt(Settings.KEYS.CVE_CHECK_VALID_FOR_HOURS, previous);
 		settings.setInt(Settings.KEYS.CVE_MODIFIED_VALID_FOR_DAYS, previousDays);
 	}
