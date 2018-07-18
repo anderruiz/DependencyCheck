@@ -30,7 +30,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
-import java.nio.charset.StandardCharsets;
+import org.owasp.dependencycheck.utils.StandardCharsets;
 import java.security.ProtectionDomain;
 import java.util.Enumeration;
 import java.util.List;

@@ -233,6 +233,21 @@ public final class Downloader {
     public long getLastModified(URL url) throws DownloadFailedException {
         return getLastModified(url, false);
     }
+    
+
+	public long getLastModified(final URL url, boolean isRetry) throws DownloadFailedException {
+		try {
+			return doGetLastModified(url, isRetry);
+		}
+		catch (DownloadFailedException e) {
+			try {
+				return doGetLastModified(byProxy(url), isRetry);
+			}
+			catch (DownloadFailedException e2) {
+				throw e;
+			}		
+		}
+	}
 
     /**
      * Makes an HTTP Head request to retrieve the last modified date of the
@@ -246,7 +261,7 @@ public final class Downloader {
      * @throws DownloadFailedException is thrown if an exception occurs making
      * the HTTP request
      */
-    private long getLastModified(URL url, boolean isRetry) throws DownloadFailedException {
+    private long doGetLastModified(URL url, boolean isRetry) throws DownloadFailedException {
         long timestamp = 0;
         //TODO add the FTP protocol?
         if ("file".equalsIgnoreCase(url.getProtocol())) {
@@ -269,21 +284,15 @@ public final class Downloader {
                 if (t >= 200 && t < 300) {
                     timestamp = conn.getLastModified();
                 } else {
-                	conn = connFactory.createHttpURLConnection(byProxy(url));
-                    conn.setRequestMethod(httpMethod);
-                    conn.connect();
-                    final int t2 = conn.getResponseCode();
-                    if (t2 >= 200 && t2 < 300) {
-                        timestamp = conn.getLastModified();
-                    } else {
-                    	throw new DownloadFailedException(format("%s request returned a non-200 status code", httpMethod));
-                    }
+                	throw new DownloadFailedException(format("%s request returned a non-200 status code: %s", httpMethod, url));
                 }
             } catch (URLConnectionFailureException ex) {
                 throw new DownloadFailedException(format("Error creating URL Connection for HTTP %s request: %s", httpMethod, url), ex);
             } catch (IOException ex) {
                 checkForCommonExceptionTypes(ex);
-                LOGGER.error(String.format("IO Exception connecting to %s: %s", url, ex.getMessage()));
+                if(url.toString().contains("filePath")) {
+                	LOGGER.error(String.format("IO Exception connecting to %s: %s", url, ex.getMessage()));
+                }
                 LOGGER.debug("Exception details", ex);
                 if (ex.getCause() != null) {
                     LOGGER.debug("IO Exception cause: " + ex.getCause().getMessage(), ex.getCause());
@@ -376,13 +385,13 @@ public final class Downloader {
 
 	public void fetchFile(final URL url, final File outputPath, final boolean useProxy) throws DownloadFailedException {
 		int retries = 10;
-		while (retries-- > 0) {
+		while (retries-- > 1) {
 			try {
 				doFetchFile(url, outputPath, useProxy);
 				retries = 0;
 			}
 			catch (Exception e) {
-				errorDownloading(retries, url);
+				errorDownloading(retries, url, e.getMessage());
 				if (url.getProtocol().equals("https")) {
 					LOGGER.info("Retrying with proxy.");
 					try {
@@ -390,26 +399,28 @@ public final class Downloader {
 						retries = 0;
 					}
 					catch (Exception e1) {
-						errorDownloading(retries, byProxy(url));
 						retries--;
+						errorDownloading(retries, byProxy(url), e1.getMessage());
 					}
 				}
-				try {
-					Thread.sleep(500);
-				}
-				catch (Exception e2) {
-					// TODO: handle exception
+				if(retries!=0) {
+					try {
+						Thread.sleep(500);
+					}
+					catch (Exception e2) {
+						// TODO: handle exception
+					}
 				}
 				
 			}
 		}
 	}
 	
-	private void errorDownloading(int retries, URL url) {
+	private void errorDownloading(int retries, URL url, String message) {
 		if(retries!=1) {
-			LOGGER.info("Error downloading("+retries+") from: " + url);
+			LOGGER.info("Error downloading("+retries+") from: " + url+ " message:"+message);
 		} else {
-			LOGGER.error("Error downloading("+retries+") from: " + url);
+			LOGGER.error("Error downloading("+retries+") from: " + url+ " message:"+message);
 		}
 	}
 	
@@ -419,7 +430,7 @@ public final class Downloader {
 				String urls = url.toString();
 				int pos = urls.lastIndexOf('/');
 				String file = url.toString().substring(pos + 1);
-				return new URL("http://52.207.65.244/proxy/uritemplate/" + file + "?_url=" + urls.substring(0, pos + 1));
+				return new URL(PROXY_URL + file + "?_url=" + urls.substring(0, pos));
 			}
 			catch (MalformedURLException e1) {
 				// TODO Auto-generated catch block
@@ -428,5 +439,7 @@ public final class Downloader {
 		}
 		return url;
 	}
+	
+	static final String PROXY_URL = "http://"+System.getProperty("hdiv.proxy.ip", "52.207.65.244")+"/proxy/uritemplate/";
 
 }

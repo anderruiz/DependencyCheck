@@ -232,7 +232,7 @@ public class ArtifactoryAnalyzer extends AbstractFileTypeAnalyzer {
         try {
             final File baseDir = getSettings().getTempDirectory();
             pomFile = File.createTempFile("pom", ".xml", baseDir);
-            Files.delete(pomFile.toPath());
+            pomFile.delete();
             LOGGER.debug("Downloading {}", ma.getPomUrl());
             final Downloader downloader = new Downloader(getSettings());
             downloader.fetchFile(new URL(ma.getPomUrl()), pomFile);

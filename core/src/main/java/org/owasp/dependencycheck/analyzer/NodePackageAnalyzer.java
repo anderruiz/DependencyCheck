@@ -29,7 +29,6 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.IOException;
-import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -227,7 +226,7 @@ public class NodePackageAnalyzer extends AbstractNpmAnalyzer {
                 final JsonObject jo = (JsonObject) entry.getValue();
                 final String name = entry.getKey();
                 final String version = jo.getString("version");
-                final File base = Paths.get(baseDir.getPath(), "node_modules", name).toFile();
+                final File base = new File(new File(baseDir.getPath(), "node_modules"), name);
                 final File f = new File(base, PACKAGE_JSON);
 
                 if (jo.containsKey("dependencies")) {

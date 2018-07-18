@@ -20,7 +20,7 @@ package org.owasp.dependencycheck.data.cpe;
 import java.io.Serializable;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
-import java.nio.charset.StandardCharsets;
+import org.owasp.dependencycheck.utils.StandardCharsets;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.commons.lang3.StringUtils;
 

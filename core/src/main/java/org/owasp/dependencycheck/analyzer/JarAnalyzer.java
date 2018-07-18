@@ -26,8 +26,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.UnsupportedEncodingException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Paths;
+import org.owasp.dependencycheck.utils.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Enumeration;
@@ -286,7 +285,7 @@ public class JarAnalyzer extends AbstractFileTypeAnalyzer {
      * metadata file
      */
     private boolean isMacOSMetaDataFile(final Dependency dependency, final Engine engine) {
-        final String fileName = Paths.get(dependency.getActualFilePath()).getFileName().toString();
+        final String fileName = new File(dependency.getActualFilePath()).getName().toString();
         return fileName.startsWith("._") && hasDependencyWithFilename(engine.getDependencies(), fileName.substring(2));
     }
 
@@ -302,7 +301,7 @@ public class JarAnalyzer extends AbstractFileTypeAnalyzer {
      */
     private boolean hasDependencyWithFilename(final Dependency[] dependencies, final String fileName) {
         for (final Dependency dependency : dependencies) {
-            if (Paths.get(dependency.getActualFilePath()).getFileName().toString().equalsIgnoreCase(fileName)) {
+            if (new File(dependency.getActualFilePath()).getName().equalsIgnoreCase(fileName)) {
                 return true;
             }
         }

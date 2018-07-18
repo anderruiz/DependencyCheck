@@ -660,7 +660,9 @@ public class Dependency extends EvidenceCollection implements Serializable {
         }
         try {
             final File file = getActualFile();
-            return hashFunction.hash(file);
+            if(file.exists()) {
+            	return hashFunction.hash(file);
+            }
         } catch (IOException | RuntimeException ex) {
             LOGGER.warn("Unable to read '{}' to determine hashes.", actualFilePath);
             LOGGER.debug("", ex);
@@ -743,8 +745,7 @@ public class Dependency extends EvidenceCollection implements Serializable {
      */
     public synchronized void addRelatedDependency(Dependency dependency) {
         if (this == dependency) {
-            LOGGER.warn("Attempted to add a circular reference - please post the log file to issue #172 here "
-                    + "https://github.com/jeremylong/DependencyCheck/issues/172");
+            LOGGER.warn("Attempted to add a circular reference");
             LOGGER.debug("this: {}", this);
             LOGGER.debug("dependency: {}", dependency);
         } else if (!relatedDependencies.add(dependency)) {

@@ -46,6 +46,7 @@ import org.owasp.dependencycheck.data.nvdcve.DatabaseException;
 import org.owasp.dependencycheck.utils.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.owasp.dependencycheck.data.lucene.LuceneUtils;
 
 /**
  * <p>
@@ -129,7 +130,7 @@ public final class CpeMemoryIndex {
             }
             indexSearcher = new IndexSearcher(indexReader);
             searchingAnalyzer = createSearchingAnalyzer();
-            queryParser = new QueryParser(Fields.DOCUMENT_KEY, searchingAnalyzer);
+            queryParser = new QueryParser(LuceneUtils.CURRENT_VERSION, Fields.DOCUMENT_KEY, searchingAnalyzer);
         }
     }
 
@@ -194,7 +195,7 @@ public final class CpeMemoryIndex {
      */
     private void buildIndex(CveDB cve) throws IndexException {
         try (Analyzer analyzer = createSearchingAnalyzer();
-                IndexWriter indexWriter = new IndexWriter(index, new IndexWriterConfig(analyzer))) {
+                IndexWriter indexWriter = new IndexWriter(index, new IndexWriterConfig(LuceneUtils.CURRENT_VERSION, analyzer))) {
             // Tip: reuse the Document and Fields for performance...
             // See "Re-use Document and Field instances" from
             // http://wiki.apache.org/lucene-java/ImproveIndexingSpeed
@@ -213,7 +214,7 @@ public final class CpeMemoryIndex {
                 }
             }
             indexWriter.commit();
-            indexWriter.close();
+            indexWriter.close(true);
         } catch (DatabaseException ex) {
             LOGGER.debug("", ex);
             throw new IndexException("Error reading CPE data", ex);

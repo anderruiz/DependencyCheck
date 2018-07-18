@@ -39,7 +39,7 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
+import org.owasp.dependencycheck.utils.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;

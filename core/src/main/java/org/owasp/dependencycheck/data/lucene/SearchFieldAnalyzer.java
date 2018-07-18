@@ -17,6 +17,8 @@
  */
 package org.owasp.dependencycheck.data.lucene;
 
+import java.io.Reader;
+
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.Tokenizer;
@@ -50,7 +52,7 @@ public class SearchFieldAnalyzer extends Analyzer {
      * @return the set of stop words being used
      */
     public static CharArraySet getStopWords() {
-        final CharArraySet words = StopFilter.makeStopSet(ADDITIONAL_STOP_WORDS, true);
+        final CharArraySet words = StopFilter.makeStopSet(LuceneUtils.CURRENT_VERSION, ADDITIONAL_STOP_WORDS, true);
         words.addAll(StopAnalyzer.ENGLISH_STOP_WORDS_SET);
         return words;
     }
@@ -70,9 +72,9 @@ public class SearchFieldAnalyzer extends Analyzer {
      * @return the token stream filter chain
      */
     @Override
-    protected TokenStreamComponents createComponents(String fieldName) {
+    protected TokenStreamComponents createComponents(String fieldName, Reader reader) {
         //final Tokenizer source = new AlphaNumericTokenizer();
-        final Tokenizer source = new WhitespaceTokenizer();
+        final Tokenizer source = new WhitespaceTokenizer(LuceneUtils.CURRENT_VERSION, reader);
         TokenStream stream = source;
 
         stream = new UrlTokenizingFilter(stream);
@@ -85,9 +87,9 @@ public class SearchFieldAnalyzer extends Analyzer {
                 | WordDelimiterFilter.SPLIT_ON_NUMERICS
                 | WordDelimiterFilter.STEM_ENGLISH_POSSESSIVE, null);
 
-        stream = new LowerCaseFilter(stream);
+        stream = new LowerCaseFilter(LuceneUtils.CURRENT_VERSION, stream);
 
-        stream = new StopFilter(stream, stopWords);
+        stream = new StopFilter(LuceneUtils.CURRENT_VERSION, stream, stopWords);
         stream = new TokenPairConcatenatingFilter(stream);
 
         return new TokenStreamComponents(source, stream);

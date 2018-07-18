@@ -33,7 +33,7 @@ import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
-import java.nio.charset.StandardCharsets;
+import org.owasp.dependencycheck.utils.StandardCharsets;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.commons.text.WordUtils;
 import org.apache.velocity.VelocityContext;

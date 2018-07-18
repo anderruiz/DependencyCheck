@@ -20,7 +20,7 @@ package org.owasp.dependencycheck.data.nvdcve;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
+import org.owasp.dependencycheck.utils.StandardCharsets;
 import java.sql.PreparedStatement;
 import java.sql.Connection;
 import java.sql.Driver;

@@ -24,7 +24,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
-import java.nio.charset.StandardCharsets;
+import org.owasp.dependencycheck.utils.StandardCharsets;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.parsers.SAXParser;

@@ -20,7 +20,7 @@ package org.owasp.dependencycheck.xml;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
+import org.owasp.dependencycheck.utils.StandardCharsets
 import org.junit.Test;
 import static org.junit.Assert.*;
 

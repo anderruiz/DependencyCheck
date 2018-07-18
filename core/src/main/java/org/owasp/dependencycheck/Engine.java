@@ -17,6 +17,8 @@
  */
 package org.owasp.dependencycheck;
 
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
 import org.owasp.dependencycheck.analyzer.AnalysisPhase;
 import org.owasp.dependencycheck.analyzer.Analyzer;
 import org.owasp.dependencycheck.analyzer.AnalyzerService;
@@ -974,8 +976,10 @@ public class Engine implements FileFilter {
                         LOGGER.debug("copying database");
                         final File temp = settings.getTempDirectory();
                         final File tempDB = new File(temp, db.getName());
-                        Files.copy(db.toPath(), tempDB.toPath());
-                        LOGGER.debug("copying complete '{}'", temp.toPath());
+                        if(!tempDB.equals(db)) {
+                        	FileUtils.copyFile(db, tempDB);
+                        	LOGGER.debug("copying complete '{}'", temp.getAbsolutePath());
+                        }
                         settings.setString(Settings.KEYS.H2_DATA_DIRECTORY, temp.getPath());
                         final String connStr = settings.getString(Settings.KEYS.DB_CONNECTION_STRING);
                         if (!connStr.contains("ACCESS_MODE_DATA")) {

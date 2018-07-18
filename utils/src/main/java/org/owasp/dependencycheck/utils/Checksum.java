@@ -23,7 +23,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
+import org.owasp.dependencycheck.utils.StandardCharsets;
 import java.nio.charset.UnsupportedCharsetException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;

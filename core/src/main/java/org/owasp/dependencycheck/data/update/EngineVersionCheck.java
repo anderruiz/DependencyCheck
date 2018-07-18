@@ -21,7 +21,7 @@ import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
+import org.owasp.dependencycheck.utils.StandardCharsets;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.commons.io.IOUtils;
 import org.owasp.dependencycheck.Engine;
