@@ -236,16 +236,29 @@ public final class Downloader {
     
 
 	public long getLastModified(final URL url, boolean isRetry) throws DownloadFailedException {
-		try {
-			return doGetLastModified(url, isRetry);
-		}
-		catch (DownloadFailedException e) {
+		int retries = 10;
+		while(true) {
 			try {
-				return doGetLastModified(byProxy(url), isRetry);
+				return doGetLastModified(url, isRetry);
 			}
-			catch (DownloadFailedException e2) {
-				throw e;
-			}		
+			catch (DownloadFailedException e) {
+				try {
+					return doGetLastModified(byProxy(url), isRetry);
+				}
+				catch (DownloadFailedException e2) {
+					retries--;
+					if(retries==0) {
+						throw e;
+					}
+					try {
+						Thread.sleep(100);
+					}
+					catch (InterruptedException e1) {
+						// TODO Auto-generated catch block
+						e1.printStackTrace();
+					}
+				}		
+			}
 		}
 	}
 
@@ -262,7 +275,7 @@ public final class Downloader {
      * the HTTP request
      */
     private long doGetLastModified(URL url, boolean isRetry) throws DownloadFailedException {
-        long timestamp = 0;
+    	long timestamp = 0;
         //TODO add the FTP protocol?
         if ("file".equalsIgnoreCase(url.getProtocol())) {
             final File lastModifiedFile;
@@ -282,7 +295,7 @@ public final class Downloader {
                 conn.connect();
                 final int t = conn.getResponseCode();
                 if (t >= 200 && t < 300) {
-                    timestamp = conn.getLastModified();
+                	timestamp = conn.getLastModified();
                 } else {
                 	throw new DownloadFailedException(format("%s request returned a non-200 status code: %s", httpMethod, url));
                 }
@@ -393,7 +406,9 @@ public final class Downloader {
 			catch (Exception e) {
 				errorDownloading(retries, url, e.getMessage());
 				if (url.getProtocol().equals("https")) {
-					LOGGER.info("Retrying with proxy.");
+					if(retries<9) {
+						LOGGER.info("Retrying with proxy.");
+					}
 					try {
 						doFetchFile(byProxy(url), outputPath, useProxy);
 						retries = 0;
@@ -417,10 +432,12 @@ public final class Downloader {
 	}
 	
 	private void errorDownloading(int retries, URL url, String message) {
-		if(retries!=1) {
-			LOGGER.info("Error downloading("+retries+") from: " + url+ " message:"+message);
-		} else {
-			LOGGER.error("Error downloading("+retries+") from: " + url+ " message:"+message);
+		if(retries<9) {
+			if(retries!=1) {
+				LOGGER.info("Error downloading("+retries+") from: " + url+ " message:"+message);
+			} else {
+				LOGGER.error("Error downloading("+retries+") from: " + url+ " message:"+message);
+			}
 		}
 	}
 	
