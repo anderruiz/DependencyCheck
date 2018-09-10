@@ -22,7 +22,6 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.channels.FileLock;
 import java.security.SecureRandom;
-import java.sql.Timestamp;
 import java.util.Date;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.owasp.dependencycheck.exception.H2DBLockException;
@@ -126,8 +125,7 @@ public class H2DBLock {
                             LOGGER.debug("Another process obtained a lock first ({})", Thread.currentThread().getName());
                         } else {
                             addShutdownHook();
-                            final Timestamp timestamp = new Timestamp(System.currentTimeMillis());
-                            LOGGER.debug("Lock file created ({}) {} @ {}", Thread.currentThread().getName(), magic, timestamp.toString());
+                            LOGGER.debug("Lock file created ({}) {} @ {}", Thread.currentThread().getName(), magic, new Date().toString());
                         }
                     }
                 } catch (IOException | InterruptedException ex) {
@@ -144,9 +142,8 @@ public class H2DBLock {
                 }
                 if (lock == null || !lock.isValid()) {
                     try {
-                        final Timestamp timestamp = new Timestamp(System.currentTimeMillis());
                         LOGGER.debug("Sleeping thread {} ({}) for {} seconds because an exclusive lock on the database could not be obtained ({})",
-                                Thread.currentThread().getName(), magic, SLEEP_DURATION / 1000, timestamp.toString());
+                                Thread.currentThread().getName(), magic, SLEEP_DURATION / 1000, new Date().toString());
                         Thread.sleep(SLEEP_DURATION);
                     } catch (InterruptedException ex) {
                         LOGGER.debug("sleep was interrupted.", ex);
@@ -223,8 +220,7 @@ public class H2DBLock {
         }
         lockFile = null;
         removeShutdownHook();
-        final Timestamp timestamp = new Timestamp(System.currentTimeMillis());
-        LOGGER.debug("Lock released ({}) {} @ {}", Thread.currentThread().getName(), magic, timestamp.toString());
+        LOGGER.debug("Lock released ({}) {} @ {}", Thread.currentThread().getName(), magic, new Date().toString());
     }
 
     /**

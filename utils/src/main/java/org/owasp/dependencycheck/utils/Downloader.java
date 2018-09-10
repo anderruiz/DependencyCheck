@@ -306,7 +306,7 @@ public final class Downloader {
                 if(url.toString().contains("filePath")) {
                 	LOGGER.error(String.format("IO Exception connecting to %s: %s", url, ex.getMessage()));
                 }
-                LOGGER.debug("Exception details", ex);
+                LOGGER.debug("Exception details on url:"+url, ex);
                 if (ex.getCause() != null) {
                     LOGGER.debug("IO Exception cause: " + ex.getCause().getMessage(), ex.getCause());
                 }
