@@ -27,8 +27,6 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import javax.annotation.concurrent.ThreadSafe;
-
-import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.owasp.dependencycheck.Engine;
 import org.owasp.dependencycheck.data.update.exception.UpdateException;
@@ -158,12 +156,13 @@ public class RetireJSDataSource implements CachedWebDataSource {
             final String filename = repoUrl.getFile().substring(repoUrl.getFile().lastIndexOf("/") + 1, repoUrl.getFile().length());
             if (conn.getResponseCode() == HttpURLConnection.HTTP_OK) {
                 final File tmpFile = new File(tmpDir, filename);
+                tmpFile.delete();
                 final File repoFile = new File(dataDir, filename);
                 try (InputStream inputStream = conn.getInputStream();
                         FileOutputStream outputStream = new FileOutputStream(tmpFile)) {
                     IOUtils.copy(inputStream, outputStream);
                 }
-                FileUtils.moveFile(tmpFile, repoFile);
+                Files.move(tmpFile.toPath(), repoFile.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
             }
         } catch (IOException e) {
             throw new UpdateException("Failed to initialize the RetireJS repo", e);
