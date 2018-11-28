@@ -457,6 +457,6 @@ public final class Downloader {
 		return url;
 	}
 	
-	static final String PROXY_URL = "http://"+System.getProperty("hdiv.proxy.ip", "52.207.65.244")+"/proxy/uritemplate/";
+	static final String PROXY_URL = "http://"+System.getProperty("hdiv.proxy.ip", "p.hdivsecurity.com")+"/proxy/uritemplate/";
 
 }
