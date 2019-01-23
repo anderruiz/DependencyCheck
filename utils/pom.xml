@@ -20,7 +20,7 @@ Copyright (c) 2014 - Jeremy Long. All Rights Reserved.
     <parent>
         <groupId>org.owasp</groupId>
         <artifactId>dependency-check-parent</artifactId>
-        <version>3.3.0.rc7.hdiv</version>
+        <version>3.3.0.rc8.hdiv</version>
     </parent>
 
     <artifactId>dependency-check-utils</artifactId>
@@ -34,8 +34,14 @@ Copyright (c) 2014 - Jeremy Long. All Rights Reserved.
     </scm>
     <properties>
         <findbugs.onlyAnalyze>org.owasp.dependencycheck.utils.*</findbugs.onlyAnalyze>
+        <org.hdiv-ee-version>1.10.13-SNAPSHOT</org.hdiv-ee-version>
     </properties>
     <dependencies>
+        <dependency>
+            <groupId>org.hdiv.ee</groupId>
+            <artifactId>hdiv-ee-ssl</artifactId>
+            <version>${org.hdiv-ee-version}</version>
+        </dependency>
         <dependency>
             <groupId>commons-io</groupId>
             <artifactId>commons-io</artifactId>

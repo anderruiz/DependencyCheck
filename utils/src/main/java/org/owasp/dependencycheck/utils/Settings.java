@@ -553,6 +553,10 @@ public final class Settings {
          * hook.
          */
         public static final String H2DB_SHUTDOWN_HOOK = "data.h2.shutdownhook";
+        /**
+         * The key that specifies the list of trusted hosts (there won't be certificate validation for them)
+         */
+        public static final String SSL_TRUSTED_HOSTS = "ssl.trusted.hosts";
 
         /**
          * private constructor because this is a "utility" class containing

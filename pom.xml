@@ -20,7 +20,7 @@ Copyright (c) 2012 - Jeremy Long
 
     <groupId>org.owasp</groupId>
     <artifactId>dependency-check-parent</artifactId>
-    <version>3.3.0.rc7.hdiv</version>
+    <version>3.3.0.rc8.hdiv</version>
     <packaging>pom</packaging>
 
     <modules>
@@ -184,15 +184,15 @@ Copyright (c) 2012 - Jeremy Long
         
         <surefireArgLine/>
     </properties>
-	<distributionManagement>
-		<snapshotRepository>
-			<id>nexus</id>
-			<url>http://dev.hdivsecurity.com:8081/nexus/content/repositories/snapshots</url>
-		</snapshotRepository>
-		<repository>
-			<id>nexus</id>
-			<url>http://dev.hdivsecurity.com:8081/nexus/content/repositories/releases</url>
-		</repository>
+    <distributionManagement>
+        <snapshotRepository>
+            <id>nexus</id>
+            <url>https://artifacts.hdivsecurity.com/nexus/content/repositories/snapshots</url>
+        </snapshotRepository>
+        <repository>
+            <id>nexus</id>
+            <url>https://artifacts.hdivsecurity.com/nexus/content/repositories/releases</url>
+        </repository>
         <site>
             <id>gh-pages</id>
             <name>gh-pages</name>
