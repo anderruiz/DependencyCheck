@@ -25,6 +25,7 @@ import java.net.URL;
 import org.apache.commons.lang3.StringUtils;
 import org.hdiv.ee.ssl.ConnectionSettings;
 import org.hdiv.ee.ssl.SSLConfiguration;
+import org.hdiv.ee.ssl.SSLConfigurations;
 import org.hdiv.ee.ssl.SSLEnvironment;
 import org.hdiv.ee.ssl.SSLManager;
 import org.slf4j.Logger;
@@ -219,7 +220,7 @@ public final class URLConnectionFactory {
 					if (trustedHosts != null) {
 						for (String trusted : trustedHosts) {
 							if (trusted.equalsIgnoreCase(host)) {
-								return SSLConfiguration.StaticSSLConfiguration.builder().validate(false).build();
+								return SSLConfigurations.validate(false);
 							}
 						}
 					}
