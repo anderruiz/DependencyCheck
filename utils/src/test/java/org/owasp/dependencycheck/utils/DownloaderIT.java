@@ -19,6 +19,8 @@ package org.owasp.dependencycheck.utils;
 
 import java.io.File;
 import java.net.URL;
+import java.util.Arrays;
+
 import static org.junit.Assert.assertTrue;
 import org.junit.Test;
 import static org.junit.Assert.assertTrue;
@@ -43,6 +45,17 @@ public class DownloaderIT extends BaseTest {
         URL url = new URL(getSettings().getString(Settings.KEYS.CVE_MODIFIED_20_URL));
         File outputPath = new File("target/downloaded_cve.xml");
         Downloader downloader = new Downloader(getSettings());
+        downloader.fetchFile(url, outputPath);
+        assertTrue(outputPath.isFile());
+    }
+
+    @Test
+    public void testFetchFileTrusted() throws Exception {
+        URL url = new URL(getSettings().getString(Settings.KEYS.CVE_MODIFIED_20_URL));
+        File outputPath = new File("target/downloaded_cve.xml");
+        Settings settings = getSettings();
+        settings.setArrayIfNotEmpty(Settings.KEYS.SSL_TRUSTED_HOSTS, Arrays.asList(url.toString()));
+        Downloader downloader = new Downloader(settings);
         downloader.fetchFile(url, outputPath);
         assertTrue(outputPath.isFile());
     }

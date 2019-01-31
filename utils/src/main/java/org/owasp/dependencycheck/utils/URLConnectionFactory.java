@@ -216,15 +216,17 @@ public final class URLConnectionFactory {
 			SSLEnvironment environment = new SSLEnvironment() {
 				@Override
 				public SSLConfiguration getHostConfiguration(final String host) {
+					boolean trusted = false;
 					String[] trustedHosts = settings.getArray(Settings.KEYS.SSL_TRUSTED_HOSTS);
 					if (trustedHosts != null) {
-						for (String trusted : trustedHosts) {
-							if (trusted.equalsIgnoreCase(host)) {
-								return SSLConfigurations.validate(false);
+						for (String trustedHost : trustedHosts) {
+							if (SSLManager.INSTANCE.areSameHostname(host, trustedHost)) {
+								trusted = true;
+								break;
 							}
 						}
 					}
-					return SSLManager.INSTANCE.getHostConfiguration(host);
+					return trusted ? SSLConfigurations.validate(false) : SSLManager.INSTANCE.getHostConfiguration(host);
 				}
 			};
 			builder.environment(environment);
