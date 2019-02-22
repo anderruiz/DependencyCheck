@@ -24,6 +24,7 @@ import java.net.URL;
 
 import org.apache.commons.lang3.StringUtils;
 import org.hdiv.ee.ssl.ConnectionSettings;
+import org.hdiv.ee.ssl.SSLAddress;
 import org.hdiv.ee.ssl.SSLConfiguration;
 import org.hdiv.ee.ssl.SSLConfigurations;
 import org.hdiv.ee.ssl.SSLEnvironment;
@@ -215,18 +216,19 @@ public final class URLConnectionFactory {
 		if ("https".equalsIgnoreCase(url.getProtocol())) {
 			SSLEnvironment environment = new SSLEnvironment() {
 				@Override
-				public SSLConfiguration getHostConfiguration(final String host) {
+				public SSLConfiguration getHostConfiguration(final SSLAddress address) {
 					boolean trusted = false;
 					String[] trustedHosts = settings.getArray(Settings.KEYS.SSL_TRUSTED_HOSTS);
 					if (trustedHosts != null) {
 						for (String trustedHost : trustedHosts) {
-							if (SSLManager.INSTANCE.areSameHostname(host, trustedHost)) {
+							SSLAddress trustedAddress = SSLAddress.fromString(trustedHost);
+							if (address.matches(trustedAddress)) {
 								trusted = true;
 								break;
 							}
 						}
 					}
-					return trusted ? SSLConfigurations.validate(false) : SSLManager.INSTANCE.getHostConfiguration(host);
+					return trusted ? SSLConfigurations.validate(false) : SSLManager.INSTANCE.getHostConfiguration(address);
 				}
 			};
 			builder.environment(environment);
