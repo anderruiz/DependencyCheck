@@ -638,7 +638,7 @@ public class CPEAnalyzer extends AbstractAnalyzer {
 
                         //TODO the following isn't quite right is it? need to think about this guessing game a bit more.
                     } else if (evVer.getVersionParts().size() <= dbVer.getVersionParts().size()
-                            && evVer.matchesAtLeastThreeLevels(dbVer)) {
+                            && evVer.matchesAtLeastThreeLevels(dbVer) && fourthLevelsNotNumber(evVer, dbVer)) {
                         if (bestGuessConf == null || bestGuessConf.compareTo(conf) > 0) {
                             if (bestGuess.getVersionParts().size() < dbVer.getVersionParts().size()) {
                                 bestGuess = dbVer;
@@ -691,7 +691,16 @@ public class CPEAnalyzer extends AbstractAnalyzer {
         }
         return identifierAdded;
     }
-
+    
+    private boolean fourthLevelsNotNumber(DependencyVersion ver, DependencyVersion otherVer) {
+    	
+    	if(ver.getVersionParts().size() >=4 && otherVer.getVersionParts().size() >=4) {
+    		
+    		return !StringUtils.isNumeric(ver.getVersionParts().get(3)) && !StringUtils.isNumeric(otherVer.getVersionParts().get(3));
+    	}
+    	return false;
+    }
+    
     /**
      * <p>
      * Returns the setting key to determine if the analyzer is enabled.</p>
