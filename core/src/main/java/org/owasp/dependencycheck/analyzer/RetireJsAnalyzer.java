@@ -58,7 +58,6 @@ import org.owasp.dependencycheck.utils.search.FileContentSearch;
  * @author Steve Springett
  */
 @ThreadSafe
-@Experimental
 public class RetireJsAnalyzer extends AbstractFileTypeAnalyzer {
 
     /**
@@ -151,7 +150,7 @@ public class RetireJsAnalyzer extends AbstractFileTypeAnalyzer {
         }
     }
 
-    /**
+	/**
      * {@inheritDoc}
      *
      * @param engine a reference to the dependency-check engine
@@ -221,7 +220,7 @@ public class RetireJsAnalyzer extends AbstractFileTypeAnalyzer {
     @Override
     public void analyzeDependency(Dependency dependency, Engine engine) throws AnalysisException {
         try {
-            final byte[] fileContent = IOUtils.toByteArray(new FileInputStream(dependency.getActualFile()));
+            final byte[] fileContent = dependency.getActualFile().exists()?IOUtils.toByteArray(new FileInputStream(dependency.getActualFile())):new byte[0];
             final ScannerFacade scanner = new ScannerFacade(jsRepository);
             final List<JsLibraryResult> results = scanner.scanScript(dependency.getActualFile().getAbsolutePath(), fileContent, 0);
 
