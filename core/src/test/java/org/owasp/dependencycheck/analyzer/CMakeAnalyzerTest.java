@@ -164,7 +164,9 @@ public class CMakeAnalyzerTest extends BaseDBTestCase {
      */
     @Test
     public void testAnalyzeCMakeListsOpenCV3rdParty() throws AnalysisException, DatabaseException {
-        try (Engine engine = new Engine(getSettings())) {
+        Engine engine = null;
+        try {
+            engine = new Engine(getSettings());
             final Dependency result = new Dependency(BaseTest.getResourceAsFile(
                     this, "cmake/opencv/3rdparty/ffmpeg/ffmpeg_version.cmake"));
 
@@ -178,6 +180,10 @@ public class CMakeAnalyzerTest extends BaseDBTestCase {
             final Dependency last = dependencies[3];
             assertProductEvidence(last, "libavresample");
             assertVersionEvidence(last, "1.0.1");
+        } finally {
+            if (engine != null) {
+                engine.close();
+            }
         }
     }
 

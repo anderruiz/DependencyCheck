@@ -54,7 +54,9 @@ public class EngineTest extends BaseDBTestCase {
      */
     @Test
     public void testScanFile() throws DatabaseException {
-        try (Engine instance = new Engine(getSettings())) {
+        Engine instance = null;
+        try {
+            instance = new Engine(getSettings());
             instance.addFileTypeAnalyzer(new JarAnalyzer());
             File file = BaseTest.getResourceAsFile(this, "dwr.jar");
             Dependency dwr = instance.scanFile(file);
@@ -67,13 +69,19 @@ public class EngineTest extends BaseDBTestCase {
 
             assertEquals(2, instance.getDependencies().length);
             assertEquals(dwr, secondDwr);
+        } finally {
+            if (instance != null) {
+                instance.close();
+            }
         }
     }
 
     @Test(expected = ExceptionCollection.class)
     public void exceptionDuringAnalysisTaskExecutionIsFatal() throws DatabaseException, ExceptionCollection {
 
-        try (Engine instance = new Engine(getSettings())) {
+        Engine instance = null;
+        try {
+            instance = new Engine(getSettings());
             final ExecutorService executorService = Executors.newFixedThreadPool(3);
             final List<Throwable> exceptions = new ArrayList<>();
 
@@ -87,16 +95,21 @@ public class EngineTest extends BaseDBTestCase {
             final List<AnalysisTask> failingAnalysisTask = new ArrayList<>();
             failingAnalysisTask.add(analysisTask);
 
+            final Engine engine = instance;
             new Expectations(instance) {
                 {
-                    instance.getExecutorService(analyzer);
+                    engine.getExecutorService(analyzer);
                     result = executorService;
-                    instance.getAnalysisTasks(analyzer, exceptions);
+                    engine.getAnalysisTasks(analyzer, exceptions);
                     result = failingAnalysisTask;
                 }
             };
             instance.executeAnalysisTasks(analyzer, exceptions);
             assertTrue(executorService.isShutdown());
+        } finally {
+            if (instance != null) {
+                instance.close();
+            }
         }
     }
 }

@@ -16,6 +16,8 @@
 package org.owasp.dependencycheck.data.lucene;
 
 import java.io.IOException;
+import java.io.Reader;
+
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.BaseTokenStreamTestCase;
 import static org.apache.lucene.analysis.BaseTokenStreamTestCase.checkOneTerm;
@@ -38,9 +40,10 @@ public class AlphaNumericFilterTest extends BaseTokenStreamTestCase {
 
     public AlphaNumericFilterTest() {
         analyzer = new Analyzer() {
+
             @Override
-            protected Analyzer.TokenStreamComponents createComponents(String fieldName) {
-                Tokenizer source = new MockTokenizer(MockTokenizer.WHITESPACE, false);
+            protected TokenStreamComponents createComponents(String s, Reader reader) {
+                Tokenizer source = new MockTokenizer(reader, MockTokenizer.WHITESPACE, false);
                 return new Analyzer.TokenStreamComponents(source, new AlphaNumericFilter(source));
             }
         };
@@ -94,8 +97,8 @@ public class AlphaNumericFilterTest extends BaseTokenStreamTestCase {
     public void testEmptyTerm() throws IOException {
         Analyzer a = new Analyzer() {
             @Override
-            protected Analyzer.TokenStreamComponents createComponents(String fieldName) {
-                Tokenizer tokenizer = new KeywordTokenizer();
+            protected TokenStreamComponents createComponents(String s, Reader reader) {
+                Tokenizer tokenizer = new KeywordTokenizer(reader);
                 return new Analyzer.TokenStreamComponents(tokenizer, new AlphaNumericFilter(tokenizer));
             }
         };

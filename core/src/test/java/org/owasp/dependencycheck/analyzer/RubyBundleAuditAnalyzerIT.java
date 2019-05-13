@@ -117,7 +117,9 @@ public class RubyBundleAuditAnalyzerIT extends BaseDBTestCase {
      */
     @Test
     public void testAnalysis() throws AnalysisException, DatabaseException {
-        try (Engine engine = new Engine(getSettings())) {
+        Engine engine = null;
+        try {
+            engine = new Engine(getSettings());
             engine.openDatabase();
             analyzer.prepare(engine);
             final String resource = "ruby/vulnerable/gems/rails-4.1.15/Gemfile.lock";
@@ -141,6 +143,10 @@ public class RubyBundleAuditAnalyzerIT extends BaseDBTestCase {
         } catch (InitializationException | DatabaseException | AnalysisException e) {
             LOGGER.warn("Exception setting up RubyBundleAuditAnalyzer. Make sure Ruby gem bundle-audit is installed. You may also need to set property \"analyzer.bundle.audit.path\".");
             Assume.assumeNoException("Exception setting up RubyBundleAuditAnalyzer; bundle audit may not be installed, or property \"analyzer.bundle.audit.path\" may not be set.", e);
+        } finally {
+            if (engine != null) {
+                engine.close();
+            }
         }
     }
 
@@ -149,7 +155,9 @@ public class RubyBundleAuditAnalyzerIT extends BaseDBTestCase {
      */
     @Test
     public void testAddCriticalityToVulnerability() throws AnalysisException, DatabaseException {
-        try (Engine engine = new Engine(getSettings())) {
+        Engine engine = null;
+        try {
+            engine = new Engine(getSettings());
             engine.doUpdates(true);
             analyzer.prepare(engine);
 
@@ -163,6 +171,10 @@ public class RubyBundleAuditAnalyzerIT extends BaseDBTestCase {
         } catch (InitializationException | DatabaseException | AnalysisException | UpdateException e) {
             LOGGER.warn("Exception setting up RubyBundleAuditAnalyzer. Make sure Ruby gem bundle-audit is installed. You may also need to set property \"analyzer.bundle.audit.path\".");
             Assume.assumeNoException("Exception setting up RubyBundleAuditAnalyzer; bundle audit may not be installed, or property \"analyzer.bundle.audit.path\" may not be set.", e);
+        } finally {
+            if (engine != null) {
+                engine.close();
+            }
         }
     }
 
@@ -198,7 +210,9 @@ public class RubyBundleAuditAnalyzerIT extends BaseDBTestCase {
      */
     @Test
     public void testDependenciesPath() throws AnalysisException, DatabaseException {
-        try (Engine engine = new Engine(getSettings())) {
+        Engine engine = null;
+        try {
+            engine = new Engine(getSettings());
             try {
                 engine.scan(BaseTest.getResourceAsFile(this, "ruby/vulnerable/gems/rails-4.1.15/"));
                 engine.analyzeDependencies();
@@ -211,6 +225,10 @@ public class RubyBundleAuditAnalyzerIT extends BaseDBTestCase {
             }
             Dependency[] dependencies = engine.getDependencies();
             LOGGER.info("{} dependencies found.", dependencies.length);
+        } finally {
+            if (engine != null) {
+                engine.close();
+            }
         }
     }
 }

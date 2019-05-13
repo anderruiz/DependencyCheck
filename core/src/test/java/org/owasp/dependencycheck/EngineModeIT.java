@@ -66,7 +66,9 @@ public class EngineModeIT extends BaseTest {
     @Test
     public void testEvidenceCollectionAndEvidenceProcessingModes() throws Exception {
         Dependency[] dependencies;
-        try (Engine engine = new Engine(Engine.Mode.EVIDENCE_COLLECTION, getSettings())) {
+        Engine engine = null;
+        try {
+            engine = new Engine(Engine.Mode.EVIDENCE_COLLECTION, getSettings());
             engine.openDatabase(); //does nothing in the current mode
             assertDatabase(false);
             for (AnalysisPhase phase : Engine.Mode.EVIDENCE_COLLECTION.getPhases()) {
@@ -84,9 +86,14 @@ public class EngineModeIT extends BaseTest {
             assertTrue(dependency.getEvidence(EvidenceType.VENDOR).toString().toLowerCase().contains("apache"));
             assertTrue(dependency.getVendorWeightings().contains("apache"));
             assertTrue(dependency.getVulnerabilities().isEmpty());
+        } finally {
+            if (engine != null) {
+                engine.close();
+            }
         }
 
-        try (Engine engine = new Engine(Engine.Mode.EVIDENCE_PROCESSING, getSettings())) {
+        try {
+            engine = new Engine(Engine.Mode.EVIDENCE_PROCESSING, getSettings());
             engine.openDatabase();
             assertDatabase(true);
             for (AnalysisPhase phase : Engine.Mode.EVIDENCE_PROCESSING.getPhases()) {
@@ -99,12 +106,18 @@ public class EngineModeIT extends BaseTest {
             engine.analyzeDependencies();
             Dependency dependency = dependencies[0];
             assertFalse(dependency.getVulnerabilities().isEmpty());
+        } finally {
+            if (engine != null) {
+                engine.close();
+            }
         }
     }
 
     @Test
     public void testStandaloneMode() throws Exception {
-        try (Engine engine = new Engine(Engine.Mode.STANDALONE, getSettings())) {
+        Engine engine = null;
+        try {
+            engine = new Engine(Engine.Mode.STANDALONE, getSettings());
             engine.openDatabase();
             assertDatabase(true);
             for (AnalysisPhase phase : Engine.Mode.STANDALONE.getPhases()) {
@@ -119,6 +132,10 @@ public class EngineModeIT extends BaseTest {
             assertTrue(dependency.getEvidence(EvidenceType.VENDOR).toString().toLowerCase().contains("apache"));
             assertTrue(dependency.getVendorWeightings().contains("apache"));
             assertFalse(dependency.getVulnerabilities().isEmpty());
+        } finally {
+            if (engine != null) {
+                engine.close();
+            }
         }
     }
 

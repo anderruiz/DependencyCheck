@@ -73,7 +73,9 @@ public class HintAnalyzerTest extends BaseDBTestCase {
         getSettings().setBoolean(Settings.KEYS.AUTO_UPDATE, false);
         getSettings().setBoolean(Settings.KEYS.ANALYZER_NEXUS_ENABLED, false);
         getSettings().setBoolean(Settings.KEYS.ANALYZER_CENTRAL_ENABLED, false);
-        try (Engine engine = new Engine(getSettings())) {
+        Engine engine = null;
+        try {
+            engine = new Engine(getSettings());
 
             engine.scan(guice);
             engine.scan(spring);
@@ -104,6 +106,10 @@ public class HintAnalyzerTest extends BaseDBTestCase {
             assertTrue(sdep.contains(EvidenceType.VENDOR, springTest3));
             //assertTrue(evidence.contains(springTest4));
             //assertTrue(evidence.contains(springTest5));
+        } finally {
+            if (engine != null) {
+                engine.close();
+            }
         }
     }
 

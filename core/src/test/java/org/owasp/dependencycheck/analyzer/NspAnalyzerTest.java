@@ -29,7 +29,9 @@ public class NspAnalyzerTest extends BaseTest {
 
     @Test
     public void testAnalyzePackage() throws AnalysisException, InitializationException {
-        try (Engine engine = new Engine(getSettings())) {
+        Engine engine = null;
+        try {
+            engine = new Engine(getSettings());
             NspAnalyzer analyzer = new NspAnalyzer();
             analyzer.setFilesMatched(true);
             analyzer.initialize(getSettings());
@@ -48,12 +50,18 @@ public class NspAnalyzerTest extends BaseTest {
                 }
             }
             assertTrue("Uglify was not found", found);
+        } finally {
+            if (engine != null) {
+                engine.close();
+            }
         }
     }
 
     @Test
     public void testAnalyzeEmpty() throws AnalysisException, InitializationException {
-        try (Engine engine = new Engine(getSettings())) {
+        Engine engine = null;
+        try {
+            engine = new Engine(getSettings());
             NspAnalyzer analyzer = new NspAnalyzer();
             analyzer.setFilesMatched(true);
             analyzer.initialize(getSettings());
@@ -64,12 +72,18 @@ public class NspAnalyzerTest extends BaseTest {
             assertEquals(result.getEvidence(EvidenceType.VENDOR).size(), 0);
             assertEquals(result.getEvidence(EvidenceType.PRODUCT).size(), 0);
             assertEquals(result.getEvidence(EvidenceType.VERSION).size(), 0);
+        } finally {
+            if (engine != null) {
+                engine.close();
+            }
         }
     }
 
     @Test
     public void testAnalyzePackageJsonInNodeModulesDirectory() throws AnalysisException, InitializationException {
-        try (Engine engine = new Engine(getSettings())) {
+        Engine engine = null;
+        try {
+            engine = new Engine(getSettings());
             NspAnalyzer analyzer = new NspAnalyzer();
             analyzer.setFilesMatched(true);
             analyzer.initialize(getSettings());
@@ -78,12 +92,18 @@ public class NspAnalyzerTest extends BaseTest {
             engine.addDependency(toScan);
             analyzer.analyze(toScan, engine);
             assertEquals("No dependencies should exist", 0, engine.getDependencies().length);
+        } finally {
+            if (engine != null) {
+                engine.close();
+            }
         }
     }
 
     @Test
     public void testAnalyzeInvalidPackageMissingName() throws AnalysisException, InitializationException {
-        try (Engine engine = new Engine(getSettings())) {
+        Engine engine = null;
+        try {
+            engine = new Engine(getSettings());
             NspAnalyzer analyzer = new NspAnalyzer();
             analyzer.setFilesMatched(true);
             analyzer.initialize(getSettings());
@@ -94,6 +114,10 @@ public class NspAnalyzerTest extends BaseTest {
         } catch (Throwable ex) {
             fail("This test should not throw an exception");
             throw ex;
+        } finally {
+            if (engine != null) {
+                engine.close();
+            }
         }
     }
 }

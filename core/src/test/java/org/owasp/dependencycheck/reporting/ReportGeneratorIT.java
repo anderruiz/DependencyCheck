@@ -68,12 +68,18 @@ public class ReportGeneratorIT extends BaseDBTestCase {
             File jetty = BaseTest.getResourceAsFile(this, "org.mortbay.jetty.jar");
 
             getSettings().setBoolean(Settings.KEYS.AUTO_UPDATE, false);
-            try (Engine engine = new Engine(getSettings())) {
+            Engine engine = null;
+            try {
+                engine = new Engine(getSettings());
                 engine.scan(struts);
                 engine.scan(axis);
                 engine.scan(jetty);
                 engine.analyzeDependencies();
                 engine.writeReports("Test Report", "org.owasp", "dependency-check-core", "1.4.8", writeTo, "XML");
+            } finally {
+                if (engine != null) {
+                    engine.close();
+                }
             }
             InputStream xsdStream = ReportGenerator.class.getClassLoader().getResourceAsStream("schema/dependency-check.1.8.xsd");
             StreamSource xsdSource = new StreamSource(xsdStream);

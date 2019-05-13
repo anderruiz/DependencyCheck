@@ -65,7 +65,9 @@ public class MSBuildProjectAnalyzerTest extends BaseTest {
     @Test
     public void testMSBuildProjectAnalysis() throws Exception {
 
-        try (Engine engine = new Engine(getSettings())) {
+        Engine engine = null;
+        try {
+            engine = new Engine(getSettings());
             File file = BaseTest.getResourceAsFile(this, "msbuild/test.csproj");
             Dependency toScan = new Dependency(file);
             MSBuildProjectAnalyzer analyzer = new MSBuildProjectAnalyzer();
@@ -105,6 +107,10 @@ public class MSBuildProjectAnalyzerTest extends BaseTest {
             }
 
             assertEquals("3 expected dependencies should be found", 3, foundCount);
+        } finally {
+            if (engine != null) {
+                engine.close();
+            }
         }
     }
 }

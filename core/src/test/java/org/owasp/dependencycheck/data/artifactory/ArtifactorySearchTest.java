@@ -30,7 +30,7 @@ import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
-import org.owasp.dependencycheck.utils.StandardCharsets
+import org.owasp.dependencycheck.utils.StandardCharsets;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;

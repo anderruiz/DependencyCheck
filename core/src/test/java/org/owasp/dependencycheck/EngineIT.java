@@ -49,7 +49,9 @@ public class EngineIT extends BaseDBTestCase {
     public void testEngine() throws IOException, InvalidSettingException, DatabaseException, ReportException, ExceptionCollection {
         String testClasses = "target/test-classes";
         getSettings().setBoolean(Settings.KEYS.AUTO_UPDATE, false);
-        try (Engine instance = new Engine(getSettings())) {
+        Engine instance = null;
+        try {
+            instance = new Engine(getSettings());
             instance.scan(testClasses);
             assertTrue(instance.getDependencies().length > 0);
             try {
@@ -75,6 +77,11 @@ public class EngineIT extends BaseDBTestCase {
                 }
             }
             instance.writeReports("dependency-check sample", new File("./target/"), "ALL");
+        }
+        finally {
+            if (instance != null) {
+                instance.close();
+            }
         }
     }
 }

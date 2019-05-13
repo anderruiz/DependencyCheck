@@ -17,24 +17,23 @@
  */
 package org.owasp.dependencycheck.analyzer;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
-import org.apache.lucene.index.CorruptIndexException;
-import org.apache.lucene.queryparser.classic.ParseException;
 import org.junit.Test;
-import org.owasp.dependencycheck.BaseTest;
 import org.owasp.dependencycheck.BaseDBTestCase;
+import org.owasp.dependencycheck.BaseTest;
 import org.owasp.dependencycheck.Engine;
 import org.owasp.dependencycheck.data.cpe.IndexEntry;
 import org.owasp.dependencycheck.dependency.Confidence;
 import org.owasp.dependencycheck.dependency.Dependency;
+import org.owasp.dependencycheck.dependency.EvidenceType;
 import org.owasp.dependencycheck.dependency.Identifier;
+
+import java.io.File;
+import java.util.Collections;
+import java.util.List;
+import java.util.Set;
+
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import org.owasp.dependencycheck.dependency.EvidenceType;
 
 /**
  *
@@ -84,7 +83,9 @@ public class CPEAnalyzerIT extends BaseDBTestCase {
     @Test
     public void testDetermineCPE_full() throws Exception {
         CPEAnalyzer cpeAnalyzer = new CPEAnalyzer();
-        try (Engine e = new Engine(getSettings())) {
+        Engine e = null;
+        try {
+            e = new Engine(getSettings());
             //update needs to be performed so that xtream can be tested
             e.doUpdates(true);
             cpeAnalyzer.initialize(getSettings());
@@ -116,6 +117,9 @@ public class CPEAnalyzerIT extends BaseDBTestCase {
             //callDetermineCPE_full("xstream-1.4.8.jar", "cpe:/a:x-stream:xstream:1.4.8", cpeAnalyzer, fnAnalyzer, jarAnalyzer, hAnalyzer, fp, cpeSuppression);
             callDetermineCPE_full("xstream-1.4.8.jar", "cpe:/a:xstream_project:xstream:1.4.8", cpeAnalyzer, fnAnalyzer, jarAnalyzer, hAnalyzer, fp, cpeSuppression);
         } finally {
+            if (e != null) {
+                e.close();
+            }
             cpeAnalyzer.close();
         }
     }
@@ -200,7 +204,9 @@ public class CPEAnalyzerIT extends BaseDBTestCase {
         hintAnalyzer.analyze(spring3, null);
 
         CPEAnalyzer instance = new CPEAnalyzer();
-        try (Engine engine = new Engine(getSettings())) {
+        Engine engine = null;
+        try {
+            engine = new Engine(getSettings());
             engine.openDatabase(true, true);
             instance.initialize(getSettings());
             instance.prepare(engine);
@@ -228,6 +234,10 @@ public class CPEAnalyzerIT extends BaseDBTestCase {
             assertTrue("Incorrect match size - spring3 - " + spring3.getIdentifiers().size(), spring3.getIdentifiers().size() >= 1);
 
             jarAnalyzer.close();
+        } finally {
+            if (engine != null) {
+                engine.close();
+            }
         }
     }
 
@@ -244,12 +254,18 @@ public class CPEAnalyzerIT extends BaseDBTestCase {
         openssl.addEvidence(EvidenceType.VERSION, "test", "version", "1.0.1c", Confidence.HIGHEST);
 
         CPEAnalyzer instance = new CPEAnalyzer();
-        try (Engine engine = new Engine(getSettings())) {
+        Engine engine = null;
+        try {
+            engine = new Engine(getSettings());
             engine.openDatabase(true, true);
             instance.initialize(getSettings());
             instance.prepare(engine);
             instance.determineIdentifiers(openssl, "openssl", "openssl", Confidence.HIGHEST);
             instance.close();
+        } finally {
+            if (engine != null) {
+                engine.close();
+            }
         }
 
         String expResult = "cpe:/a:openssl:openssl:1.0.1c";
@@ -277,7 +293,9 @@ public class CPEAnalyzerIT extends BaseDBTestCase {
         String expProduct = "struts";
 
         CPEAnalyzer instance = new CPEAnalyzer();
-        try (Engine engine = new Engine(getSettings())) {
+        Engine engine = null;
+        try {
+            engine = new Engine(getSettings());
             engine.openDatabase(true, true);
             instance.initialize(getSettings());
             instance.prepare(engine);
@@ -294,6 +312,10 @@ public class CPEAnalyzerIT extends BaseDBTestCase {
                 }
             }
             assertTrue("apache:struts was not identified", found);
+        } finally {
+            if (engine != null) {
+                engine.close();
+            }
         }
         instance.close();
     }

@@ -98,7 +98,9 @@ public class ComposerLockAnalyzerTest extends BaseDBTestCase {
      */
     @Test
     public void testRemoveRedundantParent() throws Exception {
-        try (Engine engine = new Engine(getSettings())) {
+        Engine engine = null;
+        try {
+            engine = new Engine(getSettings());
             final Dependency result = new Dependency(BaseTest.getResourceAsFile(this, "composer.lock"));
             //test that we don't remove the parent if it's not redundant by name
             result.setDisplayFileName("NotComposer.Lock");
@@ -106,6 +108,10 @@ public class ComposerLockAnalyzerTest extends BaseDBTestCase {
             analyzer.analyze(result, engine);
             //make sure the composer.lock is not removed
             assertTrue(ArrayUtils.contains(engine.getDependencies(), result));
+        } finally {
+            if (engine != null) {
+                engine.close();
+            }
         }
     }
 
@@ -116,7 +122,9 @@ public class ComposerLockAnalyzerTest extends BaseDBTestCase {
      */
     @Test
     public void testAnalyzePackageJson() throws Exception {
-        try (Engine engine = new Engine(getSettings())) {
+        Engine engine = null;
+        try {
+            engine = new Engine(getSettings());
             final Dependency result = new Dependency(BaseTest.getResourceAsFile(this,
                     "composer.lock"));
             //simulate normal operation when the composer.lock is already added to the engine as a dependency
@@ -130,6 +138,10 @@ public class ComposerLockAnalyzerTest extends BaseDBTestCase {
             assertEquals("2.0.0", d.getVersion());
             assertThat(d.getDisplayFileName(), equalTo("classpreloader:2.0.0"));
             assertEquals(ComposerLockAnalyzer.DEPENDENCY_ECOSYSTEM, d.getEcosystem());
+        } finally {
+            if (engine != null) {
+                engine.close();
+            }
         }
     }
 }
