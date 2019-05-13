@@ -5,7 +5,7 @@ import org.junit.Test;
 import org.owasp.dependencycheck.BaseTest;
 import org.owasp.dependencycheck.data.nexus.MavenArtifact;
 
-import java.io.IOException;
+import java.io.FileNotFoundException;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
@@ -48,7 +48,7 @@ public class CentralSearchTest extends BaseTest {
     // This test does generate network traffic and communicates with a host
     // you may not be able to reach. Remove the @Ignore annotation if you want to
     // test it anyway
-    @Test(expected = IOException.class)
+    @Test(expected = FileNotFoundException.class)
     public void testMissingSha1() throws Exception {
         searcher.searchSha1("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
     }

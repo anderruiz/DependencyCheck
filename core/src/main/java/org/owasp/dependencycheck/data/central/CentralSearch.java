@@ -42,6 +42,8 @@ import org.w3c.dom.Document;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
+import java.util.Collections;
+
 /**
  * Class of methods to search Maven Central via Central.
  *
@@ -120,7 +122,6 @@ public class CentralSearch {
         if (null == sha1 || !sha1.matches("^[0-9A-Fa-f]{40}$")) {
             throw new IllegalArgumentException("Invalid SHA1 format");
         }
-        List<MavenArtifact> result = null;
         final URL url = new URL(String.format(query, rootURL, sha1));
 
         LOGGER.debug("Searching Central url {}", url);
@@ -130,74 +131,78 @@ public class CentralSearch {
         // 2) Otherwise, don't use the proxy (either the proxy isn't configured,
         // or proxy is specifically set to false)
         int retries = 3;
-        while(retries-->0) {
-        final URLConnectionFactory factory = new URLConnectionFactory(settings);
-        final HttpURLConnection conn = factory.createHttpURLConnection(url, useProxy);
-
-        conn.setDoOutput(true);
-
-        // JSON would be more elegant, but there's not currently a dependency
-        // on JSON, so don't want to add one just for this
-        conn.addRequestProperty("Accept", "application/xml");
-        conn.connect();
-
-        if (conn.getResponseCode() == 200) {
-        	retries = 0;
-            boolean missing = false;
+        IOException ioex = null;
+        while (retries-- > 0) {
             try {
-                final DocumentBuilder builder = XmlUtils.buildSecureDocumentBuilder();
-                final Document doc = builder.parse(conn.getInputStream());
-                final XPath xpath = XPathFactory.newInstance().newXPath();
-                final String numFound = xpath.evaluate("/response/result/@numFound", doc);
-                if ("0".equals(numFound)) {
-                    missing = true;
-                } else {
-                    result = new ArrayList<>();
-                    final NodeList docs = (NodeList) xpath.evaluate("/response/result/doc", doc, XPathConstants.NODESET);
-                    for (int i = 0; i < docs.getLength(); i++) {
-                        final String g = xpath.evaluate("./str[@name='g']", docs.item(i));
-                        LOGGER.trace("GroupId: {}", g);
-                        final String a = xpath.evaluate("./str[@name='a']", docs.item(i));
-                        LOGGER.trace("ArtifactId: {}", a);
-                        final String v = xpath.evaluate("./str[@name='v']", docs.item(i));
-                        final NodeList attributes = (NodeList) xpath.evaluate("./arr[@name='ec']/str", docs.item(i), XPathConstants.NODESET);
-                        boolean pomAvailable = false;
-                        boolean jarAvailable = false;
-                        for (int x = 0; x < attributes.getLength(); x++) {
-                            final String tmp = xpath.evaluate(".", attributes.item(x));
-                            if (".pom".equals(tmp)) {
-                                pomAvailable = true;
-                            } else if (".jar".equals(tmp)) {
-                                jarAvailable = true;
+                final URLConnectionFactory factory = new URLConnectionFactory(settings);
+                final HttpURLConnection conn = factory.createHttpURLConnection(url, useProxy);
+
+                conn.setDoOutput(true);
+
+                // JSON would be more elegant, but there's not currently a dependency
+                // on JSON, so don't want to add one just for this
+                conn.addRequestProperty("Accept", "application/xml");
+                conn.connect();
+
+                if (conn.getResponseCode() == 200) {
+                    retries = 0;
+                    boolean missing = false;
+                    List<MavenArtifact> result = new ArrayList<>();
+                    try {
+                        final DocumentBuilder builder = XmlUtils.buildSecureDocumentBuilder();
+                        final Document doc = builder.parse(conn.getInputStream());
+                        final XPath xpath = XPathFactory.newInstance().newXPath();
+                        final String numFound = xpath.evaluate("/response/result/@numFound", doc);
+                        if ("0".equals(numFound)) {
+                            missing = true;
+                        } else {
+                            final NodeList docs = (NodeList) xpath.evaluate("/response/result/doc", doc, XPathConstants.NODESET);
+                            for (int i = 0; i < docs.getLength(); i++) {
+                                final String g = xpath.evaluate("./str[@name='g']", docs.item(i));
+                                LOGGER.trace("GroupId: {}", g);
+                                final String a = xpath.evaluate("./str[@name='a']", docs.item(i));
+                                LOGGER.trace("ArtifactId: {}", a);
+                                final String v = xpath.evaluate("./str[@name='v']", docs.item(i));
+                                final NodeList attributes = (NodeList) xpath.evaluate("./arr[@name='ec']/str", docs.item(i), XPathConstants.NODESET);
+                                boolean pomAvailable = false;
+                                boolean jarAvailable = false;
+                                for (int x = 0; x < attributes.getLength(); x++) {
+                                    final String tmp = xpath.evaluate(".", attributes.item(x));
+                                    if (".pom".equals(tmp)) {
+                                        pomAvailable = true;
+                                    } else if (".jar".equals(tmp)) {
+                                        jarAvailable = true;
+                                    }
+                                }
+                                LOGGER.trace("Version: {}", v);
+                                result.add(new MavenArtifact(g, a, v, jarAvailable, pomAvailable, settings));
                             }
                         }
-
-//                        attributes = (NodeList) xpath.evaluate("./arr[@name='tags']/str", docs.item(i), XPathConstants.NODESET);
-//                        boolean useHTTPS = true;//false;
-//                        for (int x = 0; x < attributes.getLength(); x++) {
-//                            final String tmp = xpath.evaluate(".", attributes.item(x));
-//                            if ("https".equals(tmp)) {
-//                                useHTTPS = true;
-//                            }
-//                        }
-                        LOGGER.trace("Version: {}", v);
-                        result.add(new MavenArtifact(g, a, v, jarAvailable, pomAvailable, settings));
+                    } catch (ParserConfigurationException | SAXException | XPathExpressionException e) {
+                        // Anything else is jacked up XML stuff that we really can't recover from well
+                        final String errorMessage = "Bad XML response payload: " + e.getMessage();
+                        throw new IOException(errorMessage, e);
                     }
-                }
-            } catch (ParserConfigurationException | IOException | SAXException | XPathExpressionException e) {
-                // Anything else is jacked up XML stuff that we really can't recover from well
-                throw new IOException(e.getMessage(), e);
-            }
 
-            if (missing) {
-                throw new FileNotFoundException("Artifact not found in Central");
+                    if (missing) {
+                        throw new FileNotFoundException("Artifact not found in Central");
+                    }
+                    return result;
+                } else {
+                    final String errorMessage = "Bad HTTP response, code: " + conn.getResponseCode() + ", reason: " + conn.getResponseMessage();
+                    throw new IOException(errorMessage);
+                }
+            } catch (FileNotFoundException e) {
+                throw e;
+            } catch (Exception e) {
+                final String errorMessage = "Error connecting to MavenCentral (" + url+ "): " + e.getMessage();
+                ioex = new IOException(errorMessage, e);
             }
-        } else {
-            final String errorMessage = "Could not connect to MavenCentral (" + conn.getResponseCode() + "): " + conn.getResponseMessage();
-            throw new IOException(errorMessage);
         }
+        if (ioex != null) {
+            throw ioex;
         }
-        return result;
+        return Collections.emptyList();
     }
 
     /**

@@ -25,21 +25,6 @@ import org.owasp.dependencycheck.data.nexus.MavenArtifact;
 import org.owasp.dependencycheck.dependency.Confidence;
 import org.owasp.dependencycheck.dependency.Dependency;
 import org.owasp.dependencycheck.dependency.Evidence;
-import org.owasp.dependencycheck.xml.pom.PomUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.io.File;
-import java.io.FileFilter;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
-import java.util.HashSet;
-import javax.annotation.concurrent.ThreadSafe;
 import org.owasp.dependencycheck.dependency.EvidenceType;
 import org.owasp.dependencycheck.exception.InitializationException;
 import org.owasp.dependencycheck.utils.DownloadFailedException;
@@ -47,6 +32,21 @@ import org.owasp.dependencycheck.utils.Downloader;
 import org.owasp.dependencycheck.utils.FileFilterBuilder;
 import org.owasp.dependencycheck.utils.InvalidSettingException;
 import org.owasp.dependencycheck.utils.Settings;
+import org.owasp.dependencycheck.xml.pom.PomUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.annotation.concurrent.ThreadSafe;
+import java.io.File;
+import java.io.FileFilter;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 /**
  * Analyzer which will attempt to locate a dependency, and the GAV information,
@@ -325,9 +325,13 @@ public class CentralAnalyzer extends AbstractFileTypeAnalyzer {
                 }
             }
         }
-        LOGGER.error(
-                "Could not connect to Central search (" + getSettings().getString(Settings.KEYS.ANALYZER_CENTRAL_URL) + "): " + messages,
-                lastException);
+        if (LOGGER.isErrorEnabled()) {
+            Settings settings = getSettings();
+            String url = settings != null ? getSettings().getString(Settings.KEYS.ANALYZER_CENTRAL_URL) : null;
+            LOGGER.error(
+                    "Could not connect to Central search (" + (url == null ? "???" : url) + "): " + messages,
+                    lastException);
+        }
         return Collections.emptyList();
     }
 
