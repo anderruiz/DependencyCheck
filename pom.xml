@@ -20,7 +20,7 @@ Copyright (c) 2012 - Jeremy Long
 
     <groupId>org.owasp</groupId>
     <artifactId>dependency-check-parent</artifactId>
-    <version>3.3.0.rc15.hdiv</version>
+    <version>3.3.0.rc16.hdiv</version>
     <packaging>pom</packaging>
 
     <modules>
@@ -164,7 +164,7 @@ Copyright (c) 2012 - Jeremy Long
         <org.jmockit.version>1.40</org.jmockit.version>
         <mockito-core.version>2.19.0</mockito-core.version>
         <jsoup.version>1.11.3</jsoup.version>
-        <commons-compress.version>1.12</commons-compress.version>
+        <commons-compress.version>1.12.hdiv</commons-compress.version>
         <org.apache.maven.shared.file-management.version>3.0.0</org.apache.maven.shared.file-management.version>
         <maven-plugin-testing-harness.version>3.3.0</maven-plugin-testing-harness.version>
         <maven-plugin-annotations.version>3.5.2</maven-plugin-annotations.version>
@@ -1205,6 +1205,25 @@ Copyright (c) 2012 - Jeremy Long
                                         <exclude>org.codehaus.gmavenplus:gmavenplus-plugin:*</exclude>
                                     </excludes>
                                 </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>dependency-check</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.owasp</groupId>
+                        <artifactId>dependency-check-maven</artifactId>
+                        <version>5.0.0-M3</version>
+                        <executions>
+                            <execution>
+                                <goals>
+                                    <goal>check</goal>
+                                </goals>
                             </execution>
                         </executions>
                     </plugin>
