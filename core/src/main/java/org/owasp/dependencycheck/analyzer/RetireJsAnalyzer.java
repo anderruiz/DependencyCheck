@@ -258,6 +258,10 @@ public class RetireJsAnalyzer extends AbstractFileTypeAnalyzer {
                                         vuln.setUnscoredSeverity(jsVuln.getSeverity());
                                         vuln.setSource(Vulnerability.Source.RETIREJS);
                                     }
+                                    if (StringUtils.isEmpty(vuln.getDescription()) && jsVuln.getIdentifiers().containsKey("summary")) {
+                                        List<String> summary = jsVuln.getIdentifiers().get("summary");
+                                        vuln.setDescription(StringUtils.join(summary.iterator(), ". "));
+                                    }
                                     for (String info : jsVuln.getInfo()) {
                                         vuln.addReference("info", "info", info);
                                     }
@@ -269,6 +273,10 @@ public class RetireJsAnalyzer extends AbstractFileTypeAnalyzer {
                                     vuln.setName(osvdb);
                                     vuln.setSource(Vulnerability.Source.RETIREJS);
                                     vuln.setUnscoredSeverity(jsVuln.getSeverity());
+                                    if (jsVuln.getIdentifiers().containsKey("summary")) {
+                                        List<String> summary = jsVuln.getIdentifiers().get("summary");
+                                        vuln.setDescription(StringUtils.join(summary.iterator(), ". "));
+                                    }
                                     for (String info : jsVuln.getInfo()) {
                                         vuln.addReference("info", "info", info);
                                     }

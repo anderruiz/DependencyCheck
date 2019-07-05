@@ -23,17 +23,19 @@ import mockit.MockUp;
 import mockit.Mocked;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.owasp.dependencycheck.analyzer.exception.AnalysisException;
 import org.owasp.dependencycheck.data.central.CentralSearch;
 import org.owasp.dependencycheck.data.nexus.MavenArtifact;
 import org.owasp.dependencycheck.dependency.Dependency;
+import org.owasp.dependencycheck.utils.Settings;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.util.Collections;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for the CentralAnalyzer.
@@ -133,6 +135,37 @@ public class CentralAnalyzerTest {
 
         instance.fetchMavenArtifacts(dependency);
     }
+
+    /*
+    @Test
+    public void testFetchMavenArtifactsThroughConsole() throws IOException {
+        // setup
+        String sha1 = "a5ef8806b6d79fb2969e5d2b1c68c597b24e9923";
+        String consoleURL = "https://localhost:8443/hdiv-console-services";
+
+        // when
+        List<MavenArtifact> artifacts = searchThroughConsole(consoleURL, sha1);
+
+        // then
+        assertTrue(artifacts != null);
+    }
+
+    private static List<MavenArtifact> searchThroughConsole(final String consoleURL, final String sha1) throws IOException {
+        Settings settings = new Settings();
+        settings.setString(Settings.KEYS.ANALYZER_CENTRAL_URL,
+                consoleURL + "/uritemplate/select?_url=https://search.maven.org/solrsearch");
+        settings.setString(Settings.KEYS.ANALYZER_CENTRAL_QUERY, "%s&q=1:%%22%s%%22&wt=xml");
+        settings.setString(Settings.KEYS.ANALYZER_CENTRAL_SECURE_CONTENT_URL,
+                consoleURL + "/uritemplate/remotecontent?_url=https://search.maven.org&filepath=");
+        settings.setString(Settings.KEYS.ANALYZER_CENTRAL_INSECURE_CONTENT_URL,
+                consoleURL + "/uritemplate/remotecontent?_url=http://search.maven.org&filepath=");
+        settings.setArrayIfNotEmpty(Settings.KEYS.SSL_TRUSTED_HOSTS, new String[] { consoleURL });
+
+        // when
+        CentralSearch centralSearch = new CentralSearch(settings);
+        return centralSearch.searchSha1(sha1);
+    }
+    */
 
     /**
      * We do not want to waste time in unit tests.

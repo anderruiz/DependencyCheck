@@ -17,6 +17,18 @@
  */
 package org.owasp.dependencycheck.data.update;
 
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
+import org.hdiv.ee.ssl.HdivHttpConnection;
+import org.owasp.dependencycheck.Engine;
+import org.owasp.dependencycheck.data.update.exception.UpdateException;
+import org.owasp.dependencycheck.utils.InvalidSettingException;
+import org.owasp.dependencycheck.utils.Settings;
+import org.owasp.dependencycheck.utils.URLConnectionFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.annotation.concurrent.ThreadSafe;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -25,16 +37,8 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-import javax.annotation.concurrent.ThreadSafe;
-import org.apache.commons.io.IOUtils;
-import org.owasp.dependencycheck.Engine;
-import org.owasp.dependencycheck.data.update.exception.UpdateException;
-import org.owasp.dependencycheck.utils.InvalidSettingException;
-import org.owasp.dependencycheck.utils.Settings;
-import org.owasp.dependencycheck.utils.URLConnectionFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Checks the gh-pages dependency-check site to determine the current released
@@ -152,7 +156,7 @@ public class RetireJSDataSource implements CachedWebDataSource {
             }
             LOGGER.debug("RetireJS Repo URL: {}", repoUrl.toExternalForm());
             final URLConnectionFactory factory = new URLConnectionFactory(settings);
-            final HttpURLConnection conn = factory.createHttpURLConnection(repoUrl, useProxy);
+            final HdivHttpConnection conn = factory.createHttpURLConnection(repoUrl, useProxy);
             final String filename = repoUrl.getFile().substring(repoUrl.getFile().lastIndexOf("/") + 1, repoUrl.getFile().length());
             if (conn.getResponseCode() == HttpURLConnection.HTTP_OK) {
                 final File tmpFile = new File(tmpDir, filename);
@@ -162,7 +166,8 @@ public class RetireJSDataSource implements CachedWebDataSource {
                         FileOutputStream outputStream = new FileOutputStream(tmpFile)) {
                     IOUtils.copy(inputStream, outputStream);
                 }
-                Files.move(tmpFile.toPath(), repoFile.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+                repoFile.delete();
+                FileUtils.moveFile(tmpFile, repoFile);
             }
         } catch (IOException e) {
             throw new UpdateException("Failed to initialize the RetireJS repo", e);

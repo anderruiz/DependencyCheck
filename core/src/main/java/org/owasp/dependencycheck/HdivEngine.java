@@ -80,7 +80,7 @@ public class HdivEngine extends Engine {
     	List<Analyzer> removed = new ArrayList<>();
     	
     	for (Iterator<Analyzer> iterator = engine.getAnalyzers().iterator(); iterator.hasNext();) {
-			Analyzer analyzer = (Analyzer) iterator.next();
+			Analyzer analyzer = iterator.next();
 			if(analyzer instanceof CPEAnalyzer || analyzer instanceof NvdCveAnalyzer || analyzer instanceof RubyBundleAuditAnalyzer) {
 				removed.add(analyzer);
 				iterator.remove();
@@ -223,7 +223,7 @@ for (Dependency dependency : dependencies) {
 			Set<Vulnerability> vulnerabilities = dependency.getVulnerabilities();
 			for (Iterator<Vulnerability> iterator = vulnerabilities.iterator(); iterator.hasNext();) {
 				boolean ok = false;
-				Vulnerability vulnerability = (Vulnerability) iterator.next();
+				Vulnerability vulnerability = iterator.next();
 				for(VulnerableSoftware vs : vulnerability.getVulnerableSoftware()) {
 					if(version.equals(vs.getVersion())) {
 						System.out.println("Version:"+vs.getVersion()+" "+vs.getUpdate()+" and update:"+update);

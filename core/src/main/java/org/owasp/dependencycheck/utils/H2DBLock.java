@@ -120,7 +120,7 @@ public class H2DBLock {
                         file.seek(0);
                         final String current = file.readLine();
                         if (current != null && !current.equals(magic)) {
-                            lock.close();
+                            lock.release();
                             lock = null;
                             LOGGER.debug("Another process obtained a lock first ({})", Thread.currentThread().getName());
                         } else {

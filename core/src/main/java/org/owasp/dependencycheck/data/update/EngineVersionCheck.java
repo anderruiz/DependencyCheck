@@ -17,13 +17,8 @@
  */
 package org.owasp.dependencycheck.data.update;
 
-import java.io.IOException;
-import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
-import java.net.URL;
-import org.owasp.dependencycheck.utils.StandardCharsets;
-import javax.annotation.concurrent.ThreadSafe;
 import org.apache.commons.io.IOUtils;
+import org.hdiv.ee.ssl.HdivHttpConnection;
 import org.owasp.dependencycheck.Engine;
 import org.owasp.dependencycheck.data.nvdcve.CveDB;
 import org.owasp.dependencycheck.data.nvdcve.DatabaseException;
@@ -33,10 +28,16 @@ import org.owasp.dependencycheck.utils.DateUtil;
 import org.owasp.dependencycheck.utils.DependencyVersion;
 import org.owasp.dependencycheck.utils.InvalidSettingException;
 import org.owasp.dependencycheck.utils.Settings;
+import org.owasp.dependencycheck.utils.StandardCharsets;
 import org.owasp.dependencycheck.utils.URLConnectionFactory;
 import org.owasp.dependencycheck.utils.URLConnectionFailureException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.concurrent.ThreadSafe;
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
 
 /**
  * Checks the gh-pages dependency-check site to determine the current released
@@ -207,7 +208,7 @@ public class EngineVersionCheck implements CachedWebDataSource {
      * @return the current released version number
      */
     protected String getCurrentReleaseVersion() {
-        HttpURLConnection conn = null;
+        HdivHttpConnection conn = null;
         try {
             final String str = settings.getString(Settings.KEYS.ENGINE_VERSION_CHECK_URL, "http://jeremylong.github.io/DependencyCheck/current.txt");
             final URL url = new URL(str);

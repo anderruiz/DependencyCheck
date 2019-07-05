@@ -17,6 +17,7 @@
  */
 package org.owasp.dependencycheck.data.artifactory;
 
+import org.hdiv.ee.ssl.HdivHttpConnection;
 import org.junit.Before;
 import org.junit.Test;
 import org.owasp.dependencycheck.BaseTest;
@@ -82,7 +83,7 @@ public class ArtifactorySearchTest extends BaseTest {
         Dependency dependency = new Dependency();
         dependency.setSha1sum("2e66da15851f9f5b5079228f856c2f090ba98c38");
         dependency.setMd5sum("3dbee72667f107b4f76f2d5aa33c5687");
-        final HttpURLConnection urlConnection = mock(HttpURLConnection.class);
+        final HdivHttpConnection urlConnection = mock(HdivHttpConnection.class);
         final byte[] payload = ("{\n" +
                 "  \"results\" : [ {\n" +
                 "    \"repo\" : \"jcenter-cache\",\n" +
@@ -131,7 +132,7 @@ public class ArtifactorySearchTest extends BaseTest {
         Dependency dependency = new Dependency();
         dependency.setSha1sum("94a9ce681a42d0352b3ad22659f67835e560d107");
         dependency.setMd5sum("03dcfdd88502505cc5a805a128bfdd8d");
-        final HttpURLConnection urlConnection = mock(HttpURLConnection.class);
+        final HdivHttpConnection urlConnection = mock(HdivHttpConnection.class);
         final byte[] payload = multipleMatchesPayload();
         when(urlConnection.getInputStream()).thenReturn(new ByteArrayInputStream(payload));
 
@@ -160,7 +161,7 @@ public class ArtifactorySearchTest extends BaseTest {
         // Given
         Dependency dependency = new Dependency();
         dependency.setSha1sum("94a9ce681a42d0352b3ad22659f67835e560d108");
-        final HttpURLConnection urlConnection = mock(HttpURLConnection.class);
+        final HdivHttpConnection urlConnection = mock(HdivHttpConnection.class);
         final byte[] payload = ("{\n" +
                 "  \"results\" : [ ]}").getBytes(StandardCharsets.UTF_8);
         when(urlConnection.getInputStream()).thenReturn(new ByteArrayInputStream(payload));
@@ -233,7 +234,7 @@ public class ArtifactorySearchTest extends BaseTest {
         dependency.setSha1sum("c5b4c491aecb72e7c32a78da0b5c6b9cda8dee0f");
         dependency.setSha256sum("512b4bf6927f4864acc419b8c5109c23361c30ed1f5798170248d33040de068e");
         dependency.setMd5sum("2d1dd0fc21ee96bccfab4353d5379649");
-        final HttpURLConnection urlConnection = mock(HttpURLConnection.class);
+        final HdivHttpConnection urlConnection = mock(HdivHttpConnection.class);
         final byte[] payload = payloadWithSha256().getBytes(StandardCharsets.UTF_8);
         when(urlConnection.getInputStream()).thenReturn(new ByteArrayInputStream(payload));
 
@@ -290,7 +291,7 @@ public class ArtifactorySearchTest extends BaseTest {
         dependency.setSha1sum("c5b4c491aecb72e7c32a78da0b5c6b9cda8dee0f");
         dependency.setSha256sum("512b4bf6927f4864acc419b8c5109c23361c30ed1f5798170248d33040de068e");
         dependency.setMd5sum("2d1dd0fc21ee96bccfab4353d5379640");
-        final HttpURLConnection urlConnection = mock(HttpURLConnection.class);
+        final HdivHttpConnection urlConnection = mock(HdivHttpConnection.class);
         final byte[] payload = payloadWithSha256().getBytes(StandardCharsets.UTF_8);
         when(urlConnection.getInputStream()).thenReturn(new ByteArrayInputStream(payload));
 
@@ -311,7 +312,7 @@ public class ArtifactorySearchTest extends BaseTest {
         dependency.setSha1sum("c5b4c491aecb72e7c32a78da0b5c6b9cda8dee0e");
         dependency.setSha256sum("512b4bf6927f4864acc419b8c5109c23361c30ed1f5798170248d33040de068e");
         dependency.setMd5sum("2d1dd0fc21ee96bccfab4353d5379649");
-        final HttpURLConnection urlConnection = mock(HttpURLConnection.class);
+        final HdivHttpConnection urlConnection = mock(HdivHttpConnection.class);
         final byte[] payload = payloadWithSha256().getBytes(StandardCharsets.UTF_8);
         when(urlConnection.getInputStream()).thenReturn(new ByteArrayInputStream(payload));
 
@@ -332,7 +333,7 @@ public class ArtifactorySearchTest extends BaseTest {
         dependency.setSha1sum("c5b4c491aecb72e7c32a78da0b5c6b9cda8dee0f");
         dependency.setSha256sum("512b4bf6927f4864acc419b8c5109c23361c30ed1f5798170248d33040de068f");
         dependency.setMd5sum("2d1dd0fc21ee96bccfab4353d5379649");
-        final HttpURLConnection urlConnection = mock(HttpURLConnection.class);
+        final HdivHttpConnection urlConnection = mock(HdivHttpConnection.class);
         final byte[] payload = payloadWithSha256().getBytes(StandardCharsets.UTF_8);
         when(urlConnection.getInputStream()).thenReturn(new ByteArrayInputStream(payload));
 
@@ -353,7 +354,7 @@ public class ArtifactorySearchTest extends BaseTest {
         dependency.setSha1sum("c5b4c491aecb72e7c32a78da0b5c6b9cda8dee0f");
         dependency.setSha256sum("512b4bf6927f4864acc419b8c5109c23361c30ed1f5798170248d33040de068e");
         dependency.setMd5sum("2d1dd0fc21ee96bccfab4353d5379649");
-        final HttpURLConnection urlConnection = mock(HttpURLConnection.class);
+        final HdivHttpConnection urlConnection = mock(HdivHttpConnection.class);
         final byte[] payload = payloadWithSha256().replace("/com/google/code/gson/gson/2.8.5/gson-2.8.5-sources.jar", "/2.8.5/gson-2.8.5-sources.jar").getBytes(StandardCharsets.UTF_8);
         when(urlConnection.getInputStream()).thenReturn(new ByteArrayInputStream(payload));
 

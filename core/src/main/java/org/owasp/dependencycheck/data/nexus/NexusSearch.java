@@ -17,25 +17,25 @@
  */
 package org.owasp.dependencycheck.data.nexus;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
-import java.net.URL;
-import javax.annotation.concurrent.ThreadSafe;
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.xpath.XPath;
-import javax.xml.xpath.XPathExpressionException;
-import javax.xml.xpath.XPathFactory;
+import org.hdiv.ee.ssl.HdivHttpConnection;
 import org.owasp.dependencycheck.utils.Settings;
-
 import org.owasp.dependencycheck.utils.URLConnectionFactory;
 import org.owasp.dependencycheck.utils.XmlUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.w3c.dom.Document;
 import org.xml.sax.SAXException;
+
+import javax.annotation.concurrent.ThreadSafe;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.xpath.XPath;
+import javax.xml.xpath.XPathExpressionException;
+import javax.xml.xpath.XPathFactory;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
 
 /**
  * Class of methods to search Nexus repositories.
@@ -105,7 +105,7 @@ public class NexusSearch {
         // 1) If the proxy is set, AND the setting is set to true, use the proxy
         // 2) Otherwise, don't use the proxy (either the proxy isn't configured,
         // or proxy is specifically set to false
-        HttpURLConnection conn;
+        HdivHttpConnection conn;
         final URLConnectionFactory factory = new URLConnectionFactory(settings);
         conn = factory.createHttpURLConnection(url, useProxy);
         conn.setDoOutput(true);
@@ -169,7 +169,7 @@ public class NexusSearch {
      * correctly
      */
     public boolean preflightRequest() {
-        HttpURLConnection conn;
+        HdivHttpConnection conn;
         try {
             final URL url = new URL(rootURL, "status");
             final URLConnectionFactory factory = new URLConnectionFactory(settings);

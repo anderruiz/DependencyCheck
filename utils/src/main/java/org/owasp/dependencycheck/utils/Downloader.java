@@ -17,10 +17,11 @@
  */
 package org.owasp.dependencycheck.utils;
 
-import java.io.BufferedOutputStream;
+import org.hdiv.ee.ssl.HdivHttpConnection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -33,6 +34,7 @@ import java.net.URL;
 import java.security.InvalidAlgorithmParameterException;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.InflaterInputStream;
+
 import static java.lang.String.format;
 
 /**
@@ -125,7 +127,7 @@ public final class Downloader {
                 throw new DownloadFailedException(msg);
             }
         } else {
-            HttpURLConnection conn = null;
+            HdivHttpConnection conn = null;
             try {
                 LOGGER.debug("Attempting download of {}", url.toString());
                 conn = connFactory.createHttpURLConnection(url, useProxy);
@@ -288,9 +290,9 @@ public final class Downloader {
             timestamp = lastModifiedFile.lastModified();
         } else {
             final String httpMethod = determineHttpMethod();
-            HttpURLConnection conn = null;
+            HdivHttpConnection conn = null;
             try {
-                conn = connFactory.createHttpURLConnection(url);
+                conn = connFactory.createHttpURLConnection(url).unwrap(HdivHttpConnection.class);
                 conn.setRequestMethod(httpMethod);
                 conn.connect();
                 final int t = conn.getResponseCode();
@@ -426,7 +428,6 @@ public final class Downloader {
 						// TODO: handle exception
 					}
 				}
-				
 			}
 		}
 	}

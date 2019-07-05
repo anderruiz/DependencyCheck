@@ -22,11 +22,13 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonPrimitive;
+import org.hdiv.ee.ssl.HdivHttpConnection;
 import org.owasp.dependencycheck.data.nexus.MavenArtifact;
 import org.owasp.dependencycheck.dependency.Dependency;
 import org.owasp.dependencycheck.utils.Checksum;
 import org.owasp.dependencycheck.utils.InvalidSettingException;
 import org.owasp.dependencycheck.utils.Settings;
+import org.owasp.dependencycheck.utils.StandardCharsets;
 import org.owasp.dependencycheck.utils.URLConnectionFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,10 +38,8 @@ import javax.xml.bind.DatatypeConverter;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
-import org.owasp.dependencycheck.utils.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -63,7 +63,7 @@ public class ArtifactorySearch {
     /**
      * Pattern to match the path returned by the Artifactory AQL API.
      */
-    private static final Pattern PATH_PATTERN = Pattern.compile("^/(?<groupId>.+)/(?<artifactId>[^/]+)/(?<version>[^/]+)/[^/]+$");
+    private static final Pattern PATH_PATTERN = Pattern.compile("^/(.+)/([^/]+)/([^/]+)/[^/]+$");
     /**
      * Extracted duplicateArtifactorySearchIT.java comment.
      */
@@ -126,7 +126,7 @@ public class ArtifactorySearch {
 
         final String sha1sum = dependency.getSha1sum();
         final URL url = buildUrl(sha1sum);
-        final HttpURLConnection conn = connect(url);
+        final HdivHttpConnection conn = connect(url);
         final int responseCode = conn.getResponseCode();
         if (responseCode == 200) {
             return processResponse(dependency, conn);
@@ -142,7 +142,7 @@ public class ArtifactorySearch {
      * @return the HTTP URL Connection
      * @throws IOException thrown if there is an error making the connection
      */
-    private HttpURLConnection connect(URL url) throws IOException {
+    private HdivHttpConnection connect(URL url) throws IOException {
         LOGGER.debug("Searching Artifactory url {}", url);
 
         // Determine if we need to use a proxy. The rules:
@@ -150,7 +150,7 @@ public class ArtifactorySearch {
         // 2) Otherwise, don't use the proxy (either the proxy isn't configured,
         // or proxy is specifically set to false)
         final URLConnectionFactory factory = new URLConnectionFactory(settings);
-        final HttpURLConnection conn = factory.createHttpURLConnection(url, useProxy);
+        final HdivHttpConnection conn = factory.createHttpURLConnection(url, useProxy);
         conn.setDoOutput(true);
 
         conn.addRequestProperty("X-Result-Detail", "info");
@@ -193,7 +193,7 @@ public class ArtifactorySearch {
      * @return a list of the Maven Artifact information
      * @throws IOException thrown if there is an I/O error
      */
-    protected List<MavenArtifact> processResponse(Dependency dependency, HttpURLConnection conn) throws IOException {
+    protected List<MavenArtifact> processResponse(Dependency dependency, HdivHttpConnection conn) throws IOException {
         final JsonObject asJsonObject;
         try (final InputStreamReader streamReader = new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8)) {
             asJsonObject = new JsonParser().parse(streamReader).getAsJsonObject();
@@ -223,9 +223,9 @@ public class ArtifactorySearch {
             if (!pathMatcher.matches()) {
                 throw new IllegalStateException("Cannot extract the Maven information from the apth retrieved in Artifactory " + path);
             }
-            final String groupId = pathMatcher.group("groupId").replace('/', '.');
-            final String artifactId = pathMatcher.group("artifactId");
-            final String version = pathMatcher.group("version");
+            final String groupId = pathMatcher.group(1).replace('/', '.');
+            final String artifactId = pathMatcher.group(2);
+            final String version = pathMatcher.group(3);
 
             result.add(new MavenArtifact(groupId, artifactId, version, downloadUri, MavenArtifact.derivePomUrl(artifactId, version, downloadUri)));
         }
@@ -271,7 +271,7 @@ public class ArtifactorySearch {
     public boolean preflightRequest() {
         try {
             final URL url = buildUrl(Checksum.getSHA1Checksum(UUID.randomUUID().toString()));
-            final HttpURLConnection connection = connect(url);
+            final HdivHttpConnection connection = connect(url);
             if (connection.getResponseCode() != 200) {
                 LOGGER.warn("Expected 200 result from Artifactory ({}), got {}", url, connection.getResponseCode());
                 return false;

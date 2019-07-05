@@ -50,7 +50,7 @@ public final class H2DBShutdownHookFactory {
             final String className = settings.getString(Settings.KEYS.H2DB_SHUTDOWN_HOOK, H2DBCleanupHook.class.getName());
             final Class<?> type = Class.forName(className);
             return (H2DBShutdownHook) type.newInstance();
-        } catch (ClassNotFoundException | InstantiationException | IllegalAccessException ex) {
+        } catch (Exception ex) {
             LOGGER.debug("Failed to instantiate {}, using default shutdown hook instead", ex);
             return new H2DBCleanupHook();
         }

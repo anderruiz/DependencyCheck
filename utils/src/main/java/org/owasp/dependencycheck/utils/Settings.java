@@ -30,7 +30,6 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
-import org.owasp.dependencycheck.utils.StandardCharsets;
 import java.security.ProtectionDomain;
 import java.util.Enumeration;
 import java.util.List;
@@ -1122,7 +1121,8 @@ public final class Settings {
      * @throws IOException is thrown if an IOException occurs of course...
      */
     public File getH2DataDirectory() throws IOException {
-        final String h2Test = getString(Settings.KEYS.H2_DATA_DIRECTORY);
+        final String h2Test = getString(Settings.KEYS.
+                H2_DATA_DIRECTORY);
         final File path;
         if (h2Test != null && !h2Test.isEmpty()) {
             path = getDataFile(Settings.KEYS.H2_DATA_DIRECTORY);

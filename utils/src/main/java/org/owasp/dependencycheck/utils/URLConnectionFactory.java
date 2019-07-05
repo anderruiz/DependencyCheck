@@ -17,13 +17,10 @@
  */
 package org.owasp.dependencycheck.utils;
 
-import java.io.IOException;
-import java.net.HttpURLConnection;
-import java.net.Proxy;
-import java.net.URL;
-
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.apache.commons.lang3.StringUtils;
 import org.hdiv.ee.ssl.ConnectionSettings;
+import org.hdiv.ee.ssl.HdivHttpConnection;
 import org.hdiv.ee.ssl.SSLAddress;
 import org.hdiv.ee.ssl.SSLConfiguration;
 import org.hdiv.ee.ssl.SSLConfigurations;
@@ -32,7 +29,9 @@ import org.hdiv.ee.ssl.SSLManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.io.IOException;
+import java.net.Proxy;
+import java.net.URL;
 
 /**
  * A URLConnection Factory to create new connections. This encapsulates several configuration checks to ensure that the connection uses the
@@ -70,8 +69,8 @@ public final class URLConnectionFactory {
 	 * @throws URLConnectionFailureException thrown if there is an exception
 	 */
 	@SuppressFBWarnings(value = "RCN_REDUNDANT_NULLCHECK_OF_NULL_VALUE", justification = "Just being extra safe")
-	public HttpURLConnection createHttpURLConnection(URL url) throws URLConnectionFailureException {
-		HttpURLConnection conn = null;
+	public HdivHttpConnection createHttpURLConnection(URL url) throws URLConnectionFailureException {
+		HdivHttpConnection conn = null;
 		final String proxyHost = settings.getString(Settings.KEYS.PROXY_SERVER);
 
 		try {
@@ -91,7 +90,7 @@ public final class URLConnectionFactory {
 			}
 			builder.httpProxyUrl(proxyedUrl(url));
 			configureTLS(url, builder);
-			conn = SSLManager.INSTANCE.openConnection(url, builder.build());
+			conn = SSLManager.INSTANCE.openConnection(url, builder.build()).unwrap(HdivHttpConnection.class);
 			final int connectionTimeout = settings.getInt(Settings.KEYS.CONNECTION_TIMEOUT, 10000);
 			final int rtimeout = settings.getInt(Settings.KEYS.READ_TIMEOUT, 30000);
 			conn.setConnectTimeout(connectionTimeout);
@@ -167,16 +166,16 @@ public final class URLConnectionFactory {
 	 * @return a newly constructed HttpURLConnection
 	 * @throws URLConnectionFailureException thrown if there is an exception
 	 */
-	public HttpURLConnection createHttpURLConnection(URL url, boolean proxy) throws URLConnectionFailureException {
+	public HdivHttpConnection createHttpURLConnection(URL url, boolean proxy) throws URLConnectionFailureException {
 		if (proxy) {
 			return createHttpURLConnection(url);
 		}
-		HttpURLConnection conn = null;
+		HdivHttpConnection conn = null;
 		try {
 			ConnectionSettings.Builder builder = ConnectionSettings.builder();
 			builder.httpProxyUrl(proxyedUrl(url));
 			configureTLS(url, builder);
-			conn = SSLManager.INSTANCE.openConnection(url, builder.build());
+			conn = SSLManager.INSTANCE.openConnection(url, builder.build()).unwrap(HdivHttpConnection.class);
 			final int timeout = settings.getInt(Settings.KEYS.CONNECTION_TIMEOUT, 10000);
 			final int rtimeout = settings.getInt(Settings.KEYS.READ_TIMEOUT, 30000);
 			conn.setConnectTimeout(timeout);

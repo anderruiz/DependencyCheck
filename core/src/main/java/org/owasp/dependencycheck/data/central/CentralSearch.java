@@ -17,21 +17,7 @@
  */
 package org.owasp.dependencycheck.data.central;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
-import java.net.URISyntaxException;
-import java.net.URL;
-import java.util.ArrayList;
-import java.util.List;
-import javax.annotation.concurrent.ThreadSafe;
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.xpath.XPath;
-import javax.xml.xpath.XPathConstants;
-import javax.xml.xpath.XPathExpressionException;
-import javax.xml.xpath.XPathFactory;
+import org.hdiv.ee.ssl.HdivHttpConnection;
 import org.owasp.dependencycheck.data.nexus.MavenArtifact;
 import org.owasp.dependencycheck.utils.Settings;
 import org.owasp.dependencycheck.utils.URLConnectionFactory;
@@ -42,7 +28,21 @@ import org.w3c.dom.Document;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
+import javax.annotation.concurrent.ThreadSafe;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.xpath.XPath;
+import javax.xml.xpath.XPathConstants;
+import javax.xml.xpath.XPathExpressionException;
+import javax.xml.xpath.XPathFactory;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 
 /**
  * Class of methods to search Maven Central via Central.
@@ -135,7 +135,7 @@ public class CentralSearch {
         while (retries-- > 0) {
             try {
                 final URLConnectionFactory factory = new URLConnectionFactory(settings);
-                final HttpURLConnection conn = factory.createHttpURLConnection(url, useProxy);
+                final HdivHttpConnection conn = factory.createHttpURLConnection(url, useProxy);
 
                 conn.setDoOutput(true);
 

@@ -20,7 +20,7 @@ Copyright (c) 2012 Jeremy Long. All Rights Reserved.
     <parent>
         <groupId>org.owasp</groupId>
         <artifactId>dependency-check-parent</artifactId>
-        <version>3.3.0.rc16.hdiv</version>
+        <version>3.3.0.rc17.hdiv</version>
     </parent>
 
     <artifactId>dependency-check-core</artifactId>
@@ -227,8 +227,8 @@ Copyright (c) 2012 Jeremy Long. All Rights Reserved.
             <artifactId>jsoup</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.sun.mail</groupId>
-            <artifactId>mailapi</artifactId>
+            <groupId>javax.mail</groupId>
+            <artifactId>javax.mail-api</artifactId>
         </dependency>
         <dependency>
             <groupId>com.google.code.gson</groupId>

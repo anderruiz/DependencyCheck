@@ -17,30 +17,32 @@
  */
 package org.owasp.dependencycheck.data.nsp;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
-import java.net.URL;
-import org.owasp.dependencycheck.utils.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
-import javax.annotation.concurrent.ThreadSafe;
+import org.hdiv.ee.ssl.HdivHttpConnection;
+import org.owasp.dependencycheck.analyzer.exception.SearchException;
 import org.owasp.dependencycheck.utils.Settings;
+import org.owasp.dependencycheck.utils.StandardCharsets;
 import org.owasp.dependencycheck.utils.URLConnectionFactory;
+import org.owasp.dependencycheck.utils.URLConnectionFailureException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.concurrent.ThreadSafe;
 import javax.json.Json;
 import javax.json.JsonArray;
 import javax.json.JsonObject;
 import javax.json.JsonReader;
 import javax.json.JsonValue.ValueType;
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
+
 import static org.owasp.dependencycheck.analyzer.NspAnalyzer.DEFAULT_URL;
-import org.owasp.dependencycheck.analyzer.exception.SearchException;
-import org.owasp.dependencycheck.utils.URLConnectionFailureException;
 
 /**
  * Class of methods to search via Node Security Platform.
@@ -104,7 +106,7 @@ public class NspSearch {
             final List<Advisory> result = new ArrayList<>();
             final byte[] packageDatabytes = packageJson.toString().getBytes(StandardCharsets.UTF_8);
             final URLConnectionFactory factory = new URLConnectionFactory(settings);
-            final HttpURLConnection conn = factory.createHttpURLConnection(nspCheckUrl, useProxy);
+            final HdivHttpConnection conn = factory.createHttpURLConnection(nspCheckUrl, useProxy);
             conn.setDoOutput(true);
             conn.setDoInput(true);
             conn.setRequestMethod("POST");
