@@ -21,6 +21,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.apache.commons.lang3.StringUtils;
 import org.hdiv.ee.ssl.ConnectionSettings;
 import org.hdiv.ee.ssl.HdivHttpConnection;
+import org.hdiv.ee.ssl.HdivURLConnection;
 import org.hdiv.ee.ssl.SSLAddress;
 import org.hdiv.ee.ssl.SSLConfiguration;
 import org.hdiv.ee.ssl.SSLConfigurations;
@@ -90,7 +91,8 @@ public final class URLConnectionFactory {
 			}
 			builder.httpProxyUrl(proxyedUrl(url));
 			configureTLS(url, builder);
-			conn = SSLManager.INSTANCE.openConnection(url, builder.build()).unwrap(HdivHttpConnection.class);
+			HdivURLConnection urlCon = SSLManager.INSTANCE.openConnection(url, builder.build());
+			conn = urlCon.unwrap(HdivHttpConnection.class);
 			final int connectionTimeout = settings.getInt(Settings.KEYS.CONNECTION_TIMEOUT, 10000);
 			final int rtimeout = settings.getInt(Settings.KEYS.READ_TIMEOUT, 30000);
 			conn.setConnectTimeout(connectionTimeout);
@@ -175,7 +177,8 @@ public final class URLConnectionFactory {
 			ConnectionSettings.Builder builder = ConnectionSettings.builder();
 			builder.httpProxyUrl(proxyedUrl(url));
 			configureTLS(url, builder);
-			conn = SSLManager.INSTANCE.openConnection(url, builder.build()).unwrap(HdivHttpConnection.class);
+			HdivURLConnection urlCon = SSLManager.INSTANCE.openConnection(url, builder.build());
+			conn = urlCon.unwrap(HdivHttpConnection.class);
 			final int timeout = settings.getInt(Settings.KEYS.CONNECTION_TIMEOUT, 10000);
 			final int rtimeout = settings.getInt(Settings.KEYS.READ_TIMEOUT, 30000);
 			conn.setConnectTimeout(timeout);

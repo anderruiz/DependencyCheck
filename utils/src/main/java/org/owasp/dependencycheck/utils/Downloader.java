@@ -292,7 +292,7 @@ public final class Downloader {
             final String httpMethod = determineHttpMethod();
             HdivHttpConnection conn = null;
             try {
-                conn = connFactory.createHttpURLConnection(url).unwrap(HdivHttpConnection.class);
+                conn = connFactory.createHttpURLConnection(url);
                 conn.setRequestMethod(httpMethod);
                 conn.connect();
                 final int t = conn.getResponseCode();
