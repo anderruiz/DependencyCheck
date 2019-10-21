@@ -118,9 +118,10 @@ cmakeAnalyzerEnabled          | Sets whether the [experimental](../analyzers/ind
 autoconfAnalyzerEnabled       | Sets whether the [experimental](../analyzers/index.html) autoconf Analyzer should be used.                 | true
 composerAnalyzerEnabled       | Sets whether the [experimental](../analyzers/index.html) PHP Composer Lock File Analyzer should be used.   | true
 nodeAnalyzerEnabled           | Sets whether the [retired](../analyzers/index.html) Node.js Analyzer should be used.                       | true
-nspAnalyzerEnabled            | Sets whether the NSP Analyzer should be used.                                                              | true
+nodeAuditAnalyzerEnabled      | Sets whether the Node Audit Analyzer should be used.                                                              | true
 retireJsAnalyzerEnabled       | Sets whether the [experimental](../analyzers/index.html) RetireJS Analyzer should be used.                                                         | true
 nuspecAnalyzerEnabled         | Sets whether the .NET Nuget Nuspec Analyzer will be used.                                                  | true
+nugetconfAnalyzerEnabled      | Sets whether the [experimental](../analyzers/index.html) .NET Nuget packages.config Analyzer will be used.                                         | true
 cocoapodsAnalyzerEnabled      | Sets whether the [experimental](../analyzers/index.html) Cocoapods Analyzer should be used.                | true
 bundleAuditAnalyzerEnabled    | Sets whether the [experimental](../analyzers/index.html) Bundle Audit Analyzer should be used.             | true
 bundleAuditPath               | Sets the path to the bundle audit executable; only used if bundle audit analyzer is enabled and experimental analyzers are enabled.  | &nbsp;
@@ -151,7 +152,7 @@ filterNonVulnerable | A boolean controlling whether or not the Retire JS Analyze
 Advanced Configuration
 ====================
 The following properties can be configured in the plugin. However, they are less frequently changed. One exception
-may be the cvedUrl properties, which can be used to host a mirror of the NVD within an enterprise environment.
+may be the cveUrl properties, which can be used to host a mirror of the NVD within an enterprise environment.
 
 Property             | Description                                                                                 | Default Value
 ---------------------|---------------------------------------------------------------------------------------------|------------------

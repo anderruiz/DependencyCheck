@@ -25,9 +25,10 @@ apply plugin: 'org.owasp.dependencycheck'
 check.dependsOn dependencyCheckAnalyze
 ```
 
-Property             | Description                        | Default Value
----------------------|------------------------------------|------------------
+Property             | Description                                                                                                        | Default Value
+---------------------|--------------------------------------------------------------------------------------------------------------------|------------------
 autoUpdate           | Sets whether auto-updating of the NVD CVE/CPE data is enabled. It is not recommended that this be turned to false. | true
+analyzedTypes        | The default artifact types that will be analyzed.                                                                  | ['jar', 'aar', 'js', 'war', 'ear', 'zip']
 cveValidForHours     | Sets the number of hours to wait before checking for new updates from the NVD.                                     | 4
 failOnError          | Fails the build if an error occurs during the dependency-check analysis.                                           | true
 failBuildOnCVSS      | Specifies if the build should be failed if a CVSS score equal to or above a specified level is identified. The default is 11; since the CVSS scores are 0-10, by default the build will never fail. | 11
@@ -38,7 +39,8 @@ suppressionFile      | The file path to the XML suppression file \- used to supp
 hintsFile            | The file path to the XML hints file \- used to resolve [false negatives](../general/hints.html)                    | &nbsp;
 skip                 | If set to true dependency-check analysis will be skipped.                                                          | false
 skipConfigurations   | A list of configurations that will be skipped. This is mutually exclusive with the scanConfigurations property.    | `[]` which means no configuration is skipped.
-scanConfigurations   | A list of configurations that will be scanned, all other configurations are skipped. This is mutually exclusive with the skipConfigurations property.    | `[]` which implicitly means all configurations get scanned.
+scanConfigurations   | A list of configurations that will be scanned, all other configurations are skipped. This is mutually exclusive with the skipConfigurations property. | `[]` which implicitly means all configurations get scanned.
+scanSet              | A list of directories that will be scanned for additional dependencies.                                            | ['src/main/resources','src/main/webapp']
 
 #### Example
 ```groovy
@@ -118,13 +120,14 @@ analyzers    | pyPackageEnabled      | Sets whether the [experimental](../analyz
 analyzers    | rubygemsEnabled       | Sets whether the [experimental](../analyzers/index.html) Ruby Gemspec Analyzer will be used.                      | true
 analyzers    | opensslEnabled        | Sets whether or not the openssl Analyzer should be used.                                                          | true
 analyzers    | nuspecEnabled         | Sets whether or not the .NET Nuget Nuspec Analyzer will be used.                                                  | true
+analyzers    | nugetconfEnabled      | Sets whether or not the [experimental](../analyzers/index.html) .NET Nuget packages.config Analyzer will be used.                                         | true
 analyzers    | assemblyEnabled       | Sets whether or not the .NET Assembly Analyzer should be used.                                                    | true
 analyzers    | pathToMono            | The path to Mono for .NET assembly analysis on non-windows systems.                                               | &nbsp;
 analyzers    | cmakeEnabled          | Sets whether or not the [experimental](../analyzers/index.html) CMake Analyzer should be used.                    | true
 analyzers    | autoconfEnabled       | Sets whether or not the [experimental](../analyzers/index.html) autoconf Analyzer should be used.                 | true
 analyzers    | composerEnabled       | Sets whether or not the [experimental](../analyzers/index.html) PHP Composer Lock File Analyzer should be used.   | true
 analyzers    | nodeEnabled           | Sets whether or not the [retired](../analyzers/index.html) Node.js Analyzer should be used.                  | true
-analyzers    | nspEnabled            | Sets whether the NSP Analyzer should be used.                                                                     | true
+analyzers    | nodeAuditEnabled      | Sets whether the Node Audit Analyzer should be used.                                                                     | true
 analyzers    | cocoapodsEnabled      | Sets whether or not the [experimental](../analyzers/index.html) Cocoapods Analyzer should be used.                | true
 analyzers    | swiftEnabled          | Sets whether or not the [experimental](../analyzers/index.html) Swift Package Manager Analyzer should be used.    | true
 analyzers    | bundleAuditEnabled    | Sets whether or not the [experimental](../analyzers/index.html) Ruby Bundle Audit Analyzer should be used.        | true

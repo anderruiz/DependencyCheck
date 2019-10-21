@@ -17,8 +17,9 @@
  */
 package org.owasp.dependencycheck.data.artifactory;
 
-import org.hdiv.ee.ssl.HdivHttpConnection;
+import org.junit.AfterClass;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.owasp.dependencycheck.BaseTest;
 import org.owasp.dependencycheck.data.nexus.MavenArtifact;
@@ -41,6 +42,32 @@ import static org.mockito.Mockito.when;
 
 public class ArtifactorySearchTest extends BaseTest {
     private ArtifactorySearch searcher;
+    private static String httpsProxyHostOrig;
+    private static String httpsPortOrig;
+
+    @BeforeClass
+    public static void tinkerProxies() {
+        httpsProxyHostOrig = System.getProperty("https.proxyHost");
+        if (httpsProxyHostOrig == null) {
+            httpsProxyHostOrig = System.getenv("https.proxyHost");
+        }
+        httpsPortOrig = System.getProperty("https.proxyPort");
+        if(httpsPortOrig == null) {
+            httpsPortOrig = System.getenv("https.proxyPort");
+        }
+        System.setProperty("https.proxyHost", "");
+        System.setProperty("https.proxyPort", "");
+    }
+
+    @AfterClass
+    public static void restoreProxies() {
+        if (httpsProxyHostOrig != null) {
+            System.setProperty("https.proxyHost", httpsProxyHostOrig);
+        }
+        if (httpsPortOrig != null) {
+            System.setProperty("https.proxyPort", httpsPortOrig);
+        }
+    }
 
     @Before
     @Override
@@ -83,7 +110,7 @@ public class ArtifactorySearchTest extends BaseTest {
         Dependency dependency = new Dependency();
         dependency.setSha1sum("2e66da15851f9f5b5079228f856c2f090ba98c38");
         dependency.setMd5sum("3dbee72667f107b4f76f2d5aa33c5687");
-        final HdivHttpConnection urlConnection = mock(HdivHttpConnection.class);
+        final HttpConnection urlConnection = mock(HttpConnection.class);
         final byte[] payload = ("{\n" +
                 "  \"results\" : [ {\n" +
                 "    \"repo\" : \"jcenter-cache\",\n" +

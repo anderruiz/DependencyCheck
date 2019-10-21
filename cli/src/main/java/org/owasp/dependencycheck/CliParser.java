@@ -57,6 +57,10 @@ public final class CliParser {
      * The configured settings.
      */
     private final Settings settings;
+    /**
+     * The supported reported formats.
+     */
+    private static final String SUPPORTED_FORMATS = "HTML, XML, CSV, JSON, VULN, or ALL";
 
     /**
      * Constructs a new CLI Parser object with the configured settings.
@@ -133,7 +137,7 @@ public final class CliParser {
                     Format.valueOf(format);
                 } catch (IllegalArgumentException ex) {
                     final String msg = String.format("An invalid 'format' of '%s' was specified. "
-                            + "Supported output formats are HTML, XML, CSV, JSON, VULN, or ALL", format);
+                            + "Supported output formats are " + SUPPORTED_FORMATS, format);
                     throw new ParseException(msg);
                 }
             }
@@ -1613,7 +1617,7 @@ public final class CliParser {
                 .build();
 
         final Option outputFormat = Option.builder(ARGUMENT.OUTPUT_FORMAT_SHORT).argName("format").hasArg().longOpt(ARGUMENT.OUTPUT_FORMAT)
-                .desc("The output format to write to (XML, JSON, HTML, VULN, ALL). The default is HTML.")
+                .desc("The output format to write to (" + SUPPORTED_FORMATS + "). The default is HTML.")
                 .build();
 
         final Option verboseLog = Option.builder(ARGUMENT.VERBOSE_LOG_SHORT).argName("file").hasArg().longOpt(ARGUMENT.VERBOSE_LOG)
@@ -1687,35 +1691,28 @@ public final class CliParser {
     @SuppressWarnings("static-access")
     private void addAdvancedOptions(final Options options) {
         final Option cve12Base = Option.builder().argName("url").hasArg().longOpt(ARGUMENT.CVE_BASE_12)
-                .desc("Base URL for each year’s CVE 1.2, the %d will be replaced with the year. ")
-                .build();
+                .desc("Base URL for each year’s CVE 1.2, the %d will be replaced with the year. ").build();
         final Option cve20Base = Option.builder().argName("url").hasArg().longOpt(ARGUMENT.CVE_BASE_20)
-                .desc("Base URL for each year’s CVE 2.0, the %d will be replaced with the year.")
-                .build();
+                .desc("Base URL for each year’s CVE 2.0, the %d will be replaced with the year.").build();
         final Option cve12Modified = Option.builder().argName("url").hasArg().longOpt(ARGUMENT.CVE_MOD_12)
-                .desc("URL for the modified CVE 1.2.")
-                .build();
+                .desc("URL for the modified CVE 1.2.").build();
         final Option cve20Modified = Option.builder().argName("url").hasArg().longOpt(ARGUMENT.CVE_MOD_20)
-                .desc("URL for the modified CVE 2.0.")
-                .build();
+                .desc("URL for the modified CVE 2.0.").build();
         final Option updateOnly = Option.builder().longOpt(ARGUMENT.UPDATE_ONLY)
                 .desc("Only update the local NVD data cache; no scan will be executed.").build();
         final Option data = Option.builder(ARGUMENT.DATA_DIRECTORY_SHORT).argName("path").hasArg().longOpt(ARGUMENT.DATA_DIRECTORY)
-                .desc("The location of the H2 Database file. This option should generally not be set.")
-                .build();
+                .desc("The location of the H2 Database file. This option should generally not be set.").build();
         final Option nexusUrl = Option.builder().argName("url").hasArg().longOpt(ARGUMENT.NEXUS_URL)
                 .desc("The url to the Nexus Server's REST API Endpoint (http://domain/nexus/service/local). "
                         + "If not set the Nexus Analyzer will be disabled.").build();
         final Option nexusUsesProxy = Option.builder().argName("true/false").hasArg().longOpt(ARGUMENT.NEXUS_USES_PROXY)
-                .desc("Whether or not the configured proxy should be used when connecting to Nexus.")
-                .build();
+                .desc("Whether or not the configured proxy should be used when connecting to Nexus.").build();
         final Option additionalZipExtensions = Option.builder().argName("extensions").hasArg()
                 .longOpt(ARGUMENT.ADDITIONAL_ZIP_EXTENSIONS)
                 .desc("A comma separated list of additional extensions to be scanned as ZIP files "
                         + "(ZIP, EAR, WAR are already treated as zip files)").build();
         final Option pathToMono = Option.builder().argName("path").hasArg().longOpt(ARGUMENT.PATH_TO_MONO)
-                .desc("The path to Mono for .NET Assembly analysis on non-windows systems.")
-                .build();
+                .desc("The path to Mono for .NET Assembly analysis on non-windows systems.").build();
         final Option pathToBundleAudit = Option.builder().argName("path").hasArg()
                 .longOpt(ARGUMENT.PATH_TO_BUNDLE_AUDIT)
                 .desc("The path to bundle-audit for Gem bundle analysis.").build();
@@ -1747,6 +1744,8 @@ public final class CliParser {
                 .desc("Disable the Archive Analyzer.").build();
         final Option disableNuspecAnalyzer = Option.builder().longOpt(ARGUMENT.DISABLE_NUSPEC)
                 .desc("Disable the Nuspec Analyzer.").build();
+        final Option disableNugetconfAnalyzer = Option.builder().longOpt(ARGUMENT.DISABLE_NUGETCONF)
+                .desc("Disable the Nuget packages.config Analyzer.").build();
         final Option disableAssemblyAnalyzer = Option.builder().longOpt(ARGUMENT.DISABLE_ASSEMBLY)
                 .desc("Disable the .NET Assembly Analyzer.").build();
         final Option disablePythonDistributionAnalyzer = Option.builder().longOpt(ARGUMENT.DISABLE_PY_DIST)
@@ -1756,8 +1755,7 @@ public final class CliParser {
         final Option disableComposerAnalyzer = Option.builder().longOpt(ARGUMENT.DISABLE_COMPOSER)
                 .desc("Disable the PHP Composer Analyzer.").build();
         final Option disableAutoconfAnalyzer = Option.builder()
-                .longOpt(ARGUMENT.DISABLE_AUTOCONF)
-                .desc("Disable the Autoconf Analyzer.").build();
+                .longOpt(ARGUMENT.DISABLE_AUTOCONF).desc("Disable the Autoconf Analyzer.").build();
         final Option disableOpenSSLAnalyzer = Option.builder().longOpt(ARGUMENT.DISABLE_OPENSSL)
                 .desc("Disable the OpenSSL Analyzer.").build();
         final Option disableCmakeAnalyzer = Option.builder().longOpt(ARGUMENT.DISABLE_CMAKE)
@@ -1772,13 +1770,11 @@ public final class CliParser {
         final Option disableNexusAnalyzer = Option.builder().longOpt(ARGUMENT.DISABLE_NEXUS)
                 .desc("Disable the Nexus Analyzer.").build();
         final Option purge = Option.builder().longOpt(ARGUMENT.PURGE_NVD)
-                .desc("Purges the local NVD data cache")
-                .build();
+                .desc("Purges the local NVD data cache").build();
         final Option retireJsFilters = Option.builder().argName("pattern").hasArg().longOpt(ARGUMENT.RETIREJS_FILTERS)
                 .desc("Specify Retire JS content filter used to exclude files from analysis based on their content; most commonly used "
                         + "to exclude based on your applications own copyright line. This option can be specified multiple times.")
                 .build();
-
         options.addOption(updateOnly)
                 .addOption(cve12Base)
                 .addOption(cve20Base)
@@ -1810,14 +1806,15 @@ public final class CliParser {
                 .addOption(disableComposerAnalyzer)
                 .addOption(disableOpenSSLAnalyzer)
                 .addOption(disableNuspecAnalyzer)
+                .addOption(disableNugetconfAnalyzer)
                 .addOption(disableCentralAnalyzer)
                 .addOption(disableNexusAnalyzer)
                 .addOption(cocoapodsAnalyzerEnabled)
                 .addOption(swiftPackageManagerAnalyzerEnabled)
                 .addOption(Option.builder().longOpt(ARGUMENT.DISABLE_NODE_JS)
                         .desc("Disable the Node.js Package Analyzer.").build())
-                .addOption(Option.builder().longOpt(ARGUMENT.DISABLE_NSP)
-                        .desc("Disable the NSP Package Analyzer.").build())
+                .addOption(Option.builder().longOpt(ARGUMENT.DISABLE_NODE_AUDIT)
+                        .desc("Disable the Node Audit Analyzer.").build())
                 .addOption(Option.builder().longOpt(ARGUMENT.DISABLE_RETIRE_JS)
                         .desc("Disable the RetireJS Analyzer.").build())
                 .addOption(Option.builder().longOpt(ARGUMENT.RETIREJS_FILTER_NON_VULNERABLE)
@@ -1839,6 +1836,9 @@ public final class CliParser {
                 .addOption(Option.builder().longOpt(ARGUMENT.ARTIFACTORY_BEARER_TOKEN)
                         .desc("The Artifactory bearer token.")
                         .argName("token").hasArg(true).build())
+                .addOption(Option.builder().longOpt(ARGUMENT.ARTIFACTORY_URL)
+                        .desc("The Artifactory URL.")
+                        .argName("url").hasArg(true).build())
                 .addOption(retireJsFilters)
                 .addOption(nexusUrl)
                 .addOption(nexusUsesProxy)
@@ -1866,6 +1866,8 @@ public final class CliParser {
                 .desc("The name of the project being scanned.")
                 .build();
 
+        options.addOption(Option.builder().longOpt("disableNSP")
+                        .desc("Disable the NSP Package Analyzer.").build());
         options.addOption(proxyServer);
         options.addOption(appName);
     }
@@ -1970,6 +1972,16 @@ public final class CliParser {
      */
     public boolean isNuspecDisabled() {
         return hasDisableOption(ARGUMENT.DISABLE_NUSPEC, Settings.KEYS.ANALYZER_NUSPEC_ENABLED);
+    }
+
+    /**
+     * Returns true if the disableNugetconf command line argument was specified.
+     *
+     * @return true if the disableNugetconf command line argument was specified;
+     * otherwise false
+     */
+    public boolean isNugetconfDisabled() {
+        return hasDisableOption(ARGUMENT.DISABLE_NUGETCONF, Settings.KEYS.ANALYZER_NUGETCONF_ENABLED);
     }
 
     /**
@@ -2084,13 +2096,18 @@ public final class CliParser {
     }
 
     /**
-     * Returns true if the disableNSP command line argument was specified.
+     * Returns true if the disableNodeAudit command line argument was specified.
      *
-     * @return true if the disableNSP command line argument was specified;
+     * @return true if the disableNodeAudit command line argument was specified;
      * otherwise false
      */
-    public boolean isNspDisabled() {
-        return hasDisableOption(ARGUMENT.DISABLE_NSP, Settings.KEYS.ANALYZER_NSP_PACKAGE_ENABLED);
+    public boolean isNodeAuditDisabled() {
+        if (hasDisableOption("disableNSP", Settings.KEYS.ANALYZER_NODE_AUDIT_ENABLED)) {
+            LOGGER.error("The disableNSP argument has been deprecated and replaced by disableNodeAudit");
+            LOGGER.error("The disableNSP argument will be removed in the next version");
+            return true;
+        }
+        return hasDisableOption(ARGUMENT.DISABLE_NODE_AUDIT, Settings.KEYS.ANALYZER_NODE_AUDIT_ENABLED);
     }
 
     /**
@@ -2100,7 +2117,7 @@ public final class CliParser {
      * otherwise false
      */
     public boolean isRetireJSDisabled() {
-        return hasDisableOption(ARGUMENT.DISABLE_RETIRE_JS, Settings.KEYS.ANALYZER_RETIRED_ENABLED);
+        return hasDisableOption(ARGUMENT.DISABLE_RETIRE_JS, Settings.KEYS.ANALYZER_RETIREJS_ENABLED);
     }
 
     /**
@@ -2177,10 +2194,7 @@ public final class CliParser {
      * @return whether or not the argument exists
      */
     public boolean hasArgument(String argument) {
-        if (line != null && line.hasOption(argument)) {
-            return true;
-        }
-        return false;
+        return line != null && line.hasOption(argument);
     }
 
     /**
@@ -2869,6 +2883,10 @@ public final class CliParser {
          */
         public static final String DISABLE_NUSPEC = "disableNuspec";
         /**
+         * Disables the Nuget packages.config Analyzer.
+         */
+        public static final String DISABLE_NUGETCONF = "disableNugetconf";
+        /**
          * Disables the Central Analyzer.
          */
         public static final String DISABLE_CENTRAL = "disableCentral";
@@ -2885,9 +2903,9 @@ public final class CliParser {
          */
         public static final String DISABLE_NODE_JS = "disableNodeJS";
         /**
-         * Disables the NSP Analyzer.
+         * Disables the Node Audit Analyzer.
          */
-        public static final String DISABLE_NSP = "disableNSP";
+        public static final String DISABLE_NODE_AUDIT = "disableNodeAudit";
         /**
          * Disables the RetireJS Analyzer.
          */

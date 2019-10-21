@@ -196,6 +196,11 @@ public class JarAnalyzer extends AbstractFileTypeAnalyzer {
     private static final byte[] ZIP_SPANNED_FIRST_BYTES = new byte[]{0x50, 0x4B, 0x07, 0x08};
 
     //</editor-fold>
+    /**
+     * The parent directory for the individual directories per archive.
+     */
+    private File tempFileLocation = null;
+
     //<editor-fold defaultstate="collapsed" desc="All standard implmentation details of Analyzer">
     /**
      * Returns the FileFilter.
@@ -250,26 +255,41 @@ public class JarAnalyzer extends AbstractFileTypeAnalyzer {
      */
     @Override
     public void analyzeDependency(Dependency dependency, Engine engine) throws AnalysisException {
+        final List<ClassNameInformation> classNames = collectClassNames(dependency);
+        final String fileName = dependency.getFileName().toLowerCase();
+        if (classNames.isEmpty()
+                && (fileName.endsWith("-sources.jar")
+                || fileName.endsWith("-javadoc.jar")
+                || fileName.endsWith("-src.jar")
+                || fileName.endsWith("-doc.jar")
+                || isMacOSMetaDataFile(dependency, engine))
+                || !isZipFile(dependency)) {
+            engine.removeDependency(dependency);
+            return;
+        }
+        Exception exception = null;
+        boolean hasManifest = false;
         try {
-            final List<ClassNameInformation> classNames = collectClassNames(dependency);
-            final String fileName = dependency.getFileName().toLowerCase();
-            if (classNames.isEmpty()
-                    && (fileName.endsWith("-sources.jar")
-                    || fileName.endsWith("-javadoc.jar")
-                    || fileName.endsWith("-src.jar")
-                    || fileName.endsWith("-doc.jar")
-                    || isMacOSMetaDataFile(dependency, engine))
-                    || !isZipFile(dependency)) {
-                engine.removeDependency(dependency);
-                return;
-            }
-            final boolean hasManifest = parseManifest(dependency, classNames);
-            final boolean hasPOM = analyzePOM(dependency, classNames, engine);
-            final boolean addPackagesAsEvidence = !(hasManifest && hasPOM);
-            analyzePackageNames(classNames, dependency, addPackagesAsEvidence);
-            dependency.setEcosystem(DEPENDENCY_ECOSYSTEM);
+            hasManifest = parseManifest(dependency, classNames);
         } catch (IOException ex) {
-            throw new AnalysisException("Exception occurred reading the JAR file (" + dependency.getFileName() + ").", ex);
+            LOGGER.debug("Invalid Manifest", ex);
+            exception = ex;
+        }
+        boolean hasPOM = false;
+        try {
+            hasPOM = analyzePOM(dependency, classNames, engine);
+        } catch (AnalysisException ex) {
+            LOGGER.debug("Error parsing pom.xml", ex);
+            exception = ex;
+        }
+        final boolean addPackagesAsEvidence = !(hasManifest && hasPOM);
+        analyzePackageNames(classNames, dependency, addPackagesAsEvidence);
+        dependency.setEcosystem(DEPENDENCY_ECOSYSTEM);
+
+        if (exception != null) {
+            throw new AnalysisException(String.format("A error occurred extracing evidence from "
+                    + "%s, analysis may be incomplete; please see the log for more details.",
+                    dependency.getDisplayFileName()), exception);
         }
     }
 
@@ -411,7 +431,8 @@ public class JarAnalyzer extends AbstractFileTypeAnalyzer {
                         newDependency.setName(String.format("%s:%s", groupId, pom.getArtifactId()));
                         newDependency.setPackagePath(String.format("%s:%s:%s", groupId, pom.getArtifactId(), version));
                     }
-                    newDependency.setDisplayFileName(String.format("%s (%s)", dependency.getDisplayFileName(), newDependency.getPackagePath()));
+                    newDependency.setDisplayFileName(String.format("%s (shaded: %s)",
+                            dependency.getDisplayFileName(), newDependency.getPackagePath()));
                     newDependency.setVersion(version);
                     setPomEvidence(newDependency, pom, null);
                     if (dependency.getProjectReferences().size() > 0) {
@@ -470,7 +491,8 @@ public class JarAnalyzer extends AbstractFileTypeAnalyzer {
         while (entries.hasMoreElements()) {
             final JarEntry entry = entries.nextElement();
             final String entryName = (new File(entry.getName())).getName().toLowerCase();
-            if (!entry.isDirectory() && "pom.xml".equals(entryName)) {
+            if (!entry.isDirectory() && "pom.xml".equals(entryName)
+                    && entry.getName().toUpperCase().startsWith("META-INF")) {
                 LOGGER.trace("POM Entry found: {}", entry.getName());
                 pomEntries.add(entry.getName());
             }
@@ -963,11 +985,6 @@ public class JarAnalyzer extends AbstractFileTypeAnalyzer {
             d.setLicense(d.getLicense() + NEWLINE + license);
         }
     }
-
-    /**
-     * The parent directory for the individual directories per archive.
-     */
-    private File tempFileLocation = null;
 
     /**
      * Initializes the JarAnalyzer.

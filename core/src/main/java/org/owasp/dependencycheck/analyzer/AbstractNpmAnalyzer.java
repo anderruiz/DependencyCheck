@@ -32,6 +32,7 @@ import javax.json.JsonObject;
 import javax.json.JsonObjectBuilder;
 import javax.json.JsonString;
 import javax.json.JsonValue;
+import javax.json.JsonValue.ValueType;
 import org.owasp.dependencycheck.analyzer.exception.AnalysisException;
 import org.owasp.dependencycheck.dependency.EvidenceType;
 import org.owasp.dependencycheck.utils.Checksum;
@@ -291,7 +292,20 @@ public abstract class AbstractNpmAnalyzer extends AbstractFileTypeAnalyzer {
                         } else {
                             addComma = true;
                         }
-                        sb.append(array.getString(x));
+                        if (ValueType.STRING == array.get(x).getValueType()) {
+                            sb.append(array.getString(x));
+                        } else {
+                            final JsonObject lo = array.getJsonObject(x);
+                            if (lo.containsKey("type") && !lo.isNull("type")
+                                    && lo.containsKey("url") && !lo.isNull("url")) {
+                                final String license = String.format("%s (%s)", lo.getString("type"), lo.getString("url"));
+                                sb.append(license);
+                            } else if (lo.containsKey("type") && !lo.isNull("type")) {
+                                sb.append(lo.getString("type"));
+                            } else if (lo.containsKey("url") && !lo.isNull("url")) {
+                                sb.append(lo.getString("url"));
+                            }
+                        }
                     }
                 }
                 dependency.setLicense(sb.toString());

@@ -17,10 +17,13 @@ package org.owasp.dependencycheck.xml.pom;
 
 import java.io.File;
 import java.io.InputStream;
+<<<<<<< HEAD
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
+=======
+>>>>>>> refs/tags/v3.3.4
 import org.junit.Test;
 import static org.junit.Assert.*;
 import org.owasp.dependencycheck.BaseTest;

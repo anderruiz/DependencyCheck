@@ -34,7 +34,9 @@ public class PomProjectInputStream extends FilterInputStream {
     /**
      * The project tag for a pom.xml.
      */
-    private static final byte[] PROJECT = "<project".getBytes();
+    private static final byte[] PROJECT = {60, 112, 114, 111, 106, 101, 99, 116};
+    //private static final byte[] PROJECT = "<project".getBytes();
+
     /**
      * The size of the buffer used to scan the input stream.
      */
@@ -67,6 +69,8 @@ public class PomProjectInputStream extends FilterInputStream {
             if (pos >= 0) {
                 super.reset();
                 super.skip(pos);
+                return;
+            } else if (count - PROJECT.length == 0) {
                 return;
             }
             super.reset();

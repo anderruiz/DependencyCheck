@@ -73,11 +73,16 @@ public class AssemblyAnalyzer extends AbstractFileTypeAnalyzer {
      */
     private static final String[] SUPPORTED_EXTENSIONS = {"dll", "exe"};
     /**
-     * The temp value for GrokAssembly.exe
+     * The File Filter used to filter supported extensions.
+     */
+    private static final FileFilter FILTER = FileFilterBuilder.newInstance().addExtensions(
+            SUPPORTED_EXTENSIONS).build();
+    /**
+     * The temp value for `GrokAssembly.exe`.
      */
     private File grokAssemblyExe = null;
     /**
-     * The temp value for GrokAssembly.exe.config
+     * The temp value for `GrokAssembly.exe.config`.
      */
     private File grokAssemblyConfig = null;
     /**
@@ -305,12 +310,6 @@ public class AssemblyAnalyzer extends AbstractFileTypeAnalyzer {
             grokAssemblyConfig.deleteOnExit();
         }
     }
-
-    /**
-     * The File Filter used to filter supported extensions.
-     */
-    private static final FileFilter FILTER = FileFilterBuilder.newInstance().addExtensions(
-            SUPPORTED_EXTENSIONS).build();
 
     @Override
     protected FileFilter getFileFilter() {

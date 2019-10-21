@@ -166,8 +166,12 @@ public class RetireJSDataSource implements CachedWebDataSource {
                         FileOutputStream outputStream = new FileOutputStream(tmpFile)) {
                     IOUtils.copy(inputStream, outputStream);
                 }
+                //using move fails if target and destination are on different disks which does happen (see #1394 and #1404)
                 repoFile.delete();
                 FileUtils.moveFile(tmpFile, repoFile);
+                if (!tmpFile.delete()) {
+                    tmpFile.deleteOnExit();
+                }
             }
         } catch (IOException e) {
             throw new UpdateException("Failed to initialize the RetireJS repo", e);

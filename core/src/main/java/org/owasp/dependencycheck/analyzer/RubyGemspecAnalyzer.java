@@ -85,6 +85,11 @@ public class RubyGemspecAnalyzer extends AbstractFileTypeAnalyzer {
     private static final String VERSION_FILE_NAME = "VERSION";
 
     /**
+     * The capture group #1 is the block variable.
+     */
+    private static final Pattern GEMSPEC_BLOCK_INIT = Pattern.compile("Gem::Specification\\.new\\s+?do\\s+?\\|(.+?)\\|");
+
+    /**
      * @return a filter that accepts files matching the glob pattern, *.gemspec
      */
     @Override
@@ -128,11 +133,6 @@ public class RubyGemspecAnalyzer extends AbstractFileTypeAnalyzer {
         return Settings.KEYS.ANALYZER_RUBY_GEMSPEC_ENABLED;
     }
 
-    /**
-     * The capture group #1 is the block variable.
-     */
-    private static final Pattern GEMSPEC_BLOCK_INIT = Pattern.compile("Gem::Specification\\.new\\s+?do\\s+?\\|(.+?)\\|");
-
     @Override
     protected void analyzeDependency(Dependency dependency, Engine engine) throws AnalysisException {
         dependency.setEcosystem(DEPENDENCY_ECOSYSTEM);
@@ -153,20 +153,35 @@ public class RubyGemspecAnalyzer extends AbstractFileTypeAnalyzer {
                 dependency.addEvidence(EvidenceType.VENDOR, GEMSPEC, "name_project", name + "_project", Confidence.LOW);
                 dependency.setName(name);
             }
-            addStringEvidence(dependency, EvidenceType.PRODUCT, contents, blockVariable, "summary", "summary", Confidence.LOW);
-
-            addStringEvidence(dependency, EvidenceType.VENDOR, contents, blockVariable, "author", "authors?", Confidence.HIGHEST);
-            addStringEvidence(dependency, EvidenceType.VENDOR, contents, blockVariable, "email", "emails?", Confidence.MEDIUM);
-            addStringEvidence(dependency, EvidenceType.VENDOR, contents, blockVariable, "homepage", "homepage", Confidence.HIGHEST);
-            addStringEvidence(dependency, EvidenceType.VENDOR, contents, blockVariable, "license", "licen[cs]es?", Confidence.HIGHEST);
-
+            final String description = addStringEvidence(dependency, EvidenceType.PRODUCT, contents, blockVariable,
+                    "summary", "summary", Confidence.LOW);
+            if (description != null && !description.isEmpty()) {
+                dependency.setDescription(description);
+            }
+            addStringEvidence(dependency, EvidenceType.VENDOR, contents, blockVariable,
+                    "author", "authors?", Confidence.HIGHEST);
+            addStringEvidence(dependency, EvidenceType.VENDOR, contents, blockVariable,
+                    "email", "emails?", Confidence.MEDIUM);
+            addStringEvidence(dependency, EvidenceType.VENDOR, contents, blockVariable,
+                    "homepage", "homepage", Confidence.HIGHEST);
+            final String license = addStringEvidence(dependency, EvidenceType.VENDOR, contents, blockVariable,
+                    "license", "licen[cs]es?", Confidence.HIGHEST);
+            if (license != null && !license.isEmpty()) {
+                dependency.setLicense(license);
+            }
             final String value = addStringEvidence(dependency, EvidenceType.VERSION, contents,
                     blockVariable, "version", "version", Confidence.HIGHEST);
             if (value.length() < 1) {
-                addEvidenceFromVersionFile(dependency, EvidenceType.VERSION, dependency.getActualFile());
+                final String version = addEvidenceFromVersionFile(dependency, EvidenceType.VERSION, dependency.getActualFile());
+                if (version != null) {
+                    dependency.setVersion(version);
+                }
             } else {
                 dependency.setVersion(value);
             }
+        }
+        if (dependency.getName() != null && dependency.getVersion() != null) {
+            dependency.setDisplayFileName(String.format("%s:%s", dependency.getName(), dependency.getVersion()));
         }
         setPackagePath(dependency);
     }
@@ -213,9 +228,12 @@ public class RubyGemspecAnalyzer extends AbstractFileTypeAnalyzer {
      * @param dependency the dependency being analyzed
      * @param type the type of evidence to add
      * @param dependencyFile the dependency being analyzed
+     * @return the version number added
      */
-    private void addEvidenceFromVersionFile(Dependency dependency, EvidenceType type, File dependencyFile) {
+    private String addEvidenceFromVersionFile(Dependency dependency, EvidenceType type, File dependencyFile) {
         final File parentDir = dependencyFile.getParentFile();
+        String version = null;
+        int versionCount = 0;
         if (parentDir != null) {
             final File[] matchingFiles = parentDir.listFiles(new FilenameFilter() {
                 @Override
@@ -224,13 +242,18 @@ public class RubyGemspecAnalyzer extends AbstractFileTypeAnalyzer {
                 }
             });
             if (matchingFiles == null) {
-                return;
+                return null;
             }
             for (File f : matchingFiles) {
                 try {
                     final List<String> lines = FileUtils.readLines(f, Charset.defaultCharset());
                     if (lines.size() == 1) { //TODO other checking?
                         final String value = lines.get(0).trim();
+                        if (version == null || !version.equals(value)) {
+                            version = value;
+                            versionCount++;
+                        }
+
                         dependency.addEvidence(type, GEMSPEC, "version", value, Confidence.HIGH);
                     }
                 } catch (IOException e) {
@@ -238,6 +261,10 @@ public class RubyGemspecAnalyzer extends AbstractFileTypeAnalyzer {
                 }
             }
         }
+        if (versionCount == 1) {
+            return version;
+        }
+        return null;
     }
 
     /**

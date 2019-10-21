@@ -91,6 +91,7 @@ public class ComposerLockAnalyzerTest extends BaseDBTestCase {
     }
 
     /**
+<<<<<<< HEAD
      * Test of basic additions to the dependency list by parsing the
      * composer.lock file
      *
@@ -116,6 +117,8 @@ public class ComposerLockAnalyzerTest extends BaseDBTestCase {
     }
 
     /**
+=======
+>>>>>>> refs/tags/v3.3.4
      * Test of inspect method, of class PythonDistributionAnalyzer.
      *
      * @throws AnalysisException is thrown when an exception occurs.

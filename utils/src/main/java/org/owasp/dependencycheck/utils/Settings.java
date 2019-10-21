@@ -280,15 +280,13 @@ public final class Settings {
          */
         public static final String ANALYZER_NODE_PACKAGE_ENABLED = "analyzer.node.package.enabled";
         /**
-         * The properties key for whether the Node Security Platform (nsp)
-         * analyzer is enabled.
+         * The properties key for whether the Node Audit analyzer is enabled.
          */
-        public static final String ANALYZER_NSP_PACKAGE_ENABLED = "analyzer.nsp.package.enabled";
+        public static final String ANALYZER_NODE_AUDIT_ENABLED = "analyzer.node.audit.enabled";
         /**
-         * The properties key for supplying the URL to the Node Security
-         * Platform API.
+         * The properties key for supplying the URL to the Node Audit API.
          */
-        public static final String ANALYZER_NSP_URL = "analyzer.nsp.url";
+        public static final String ANALYZER_NODE_AUDIT_URL = "analyzer.node.audit.url";
         /**
          * The properties key for whether the RetireJS analyzer is enabled.
          */
@@ -353,6 +351,10 @@ public final class Settings {
          * The properties key for whether the .NET Nuspec analyzer is enabled.
          */
         public static final String ANALYZER_NUSPEC_ENABLED = "analyzer.nuspec.enabled";
+        /**
+         * The properties key for whether the .NET Nuget packages.config analyzer is enabled.
+         */
+        public static final String ANALYZER_NUGETCONF_ENABLED = "analyzer.nugetconf.enabled";
         /**
          * The properties key for whether the .NET MSBuild Project analyzer is
          * enabled.
@@ -709,7 +711,7 @@ public final class Settings {
      * @param value the value for the property
      */
     public void setArrayIfNotEmpty(String key, List<String> value) {
-        if (null != value && value.size() > 0) {
+        if (null != value && !value.isEmpty()) {
             setString(key, new Gson().toJson(value));
         }
     }

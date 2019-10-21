@@ -20,7 +20,7 @@ Copyright (c) 2012 Jeremy Long. All Rights Reserved.
     <parent>
         <groupId>org.owasp</groupId>
         <artifactId>dependency-check-parent</artifactId>
-        <version>3.3.0.rc19.hdiv</version>
+        <version>3.3.4.rc19.hdiv</version>
     </parent>
 
     <artifactId>dependency-check-core</artifactId>
@@ -438,7 +438,7 @@ Copyright (c) 2012 Jeremy Long. All Rights Reserved.
                 <dependency>
                     <groupId>org.postgresql</groupId>
                     <artifactId>postgresql</artifactId>
-                    <version>42.2.3</version>
+                    <version>42.2.5</version>
                 </dependency>
             </dependencies>
             <build>
