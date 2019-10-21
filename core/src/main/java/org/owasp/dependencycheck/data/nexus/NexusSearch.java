@@ -18,6 +18,19 @@
 package org.owasp.dependencycheck.data.nexus;
 
 import org.hdiv.ee.ssl.HdivHttpConnection;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import javax.annotation.concurrent.ThreadSafe;
+import javax.xml.bind.DatatypeConverter;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.xpath.XPath;
+import javax.xml.xpath.XPathExpressionException;
+import javax.xml.xpath.XPathFactory;
 import org.owasp.dependencycheck.utils.Settings;
 import org.owasp.dependencycheck.utils.URLConnectionFactory;
 import org.owasp.dependencycheck.utils.XmlUtils;
@@ -109,6 +122,10 @@ public class NexusSearch {
         final URLConnectionFactory factory = new URLConnectionFactory(settings);
         conn = factory.createHttpURLConnection(url, useProxy);
         conn.setDoOutput(true);
+        final String authHeader = buildHttpAuthHeaderValue();
+        if (!authHeader.isEmpty()) {
+            conn.addRequestProperty("Authorization", authHeader);
+        }
 
         // JSON would be more elegant, but there's not currently a dependency
         // on JSON, so don't want to add one just for this
@@ -175,6 +192,10 @@ public class NexusSearch {
             final URLConnectionFactory factory = new URLConnectionFactory(settings);
             conn = factory.createHttpURLConnection(url, useProxy);
             conn.addRequestProperty("Accept", "application/xml");
+            final String authHeader = buildHttpAuthHeaderValue();
+            if (!authHeader.isEmpty()) {
+                conn.addRequestProperty("Authorization", authHeader);
+            }
             conn.connect();
             if (conn.getResponseCode() != 200) {
                 LOGGER.warn("Expected 200 result from Nexus, got {}", conn.getResponseCode());
@@ -191,5 +212,30 @@ public class NexusSearch {
             return false;
         }
         return true;
+    }
+
+    /**
+     * Constructs the base64 encoded basic authentication header value.
+     *
+     * @return the base64 encoded basic authentication header value
+     */
+    private String buildHttpAuthHeaderValue() {
+        final String user = settings.getString(Settings.KEYS.ANALYZER_NEXUS_USER, "");
+        final String pass = settings.getString(Settings.KEYS.ANALYZER_NEXUS_PASSWORD, "");
+        String result = "";
+        if (user.isEmpty() || pass.isEmpty()) {
+            LOGGER.debug("Skip authentication as user and/or password for nexus is empty");
+        } else {
+            final String auth = user + ':' + pass;
+            String base64Auth = null;
+            try {
+            	base64Auth = DatatypeConverter.printBase64Binary(auth.getBytes("UTF-8"));
+			}
+			catch (Exception e) {
+				base64Auth = DatatypeConverter.printBase64Binary(auth.getBytes());
+			}
+            result = new StringBuilder("Basic ").append(base64Auth).toString();
+        }
+        return result;
     }
 }

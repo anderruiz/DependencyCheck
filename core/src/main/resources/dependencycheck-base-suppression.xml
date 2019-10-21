@@ -95,6 +95,10 @@
             19. amazon_aws_project is a drupal utility (#1290)
             20. google android should not be flagged for the base library
             21. ws_project is a node websocket client (#1535)
+            22. first_project first is an Ethereum smart contract (#1588)
+            23. interact is a php project (#1609)
+            24. finder is drupal plugin (#1626)
+            25. archiver project is a golang module (#1627)
         ]]></notes>
         <filePath regex="true">.*(\.(dll|jar|ear|war|pom|nupkg|nuspec|aar)|pom\.xml|package.json|packages.config)$</filePath>
         <cpe>cpe:/a:sandbox:sandbox</cpe>
@@ -122,6 +126,10 @@
         <cpe>cpe:/a:amazon_aws_project:amazon_aws</cpe>
         <cpe>cpe:/a:google:android</cpe>
         <cpe>cpe:/a:ws_project:ws</cpe>
+        <cpe>cpe:/a:first_project:first</cpe>
+        <cpe>cpe:/a:interact:interact</cpe>
+        <cpe>cpe:/a:finder_project:finder</cpe>
+        <cpe>cpe:/a:archiver_project:archiver</cpe>
     </suppress>
     <suppress base="true">
         <notes><![CDATA[
@@ -158,6 +166,103 @@
         <gav regex="true">(com\.sun\.jersey|org\.glassfish\.jersey\.core):jersey-(client|common):.*</gav>
         <cpe>cpe:/a:oracle:glassfish</cpe>
         <cpe>cpe:/a:oracle:oracle_client</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        Suppresses false positives per issue #1614.
+        ]]></notes>
+        <gav regex="true">^eu\.bitwalker:UserAgentUtils:.*$</gav>
+        <cpe>cpe:/a:useragent_project:useragent</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        Suppresses false positives per issue #1599
+        ]]></notes>
+        <gav regex="true">^com\.atlassian\.http:atlassian-http:.*$</gav>
+        <cpe>cpe:/a:atlassian:bitbucket</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        Suppresses false positives per issue #1595
+        ]]></notes>
+        <gav regex="true">^org\.springframework\.security:spring-security-jwt:.*$</gav>
+        <cpe>cpe:/a:pivotal:spring_security_oauth</cpe>
+        <cpe>cpe:/a:pivotal_software:spring_security_oauth</cpe>
+        <cpe>cpe:/a:jwt_project:jwt</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        Suppresses false positives per issue #1594
+        ]]></notes>
+        <gav regex="true">^org\.jfrog\.artifactory\.client:artifactory-java-client-api:.*$</gav>
+        <cve>CVE-2016-6501</cve>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        Suppresses false positives per issue #1590
+        ]]></notes>
+        <gav regex="true">^com\.cybersource:flex-server-sdk:.*$</gav>
+        <cpe>cpe:/a:flex_project:flex</cpe>
+        <cpe>cpe:/a:id:id-software</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        Suppresses false positives per issue #1587
+        ]]></notes>
+        <gav regex="true">^org\.apache\.felix:org\.apache\.felix\.configadmin:.*$</gav>
+        <cpe>cpe:/a:cm_project:cm</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        Suppresses false positives per issue #1587
+        ]]></notes>
+        <gav regex="true">^com\.liferay:org\.apache\.felix\.configadmin:.*$</gav>
+        <cpe>cpe:/a:cm_project:cm</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        Suppresses false positives per issue #1585
+        ]]></notes>
+        <gav regex="true">^org\.apache\.geronimo\.javamail:geronimo-javamail_1\.4_mail:.*$</gav>
+        <cpe>cpe:/a:apache:geronimo</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        Suppresses false positives per issue #1585
+        ]]></notes>
+        <gav regex="true">^geronimo-spec:geronimo-spec-javamail:.*$</gav>
+        <cpe>cpe:/a:apache:geronimo</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        Suppresses false positives per issue #1585
+        ]]></notes>
+        <gav regex="true">^org\.apache\.geronimo\.javamail:geronimo-javamail_1\.4_provider:.*$</gav>
+        <cpe>cpe:/a:apache:geronimo</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        Suppresses false positives per issue #1566
+        ]]></notes>
+        <gav regex="true">^org\.springframework\.security\.oauth\.boot:spring-security-oauth2-autoconfigure:.*$</gav>
+        <cpe>cpe:/a:pivotal_software:spring_security_oauth</cpe>
+        <cpe>cpe:/a:pivotal:spring_security_oauth</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        Suppresses false positives per issue #1613
+        ]]></notes>
+        <gav regex="true">^com\.github\.jai-imageio.*$</gav>
+        <cpe>cpe:/a:git:git</cpe>
+        <cpe>cpe:/a:git_project:git</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        Suppresses false positives per issue 1581
+        ]]></notes>
+        <gav regex="true">^org\.apache\.activemq:artemis.*$</gav>
+        <cpe>cpe:/a:apache:apache_http_server</cpe>
+        <cpe>cpe:/a:apache:http_server</cpe>
     </suppress>
     <suppress base="true">
         <notes><![CDATA[
@@ -443,6 +548,35 @@
     </suppress>
     <suppress base="true">
         <notes><![CDATA[
+        suppress false positives per issue #1620
+        ]]></notes>
+        <gav regex="true">^javax\.jmdns:jmdns:.*$</gav>
+        <cpe>cpe:/a:apple:</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        suppress false positives per issue #1621
+        ]]></notes>
+        <gav regex="true">^org\.apache\.xbean:xbean.*$</gav>
+        <cpe>cpe:/a:apache:geronimo</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        suppress false positives per issue #1622
+        ]]></notes>
+        <gav regex="true">^org\.openjdk\.jmh:jmh-core:.*$</gav>
+        <cpe>cpe:/a:sun:openjdk</cpe>
+        <cpe>cpe:/a:oracle:openjdk</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        suppress false positives per issue #1621
+        ]]></notes>
+        <gav regex="true">^org\.apache\.geronimo\.components:geronimo-transaction:.*$</gav>
+        <cpe>cpe:/a:apache:geronimo</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
         suppress false positives per issue #438
             Note, there will be more false positives for Netty. Trying to figure out a better suppression.
         ]]></notes>
@@ -526,11 +660,35 @@
     </suppress>
     <suppress base="true">
         <notes><![CDATA[
-        javax.transaction false positives
+        javax.transaction and javax.annotation (#1629) false positives
         ]]></notes>
-        <gav regex="true">javax\.transaction:javax\.transaction-api:.*</gav>
+        <gav regex="true">javax\.(annotation|transaction):javax\.(annotation|transaction)-api:.*</gav>
         <cpe>cpe:/a:oracle:glassfish</cpe>
     </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        false positives per #1630
+        ]]></notes>
+        <gav regex="true">^org\.apache\.directory\.api:api-ldap.*$</gav>
+        <cpe>cpe:/a:apache:apache_http_server</cpe>
+        <cpe>cpe:/a:apache:directory_studio</cpe>
+        <cpe>cpe:/a:apache:ldap_studio</cpe>
+        <cpe>cpe:/a:net-ldap_project:net-ldap</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        false positives per #1631
+        ]]></notes>
+        <gav regex="true">^org\.apache\.servicemix\.bundles:org\.apache\.servicemix\.bundles\.not-yet-commons-ssl:.*$</gav>
+        <cpe>cpe:/a:apache-ssl:apache-ssl</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        false positives per #1635
+        ]]></notes>
+        <gav regex="true">^org\.apache\.cxf\.fediz:fediz-core:.*$</gav>
+        <cpe>cpe:/a:apache:cxf</cpe>
+     </suppress>
     <suppress base="true">
         <notes><![CDATA[
         false positive in drop wizard
@@ -572,9 +730,9 @@
     </suppress>
     <suppress base="true">
         <notes><![CDATA[
-        Glassfish false positives.
+        Glassfish false positives. Added jws per #1640
         ]]></notes>
-        <gav regex="true">^javax\.servlet:javax\.servlet-api:.*$</gav>
+        <gav regex="true">^javax\.(jws|servlet):javax\.(jws|servlet)-api:.*$</gav>
         <cpe>cpe:/a:oracle:glassfish</cpe>
     </suppress>
     <suppress base="true">
@@ -583,6 +741,13 @@
         ]]></notes>
         <gav regex="true">org\.glassfish:javax.el:.*</gav>
         <cpe>cpe:/a:oracle:glassfish</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        False positive per #1641
+        ]]></notes>
+        <gav regex="true">^org\.pac4j:pac4j-oidc:.*$</gav>
+        <cpe>cpe:/a:openid:openid</cpe>
     </suppress>
     <suppress base="true">
         <notes><![CDATA[
@@ -1328,6 +1493,13 @@
     </suppress>
     <suppress base="true">
         <notes><![CDATA[
+        False positive per #1642
+        ]]></notes>
+        <gav regex="true">^org\.apache\.curator:curator-recipes:.*$</gav>
+        <cpe>cpe:/a:apache:zookeeper</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
         general FP cleanup: apache_test CPE is referencing Perl code.
         ]]></notes>
         <gav regex="true">^org\.apache\.ant:ant-testutil:.*$</gav>
@@ -1416,8 +1588,18 @@
         FP per issue #952 - instead of suppressing the whole thing, we will just
             suppress specific CVE that are for the server
         ]]></notes>
-        <gav regex="true">^mysql:mysql-connector-java:.*$</gav>
+        <gav regex="true">^(mysql:mysql-connector-java|org\.drizzle\.jdbc:drizzle-jdbc):.*$</gav>
         <cve>CVE-2018-3081</cve>
+        <cve>CVE-2018-3137</cve>
+        <cve>CVE-2018-3145</cve>
+        <cve>CVE-2018-3170</cve>
+        <cve>CVE-2018-3182</cve>
+        <cve>CVE-2018-3186</cve>
+        <cve>CVE-2018-3195</cve>
+        <cve>CVE-2018-3203</cve>
+        <cve>CVE-2018-3212</cve>
+        <cve>CVE-2018-3279</cve>
+        <cve>CVE-2018-3286</cve>
         <cve>CVE-2018-3071</cve>
         <cve>CVE-2018-2759</cve>
         <cve>CVE-2017-3331</cve>

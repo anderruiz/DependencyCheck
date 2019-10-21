@@ -352,7 +352,8 @@ public final class Settings {
          */
         public static final String ANALYZER_NUSPEC_ENABLED = "analyzer.nuspec.enabled";
         /**
-         * The properties key for whether the .NET Nuget packages.config analyzer is enabled.
+         * The properties key for whether the .NET Nuget packages.config
+         * analyzer is enabled.
          */
         public static final String ANALYZER_NUGETCONF_ENABLED = "analyzer.nugetconf.enabled";
         /**
@@ -368,6 +369,14 @@ public final class Settings {
          * The properties key for the Nexus search URL.
          */
         public static final String ANALYZER_NEXUS_URL = "analyzer.nexus.url";
+        /**
+         * The properties key for the Nexus search credentials username.
+         */
+        public static final String ANALYZER_NEXUS_USER = "analyzer.nexus.username";
+        /**
+         * The properties key for the Nexus search credentials password.
+         */
+        public static final String ANALYZER_NEXUS_PASSWORD = "analyzer.nexus.password";
         /**
          * The properties key for using the proxy to reach Nexus.
          */
@@ -539,7 +548,10 @@ public final class Settings {
          * The key to determine which ecosystems should skip the CPE analysis.
          */
         public static final String ECOSYSTEM_SKIP_CPEANALYZER = "ecosystem.skip.cpeanalyzer";
-
+        /**
+         * The key to determine minimum score for Lucene search matches.
+         */
+        public static final String LUCENE_MIN_SCORE_FILTER = "dependency.check.lucene.min.score";
         /**
          *
          * Adds capabilities to batch insert. Tested on PostgreSQL and H2.
@@ -1053,6 +1065,28 @@ public final class Settings {
      */
     public boolean getBoolean(String key, boolean defaultValue) throws InvalidSettingException {
         return Boolean.parseBoolean(getString(key, Boolean.toString(defaultValue)));
+    }
+
+    /**
+     * Returns a float value from the properties file. If the value was
+     * specified as a system property or passed in via the
+     * <code>-Dprop=value</code> argument this method will return the value from
+     * the system properties before the values in the contained configuration
+     * file.
+     *
+     * @param key the key to lookup within the properties file
+     * @param defaultValue the default value to return if the setting does not
+     * exist
+     * @return the property from the properties file
+     */
+    public float getFloat(String key, float defaultValue) {
+        float retValue = defaultValue;
+        try {
+            retValue = Float.parseFloat(getString(key));
+        } catch (Throwable ignore) {
+            LOGGER.trace("ignore", ignore);
+        }
+        return retValue;
     }
 
     /**

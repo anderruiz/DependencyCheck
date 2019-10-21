@@ -28,6 +28,7 @@ skipProvidedScope           | Skip analysis for artifacts with Provided Scope.  
 skipRuntimeScope            | Skip analysis for artifacts with Runtime Scope.            | false
 skipSystemScope             | Skip analysis for artifacts with System Scope.             | false
 skipTestScope               | Skip analysis for artifacts with Test Scope.               | true
+skipDependencyManagement    | Skip analysis for dependencyManagement sections.           | true
 skipArtifactType            | A regular expression used to filter/skip artifact types.   | &nbsp;
 suppressionFiles            | The file paths to the XML suppression files \- used to suppress [false positives](../general/suppression.html). | &nbsp;
 hintsFile                   | The file path to the XML hints file \- used to resolve [false negatives](../general/hints.html).       | &nbsp;
@@ -101,6 +102,7 @@ jarAnalyzerEnabled            | Sets whether Jar Analyzer will be used.         
 centralAnalyzerEnabled        | Sets whether Central Analyzer will be used. If this analyzer is being disabled there is a good chance you also want to disable the Nexus Analyzer (see below). | true
 nexusAnalyzerEnabled          | Sets whether Nexus Analyzer will be used (requires Nexus Pro). This analyzer is superceded by the Central Analyzer; however, you can configure this to run against a Nexus Pro installation. | true
 nexusUrl                      | Defines the Nexus Server's web service end point (example http://domain.enterprise/service/local/). If not set the Nexus Analyzer will be disabled. | &nbsp;
+nexusServerId                 | The id of a server defined in the settings.xml that configures the credentials (username and password) for a Nexus server's REST API end point. When not specified the communication with the Nexus server's REST API will be unauthenticated. | &nbsp;
 nexusUsesProxy                | Whether or not the defined proxy should be used when connecting to Nexus. | true
 artifactoryAnalyzerEnabled    | Sets whether Artifactory analyzer will be used | false
 artifactoryAnalyzerUrl        | The Artifactory server URL. | &nbsp;
@@ -180,4 +182,3 @@ are configured in the Maven settings file you must tell dependency-check which p
 Property             | Description                                                                          | Default Value
 ---------------------|--------------------------------------------------------------------------------------|------------------
 mavenSettingsProxyId | The id for the proxy, configured via settings.xml, that dependency-check should use. | &nbsp;
-

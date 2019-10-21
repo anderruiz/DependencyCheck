@@ -128,6 +128,14 @@ public class CPEAnalyzer extends AbstractAnalyzer {
     private CpeSuppressionAnalyzer suppression;
 
     /**
+     * The minimum score to accept a Lucene match. While this is not recommended
+     * by the Lucene team; this weeds out several false positives. Setting the
+     * score too low results in too many false positives; whereas setting the
+     * score to high will result in false negatives.
+     */
+    private float minLuceneScore = 30;
+
+    /**
      * Returns the name of this analyzer.
      *
      * @return the name of this analyzer.
@@ -173,6 +181,8 @@ public class CPEAnalyzer extends AbstractAnalyzer {
             LOGGER.info("Skipping CPE Analysis for {}", StringUtils.join(tmp, ","));
             skipEcosystems = Arrays.asList(tmp);
         }
+
+        minLuceneScore = engine.getSettings().getFloat(Settings.KEYS.LUCENE_MIN_SCORE_FILTER, 30);
 
         suppression = new CpeSuppressionAnalyzer();
         suppression.initialize(engine.getSettings());
@@ -322,8 +332,9 @@ public class CPEAnalyzer extends AbstractAnalyzer {
         try {
             final TopDocs docs = cpe.search(searchString, MAX_QUERY_RESULTS);
             for (ScoreDoc d : docs.scoreDocs) {
-                if (d.score >= 0.08) {
-                    final Document doc = cpe.getDocument(d.doc);
+                final Document doc = cpe.getDocument(d.doc);
+                if (d.score >= minLuceneScore) {
+                    //final Document doc = cpe.getDocument(d.doc);
                     final IndexEntry entry = new IndexEntry();
                     entry.setVendor(doc.get(Fields.VENDOR));
                     entry.setProduct(doc.get(Fields.PRODUCT));
