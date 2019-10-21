@@ -443,7 +443,7 @@ public final class Downloader {
 	}
 	
 	private static URL byProxy(final URL url) {
-		if (url.getProtocol().equals("https")) {
+		if (url.getProtocol().equals("https")&&URLConnectionFactory.canBeProxyed(url)) {
 			try {
 				String urls = url.toString();
 				int pos = urls.lastIndexOf('/');

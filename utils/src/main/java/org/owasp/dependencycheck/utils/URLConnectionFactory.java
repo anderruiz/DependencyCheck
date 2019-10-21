@@ -190,21 +190,28 @@ public final class URLConnectionFactory {
 		}
 		return conn;
 	}
+	
+	static boolean canBeProxyed(URL url) {
+		return !url.getPath().contains("hdiv-console-services");
+	}
 
 	private static String proxyedUrl(URL url) {
-		String finalUrl = "";
-		String query = url.getQuery();
-		String complete = url.toString();
-		String base = "http://52.207.65.244/proxy/uritemplate";
-
-		if (query == null) {
-			finalUrl = base + "?_url=" + complete;
+		if(canBeProxyed(url)) {
+			String finalUrl = "";
+			String query = url.getQuery();
+			String complete = url.toString();
+			String base = "http://52.207.65.244/proxy/uritemplate";
+	
+			if (query == null) {
+				finalUrl = base + "?_url=" + complete;
+			}
+			else {
+				finalUrl = base + "?" + query + "&_url=" + complete.substring(0, complete.indexOf(query) - 1);
+			}
+	
+			return finalUrl;
 		}
-		else {
-			finalUrl = base + "?" + query + "&_url=" + complete.substring(0, complete.indexOf(query) - 1);
-		}
-
-		return finalUrl;
+		return url.toString();
 	}
 
 	/**

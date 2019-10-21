@@ -189,7 +189,7 @@ public class CentralSearch {
                     }
                     return result;
                 } else {
-                    final String errorMessage = "Bad HTTP response, code: " + conn.getResponseCode() + ", reason: " + conn.getResponseMessage();
+                    final String errorMessage = "Bad HTTP response, code: " + conn.getResponseCode() + ", reason: " + conn.getResponseMessage() + " url:"+conn.getURL();
                     throw new IOException(errorMessage);
                 }
             } catch (FileNotFoundException e) {
