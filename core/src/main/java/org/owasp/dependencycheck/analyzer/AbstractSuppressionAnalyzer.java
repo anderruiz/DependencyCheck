@@ -56,6 +56,10 @@ public abstract class AbstractSuppressionAnalyzer extends AbstractAnalyzer {
      */
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractSuppressionAnalyzer.class);
     /**
+     * The file name of the base suppression XML file.
+     */
+    private static final String BASE_SUPPRESSION_FILE = "dependencycheck-base-suppression.xml";
+    /**
      * The list of suppression rules.
      */
     private List<SuppressionRule> rules = new ArrayList<>();
@@ -103,12 +107,9 @@ public abstract class AbstractSuppressionAnalyzer extends AbstractAnalyzer {
 
     @Override
     protected void analyzeDependency(Dependency dependency, Engine engine) throws AnalysisException {
-        if (rules.isEmpty()) {
-            return;
-        }
-        for (final SuppressionRule rule : rules) {
-            rule.process(dependency);
-        }
+    	for (SuppressionRule rule : rules) {
+    		rule.process(dependency);
+		}
     }
 
     /**
@@ -138,8 +139,8 @@ public abstract class AbstractSuppressionAnalyzer extends AbstractAnalyzer {
             LOGGER.debug("{} suppression files failed to load.", failedLoadingFiles.size());
             final StringBuilder sb = new StringBuilder();
             for (String item : failedLoadingFiles) {
-                sb.append(item);
-            }
+            	sb.append(item);
+			}
             throw new SuppressionParseException(sb.toString());
         }
     }
@@ -152,11 +153,25 @@ public abstract class AbstractSuppressionAnalyzer extends AbstractAnalyzer {
     private void loadSuppressionBaseData() throws SuppressionParseException {
         final SuppressionParser parser = new SuppressionParser();
         List<SuppressionRule> ruleList;
+        InputStream in= null;
         try {
-            final InputStream in = FileUtils.getResourceAsStream("dependencycheck-base-suppression.xml");
+            in = FileUtils.getResourceAsStream(BASE_SUPPRESSION_FILE);
+            if (in == null) {
+                throw new SuppressionParseException("Suppression rules `" + BASE_SUPPRESSION_FILE + "` could not be found");
+            }
             ruleList = parser.parseSuppressionRules(in);
-        } catch (SAXException ex) {
+        } catch (SAXException | IOException ex) {
             throw new SuppressionParseException("Unable to parse the base suppression data file", ex);
+        } finally {
+        	if(in!=null) {
+        		try {
+        			in.close();
+				}
+				catch (Exception e) {
+					// TODO: handle exception
+				}
+        		
+        	}
         }
         rules.addAll(ruleList);
     }
@@ -178,7 +193,7 @@ public abstract class AbstractSuppressionAnalyzer extends AbstractAnalyzer {
         File file = null;
         boolean deleteTempFile = false;
         try {
-            final Pattern uriRx = Pattern.compile("^(https?|file)\\:.*", Pattern.CASE_INSENSITIVE);
+            final Pattern uriRx = Pattern.compile("^(https?|file):.*", Pattern.CASE_INSENSITIVE);
             if (uriRx.matcher(suppressionFilePath).matches()) {
                 deleteTempFile = true;
                 file = getSettings().getTempFile("suppression", "xml");
@@ -194,14 +209,14 @@ public abstract class AbstractSuppressionAnalyzer extends AbstractAnalyzer {
                 file = new File(suppressionFilePath);
 
                 if (!file.exists()) {
-                    try (InputStream suppressionsFromClasspath = FileUtils.getResourceAsStream(suppressionFilePath)) {
-                        if (suppressionsFromClasspath != null) {
+                    try (InputStream suppressionFromClasspath = FileUtils.getResourceAsStream(suppressionFilePath)) {
+                        if (suppressionFromClasspath != null) {
                             deleteTempFile = true;
                             file = getSettings().getTempFile("suppression", "xml");
                             try {
-                                org.apache.commons.io.FileUtils.copyInputStreamToFile(suppressionsFromClasspath, file);
+                                org.apache.commons.io.FileUtils.copyInputStreamToFile(suppressionFromClasspath, file);
                             } catch (IOException ex) {
-                                throwSuppressionParseException("Unable to locate suppressions file in classpath", ex, suppressionFilePath);
+                                throwSuppressionParseException("Unable to locate suppression file in classpath", ex, suppressionFilePath);
                             }
                         }
                     }
@@ -228,7 +243,7 @@ public abstract class AbstractSuppressionAnalyzer extends AbstractAnalyzer {
         } catch (SuppressionParseException ex) {
             throw ex;
         } catch (IOException ex) {
-            throwSuppressionParseException("Unable to create temp file for suppressions", ex, suppressionFilePath);
+            throwSuppressionParseException("Unable to create temp file for suppression file", ex, suppressionFilePath);
         } finally {
             if (deleteTempFile && file != null) {
                 FileUtils.delete(file);

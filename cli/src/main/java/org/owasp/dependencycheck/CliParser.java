@@ -17,6 +17,8 @@
  */
 package org.owasp.dependencycheck;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 import java.io.File;
 import java.io.FileNotFoundException;
 
@@ -60,7 +62,7 @@ public final class CliParser {
     /**
      * The supported reported formats.
      */
-    private static final String SUPPORTED_FORMATS = "HTML, XML, CSV, JSON, VULN, or ALL";
+    private static final String SUPPORTED_FORMATS = "HTML, XML, CSV, JSON, JUNIT, or ALL";
 
     /**
      * Constructs a new CLI Parser object with the configured settings.
@@ -125,28 +127,27 @@ public final class CliParser {
         if (isRunScan()) {
             validatePathExists(getScanFiles(), ARGUMENT.SCAN);
             validatePathExists(getReportDirectory(), ARGUMENT.OUT);
-            if (getPathToMono() != null) {
-                validatePathExists(getPathToMono(), ARGUMENT.PATH_TO_MONO);
-            }
-            if (!line.hasOption(ARGUMENT.APP_NAME) && !line.hasOption(ARGUMENT.PROJECT)) {
-                throw new ParseException("Missing '" + ARGUMENT.PROJECT + "' argument; the scan cannot be run without the an project name.");
+            if (getPathToCore() != null) {
+                validatePathExists(getPathToCore(), ARGUMENT.PATH_TO_CORE);
             }
             if (line.hasOption(ARGUMENT.OUTPUT_FORMAT)) {
-                final String format = line.getOptionValue(ARGUMENT.OUTPUT_FORMAT);
+                String validating = null;
                 try {
-                    Format.valueOf(format);
+                    for (String format : getReportFormat()) {
+                        validating = format;
+                        Format.valueOf(format);
+                    }
                 } catch (IllegalArgumentException ex) {
                     final String msg = String.format("An invalid 'format' of '%s' was specified. "
-                            + "Supported output formats are " + SUPPORTED_FORMATS, format);
+                            + "Supported output formats are " + SUPPORTED_FORMATS, validating);
                     throw new ParseException(msg);
                 }
             }
-            if ((getBaseCve12Url() != null || getBaseCve20Url() != null || getModifiedCve12Url() != null || getModifiedCve20Url() != null)
-                    && (getBaseCve12Url() == null || getBaseCve20Url() == null || getModifiedCve12Url() == null || getModifiedCve20Url() == null)) {
+            if ((getBaseCveUrl() != null && getModifiedCveUrl() == null) || (getBaseCveUrl() == null && getModifiedCveUrl() != null)) {
                 final String msg = "If one of the CVE URLs is specified they must all be specified; please add the missing CVE URL.";
                 throw new ParseException(msg);
             }
-            if (line.hasOption((ARGUMENT.SYM_LINK_DEPTH))) {
+            if (line.hasOption(ARGUMENT.SYM_LINK_DEPTH)) {
                 try {
                     final int i = Integer.parseInt(line.getOptionValue(ARGUMENT.SYM_LINK_DEPTH));
                     if (i < 0) {
@@ -192,21 +193,34 @@ public final class CliParser {
             throw new FileNotFoundException(msg);
         } else if (!path.contains("*") && !path.contains("?")) {
             File f = new File(path);
-            if ("o".equalsIgnoreCase(argumentName.substring(0, 1)) && !"ALL".equalsIgnoreCase(this.getReportFormat())) {
+            final String[] formats = this.getReportFormat();
+            if ("o".equalsIgnoreCase(argumentName.substring(0, 1)) && formats.length == 1 && !"ALL".equalsIgnoreCase(formats[0])) {
                 final String checkPath = path.toLowerCase();
-                if (checkPath.endsWith(".html") || checkPath.endsWith(".xml") || checkPath.endsWith(".htm")) {
+                if (checkPath.endsWith(".html") || checkPath.endsWith(".xml") || checkPath.endsWith(".htm")
+                        || checkPath.endsWith(".csv") || checkPath.endsWith(".json")) {
                     if (f.getParentFile() == null) {
                         f = new File(".", path);
                     }
                     if (!f.getParentFile().isDirectory()) {
                         isValid = false;
-                        final String msg = String.format("Invalid '%s' argument: '%s'", argumentName, path);
+                        final String msg = String.format("Invalid '%s' argument: '%s' - directory path does not exist", argumentName, path);
                         throw new FileNotFoundException(msg);
                     }
                 }
+            } else if ("o".equalsIgnoreCase(argumentName.substring(0, 1)) && !f.isDirectory()) {
+                if (f.getParentFile().isDirectory() && !f.mkdir()) {
+                    isValid = false;
+                    final String msg = String.format("Invalid '%s' argument: '%s' - unable to create the output directory", argumentName, path);
+                    throw new FileNotFoundException(msg);
+                }
+                if (!f.isDirectory()) {
+                    isValid = false;
+                    final String msg = String.format("Invalid '%s' argument: '%s' - path does not exist", argumentName, path);
+                    throw new FileNotFoundException(msg);
+                }
             } else if (!f.exists()) {
                 isValid = false;
-                final String msg = String.format("Invalid '%s' argument: '%s'", argumentName, path);
+                final String msg = String.format("Invalid '%s' argument: '%s' - path does not exist", argumentName, path);
                 throw new FileNotFoundException(msg);
             }
 <<<<<<< HEAD
@@ -1594,7 +1608,7 @@ public final class CliParser {
                 false, "Disables the automatic updating of the CPE data.");
 
         final Option projectName = Option.builder().hasArg().argName("name").longOpt(ARGUMENT.PROJECT)
-                .desc("The name of the project being scanned. This is a required argument.")
+                .desc("The name of the project being scanned.")
                 .build();
 
         final Option path = Option.builder(ARGUMENT.SCAN_SHORT).argName("path").hasArg().longOpt(ARGUMENT.SCAN)
@@ -1617,7 +1631,7 @@ public final class CliParser {
                 .build();
 
         final Option outputFormat = Option.builder(ARGUMENT.OUTPUT_FORMAT_SHORT).argName("format").hasArg().longOpt(ARGUMENT.OUTPUT_FORMAT)
-                .desc("The output format to write to (" + SUPPORTED_FORMATS + "). The default is HTML.")
+                .desc("The report format (" + SUPPORTED_FORMATS + "). The default is HTML. Multiple format parameters can be specified.")
                 .build();
 
         final Option verboseLog = Option.builder(ARGUMENT.VERBOSE_LOG_SHORT).argName("file").hasArg().longOpt(ARGUMENT.VERBOSE_LOG)
@@ -1654,18 +1668,24 @@ public final class CliParser {
                         + "The default is 11; since the CVSS scores are 0-10, by default the build will never fail.")
                 .build();
 
+        final Option prettyPrint = Option.builder().longOpt(ARGUMENT.PRETTY_PRINT)
+                .desc("Specifies if the build should be failed if a CVSS score above a specified level is identified. "
+                        + "The default is 11; since the CVSS scores are 0-10, by default the build will never fail.")
+                .build();
+
         //This is an option group because it can be specified more then once.
         final OptionGroup og = new OptionGroup();
         og.addOption(path);
 
-        final OptionGroup exog = new OptionGroup();
-        exog.addOption(excludes);
+        final OptionGroup excludeOptionGroup = new OptionGroup();
+        excludeOptionGroup.addOption(excludes);
 
         options.addOptionGroup(og)
-                .addOptionGroup(exog)
+                .addOptionGroup(excludeOptionGroup)
                 .addOption(projectName)
                 .addOption(out)
                 .addOption(outputFormat)
+                .addOption(prettyPrint)
                 .addOption(version)
                 .addOption(help)
                 .addOption(advancedHelp)
@@ -1678,7 +1698,10 @@ public final class CliParser {
                 .addOption(cveValidForHours)
                 .addOption(experimentalEnabled)
                 .addOption(retiredEnabled)
-                .addOption(failOnCVSS);
+                .addOption(failOnCVSS)
+                .addOption(Option.builder().argName("score").longOpt(ARGUMENT.FAIL_JUNIT_ON_CVSS)
+                        .desc("Specifies the CVSS score that is considered a failure when generating the junit report. "
+                                + "The default is 0.").build());
     }
 
     /**
@@ -1690,14 +1713,10 @@ public final class CliParser {
      */
     @SuppressWarnings("static-access")
     private void addAdvancedOptions(final Options options) {
-        final Option cve12Base = Option.builder().argName("url").hasArg().longOpt(ARGUMENT.CVE_BASE_12)
-                .desc("Base URL for each year’s CVE 1.2, the %d will be replaced with the year. ").build();
-        final Option cve20Base = Option.builder().argName("url").hasArg().longOpt(ARGUMENT.CVE_BASE_20)
-                .desc("Base URL for each year’s CVE 2.0, the %d will be replaced with the year.").build();
-        final Option cve12Modified = Option.builder().argName("url").hasArg().longOpt(ARGUMENT.CVE_MOD_12)
-                .desc("URL for the modified CVE 1.2.").build();
-        final Option cve20Modified = Option.builder().argName("url").hasArg().longOpt(ARGUMENT.CVE_MOD_20)
-                .desc("URL for the modified CVE 2.0.").build();
+        final Option cveBase = Option.builder().argName("url").hasArg().longOpt(ARGUMENT.CVE_BASE_URL)
+                .desc("Base URL for each year’s CVE files (json.gz), the %d will be replaced with the year. ").build();
+        final Option cveModified = Option.builder().argName("url").hasArg().longOpt(ARGUMENT.CVE_MODIFIED_URL)
+                .desc("URL for the modified CVE (json.gz).").build();
         final Option updateOnly = Option.builder().longOpt(ARGUMENT.UPDATE_ONLY)
                 .desc("Only update the local NVD data cache; no scan will be executed.").build();
         final Option data = Option.builder(ARGUMENT.DATA_DIRECTORY_SHORT).argName("path").hasArg().longOpt(ARGUMENT.DATA_DIRECTORY)
@@ -1717,8 +1736,8 @@ public final class CliParser {
                 .longOpt(ARGUMENT.ADDITIONAL_ZIP_EXTENSIONS)
                 .desc("A comma separated list of additional extensions to be scanned as ZIP files "
                         + "(ZIP, EAR, WAR are already treated as zip files)").build();
-        final Option pathToMono = Option.builder().argName("path").hasArg().longOpt(ARGUMENT.PATH_TO_MONO)
-                .desc("The path to Mono for .NET Assembly analysis on non-windows systems.").build();
+        final Option pathToCore = Option.builder().argName("path").hasArg().longOpt(ARGUMENT.PATH_TO_CORE)
+                .desc("The path to dotnet core.").build();
         final Option pathToBundleAudit = Option.builder().argName("path").hasArg()
                 .longOpt(ARGUMENT.PATH_TO_BUNDLE_AUDIT)
                 .desc("The path to bundle-audit for Gem bundle analysis.").build();
@@ -1775,6 +1794,8 @@ public final class CliParser {
                         + "the Nexus Analyzer.").build();
         final Option disableNexusAnalyzer = Option.builder().longOpt(ARGUMENT.DISABLE_NEXUS)
                 .desc("Disable the Nexus Analyzer.").build();
+        final Option disableOssIndexAnalyzer = Option.builder().longOpt(ARGUMENT.DISABLE_OSSINDEX)
+                .desc("Disable the Sonatype OSS Index Analyzer.").build();
         final Option purge = Option.builder().longOpt(ARGUMENT.PURGE_NVD)
                 .desc("Purges the local NVD data cache").build();
         final Option retireJsFilters = Option.builder().argName("pattern").hasArg().longOpt(ARGUMENT.RETIREJS_FILTERS)
@@ -1782,10 +1803,8 @@ public final class CliParser {
                         + "to exclude based on your applications own copyright line. This option can be specified multiple times.")
                 .build();
         options.addOption(updateOnly)
-                .addOption(cve12Base)
-                .addOption(cve20Base)
-                .addOption(cve12Modified)
-                .addOption(cve20Modified)
+                .addOption(cveBase)
+                .addOption(cveModified)
                 .addOption(proxyPort)
                 .addOption(proxyServer)
                 .addOption(proxyUsername)
@@ -1814,15 +1833,25 @@ public final class CliParser {
                 .addOption(disableNuspecAnalyzer)
                 .addOption(disableNugetconfAnalyzer)
                 .addOption(disableCentralAnalyzer)
+                .addOption(Option.builder().longOpt(ARGUMENT.DISABLE_CENTRAL_CACHE)
+                        .desc("Disallow the Central Analyzer from caching results").build())
                 .addOption(disableNexusAnalyzer)
+                .addOption(disableOssIndexAnalyzer)
+                .addOption(Option.builder().longOpt(ARGUMENT.DISABLE_OSSINDEX_CACHE)
+                        .desc("Disallow the OSS Index Analyzer from caching results").build())
                 .addOption(cocoapodsAnalyzerEnabled)
                 .addOption(swiftPackageManagerAnalyzerEnabled)
                 .addOption(Option.builder().longOpt(ARGUMENT.DISABLE_NODE_JS)
                         .desc("Disable the Node.js Package Analyzer.").build())
                 .addOption(Option.builder().longOpt(ARGUMENT.DISABLE_NODE_AUDIT)
                         .desc("Disable the Node Audit Analyzer.").build())
+                .addOption(Option.builder().longOpt(ARGUMENT.DISABLE_NODE_AUDIT_CACHE)
+                        .desc("Disallow the Node Audit Analyzer from caching results").build())
                 .addOption(Option.builder().longOpt(ARGUMENT.DISABLE_RETIRE_JS)
                         .desc("Disable the RetireJS Analyzer.").build())
+                .addOption(Option.builder().longOpt(ARGUMENT.RETIREJS_URL)
+                        .desc("The Retire JS Respository URL")
+                        .argName("url").hasArg(true).build())
                 .addOption(Option.builder().longOpt(ARGUMENT.RETIREJS_FILTER_NON_VULNERABLE)
                         .desc("Specifies that the Retire JS Analyzer should filter out non-vulnerable JS files from the report.").build())
                 .addOption(Option.builder().longOpt(ARGUMENT.ARTIFACTORY_ENABLED)
@@ -1851,7 +1880,7 @@ public final class CliParser {
                 .addOption(nexusPassword)
                 .addOption(nexusUsesProxy)
                 .addOption(additionalZipExtensions)
-                .addOption(pathToMono)
+                .addOption(pathToCore)
                 .addOption(pathToBundleAudit)
                 .addOption(purge);
     }
@@ -1866,18 +1895,7 @@ public final class CliParser {
      */
     @SuppressWarnings({"static-access", "deprecation"})
     private void addDeprecatedOptions(final Options options) {
-
-        final Option proxyServer = Option.builder().argName("url").hasArg().longOpt(ARGUMENT.PROXY_URL)
-                .desc("The proxy url argument is deprecated, use proxyserver instead.")
-                .build();
-        final Option appName = Option.builder(ARGUMENT.APP_NAME_SHORT).argName("name").hasArg().longOpt(ARGUMENT.APP_NAME)
-                .desc("The name of the project being scanned.")
-                .build();
-
-        options.addOption(Option.builder().longOpt("disableNSP")
-                        .desc("Disable the NSP Package Analyzer.").build());
-        options.addOption(proxyServer);
-        options.addOption(appName);
+        //all deprecated arguments have been removed (for now)
     }
 
     /**
@@ -1930,7 +1948,7 @@ public final class CliParser {
      * Utility method to determine if one of the disable options has been set.
      * If not set, this method will check the currently configured settings for
      * the current value to return.
-     *
+     * <p>
      * Example given `--disableArchive` on the command line would cause this
      * method to return true for the disable archive setting.
      *
@@ -2084,6 +2102,27 @@ public final class CliParser {
     }
 
     /**
+     * Returns true if the {@link ARGUMENT#DISABLE_OSSINDEX} command line
+     * argument was specified.
+     *
+     * @return true if the Oss Index analyzer is disabled; otherwise false
+     */
+    public boolean isOssIndexDisabled() {
+        return hasDisableOption(ARGUMENT.DISABLE_OSSINDEX, Settings.KEYS.ANALYZER_OSSINDEX_ENABLED);
+    }
+
+    /**
+     * Returns true if the {@link ARGUMENT#DISABLE_OSSINDEX_CACHE} command line
+     * argument was specified.
+     *
+     * @return true if the Oss Index analyzer caching is disabled; otherwise
+     * false
+     */
+    public boolean isOssIndexCacheDisabled() {
+        return hasDisableOption(ARGUMENT.DISABLE_OSSINDEX_CACHE, Settings.KEYS.ANALYZER_OSSINDEX_USE_CACHE);
+    }
+
+    /**
      * Returns true if the disableOpenSSL command line argument was specified.
      *
      * @return true if the disableOpenSSL command line argument was specified;
@@ -2116,6 +2155,17 @@ public final class CliParser {
             return true;
         }
         return hasDisableOption(ARGUMENT.DISABLE_NODE_AUDIT, Settings.KEYS.ANALYZER_NODE_AUDIT_ENABLED);
+    }
+
+    /**
+     * Returns true if the disableNodeAuditCache command line argument was
+     * specified.
+     *
+     * @return true if the disableNodeAuditCache command line argument was
+     * specified; otherwise false
+     */
+    public boolean isNodeAuditCacheDisabled() {
+        return hasDisableOption(ARGUMENT.DISABLE_NODE_AUDIT_CACHE, Settings.KEYS.ANALYZER_NODE_AUDIT_USE_CACHE);
     }
 
     /**
@@ -2161,6 +2211,17 @@ public final class CliParser {
     }
 
     /**
+     * Returns true if the disableCentralCache command line argument was
+     * specified.
+     *
+     * @return true if the disableCentralCache command line argument was
+     * specified; otherwise false
+     */
+    public boolean isCentralCacheDisabled() {
+        return hasDisableOption(ARGUMENT.DISABLE_CENTRAL_CACHE, Settings.KEYS.ANALYZER_CENTRAL_USE_CACHE);
+    }
+
+    /**
      * Returns the url to the nexus server if one was specified.
      *
      * @return the url to the nexus server; if none was specified this will
@@ -2175,20 +2236,22 @@ public final class CliParser {
     }
 
     /**
-     * Returns the username to authenticate to the nexus server if one was specified.
+     * Returns the username to authenticate to the nexus server if one was
+     * specified.
      *
-     * @return the username to authenticate to the nexus server; if none was specified this will
-     * return null;
+     * @return the username to authenticate to the nexus server; if none was
+     * specified this will return null;
      */
     public String getNexusUsername() {
         return line.getOptionValue(ARGUMENT.NEXUS_USERNAME);
     }
 
     /**
-     * Returns the password to authenticate to the nexus server if one was specified.
+     * Returns the password to authenticate to the nexus server if one was
+     * specified.
      *
-     * @return the password to authenticate to the nexus server; if none was specified this will
-     * return null;
+     * @return the password to authenticate to the nexus server; if none was
+     * specified this will return null;
      */
     public String getNexusPassword() {
         return line.getOptionValue(ARGUMENT.NEXUS_PASSWORD);
@@ -2231,6 +2294,8 @@ public final class CliParser {
      * @param argument the argument
      * @return the argument boolean value
      */
+    @SuppressFBWarnings(justification = "Accepting that this is a bad practice - used a Boolean as we needed three states",
+            value = {"NP_BOOLEAN_RETURN_NULL"})
     public Boolean getBooleanArgument(String argument) {
         if (line != null && line.hasOption(argument)) {
             final String value = line.getOptionValue(argument);
@@ -2298,6 +2363,15 @@ public final class CliParser {
     }
 
     /**
+     * Returns the retire JS repository URL.
+     *
+     * @return the retire JS repository URL
+     */
+    String getRetireJSUrl() {
+        return line.getOptionValue(ARGUMENT.RETIREJS_URL);
+    }
+
+    /**
      * Retrieves the list of retire JS content filters used to exclude JS files
      * by content.
      *
@@ -2314,6 +2388,8 @@ public final class CliParser {
      * @return <code>true</code> if non-vulnerable JS should be filtered in the
      * RetireJS Analyzer; otherwise <code>null</code>
      */
+    @SuppressFBWarnings(justification = "Accepting that this is a bad practice - but made more sense in this use case",
+            value = {"NP_BOOLEAN_RETURN_NULL"})
     public Boolean isRetireJsFilterNonVulnerable() {
         return (line != null && line.hasOption(ARGUMENT.RETIREJS_FILTER_NON_VULNERABLE)) ? true : null;
     }
@@ -2329,19 +2405,18 @@ public final class CliParser {
     }
 
     /**
-     * Returns the path to Mono for .NET Assembly analysis on non-windows
-     * systems.
+     * Returns the path to dotnet core.
      *
-     * @return the path to Mono
+     * @return the path to dotnet core
      */
-    public String getPathToMono() {
-        return line.getOptionValue(ARGUMENT.PATH_TO_MONO);
+    public String getPathToCore() {
+        return line.getOptionValue(ARGUMENT.PATH_TO_CORE);
     }
 
     /**
      * Returns the path to bundle-audit for Ruby bundle analysis.
      *
-     * @return the path to Mono
+     * @return the path to bundle-audit
      */
     public String getPathToBundleAudit() {
         return line.getOptionValue(ARGUMENT.PATH_TO_BUNDLE_AUDIT);
@@ -2353,8 +2428,11 @@ public final class CliParser {
      *
      * @return the output format name.
      */
-    public String getReportFormat() {
-        return line.getOptionValue(ARGUMENT.OUTPUT_FORMAT, "HTML");
+    public String[] getReportFormat() {
+        if (line.hasOption(ARGUMENT.OUTPUT_FORMAT)) {
+            return line.getOptionValues(ARGUMENT.OUTPUT_FORMAT);
+        }
+        return new String[]{"HTML"};
     }
 
     /**
@@ -2363,49 +2441,29 @@ public final class CliParser {
      * @return the application name.
      */
     public String getProjectName() {
-        final String appName = line.getOptionValue(ARGUMENT.APP_NAME);
         String name = line.getOptionValue(ARGUMENT.PROJECT);
-        if (name == null && appName != null) {
-            name = appName;
-            LOGGER.warn("The '{}' argument should no longer be used; use '{}' instead.", ARGUMENT.APP_NAME, ARGUMENT.PROJECT);
+        if (name == null) {
+            name = "";
         }
         return name;
     }
 
     /**
-     * Returns the base URL for the CVE 1.2 XMl file.
+     * Returns the base URL for the CVE JSON files.
      *
-     * @return the URL to the CVE 1.2 XML file.
+     * @return the base URL for the CVE JSON files
      */
-    public String getBaseCve12Url() {
-        return line.getOptionValue(ARGUMENT.CVE_BASE_12);
+    public String getBaseCveUrl() {
+        return line.getOptionValue(ARGUMENT.CVE_BASE_URL);
     }
 
     /**
-     * Returns the base URL for the CVE 2.0 XMl file.
+     * Returns the URL for the modified CVE JSON file.
      *
-     * @return the URL to the CVE 2.0 XML file.
+     * @return the URL to the modified CVE JSON file.
      */
-    public String getBaseCve20Url() {
-        return line.getOptionValue(ARGUMENT.CVE_BASE_20);
-    }
-
-    /**
-     * Returns the URL for the modified CVE 1.2 XMl file.
-     *
-     * @return the URL to the modified CVE 1.2 XML file.
-     */
-    public String getModifiedCve12Url() {
-        return line.getOptionValue(ARGUMENT.CVE_MOD_12);
-    }
-
-    /**
-     * Returns the URL for the modified CVE 2.0 XMl file.
-     *
-     * @return the URL to the modified CVE 2.0 XML file.
-     */
-    public String getModifiedCve20Url() {
-        return line.getOptionValue(ARGUMENT.CVE_MOD_20);
+    public String getModifiedCveUrl() {
+        return line.getOptionValue(ARGUMENT.CVE_MODIFIED_URL);
     }
 
     /**
@@ -2422,17 +2480,8 @@ public final class CliParser {
      *
      * @return the proxy server
      */
-    @SuppressWarnings("deprecation")
     public String getProxyServer() {
-
-        String server = line.getOptionValue(ARGUMENT.PROXY_SERVER);
-        if (server == null) {
-            server = line.getOptionValue(ARGUMENT.PROXY_URL);
-            if (server != null) {
-                LOGGER.warn("An old command line argument 'proxyurl' was detected; use proxyserver instead");
-            }
-        }
-        return server;
+        return line.getOptionValue(ARGUMENT.PROXY_SERVER);
     }
 
     /**
@@ -2531,6 +2580,8 @@ public final class CliParser {
      * @return <code>true</code> if auto-update is allowed; otherwise
      * <code>null</code>
      */
+    @SuppressFBWarnings(justification = "Accepting that this is a bad practice - but made more sense in this use case",
+            value = {"NP_BOOLEAN_RETURN_NULL"})
     public Boolean isAutoUpdate() {
         return (line != null && line.hasOption(ARGUMENT.DISABLE_AUTO_UPDATE)) ? false : null;
     }
@@ -2636,6 +2687,8 @@ public final class CliParser {
      *
      * @return true if the experimental analyzers are enabled; otherwise null
      */
+    @SuppressFBWarnings(justification = "Accepting that this is a bad practice - but made more sense in this use case",
+            value = {"NP_BOOLEAN_RETURN_NULL"})
     public Boolean isExperimentalEnabled() {
         return (line != null && line.hasOption(ARGUMENT.EXPERIMENTAL)) ? true : null;
     }
@@ -2645,8 +2698,21 @@ public final class CliParser {
      *
      * @return true if the retired analyzers are enabled; otherwise null
      */
+    @SuppressFBWarnings(justification = "Accepting that this is a bad practice - but made more sense in this use case",
+            value = {"NP_BOOLEAN_RETURN_NULL"})
     public Boolean isRetiredEnabled() {
         return (line != null && line.hasOption(ARGUMENT.RETIRED)) ? true : null;
+    }
+
+    /**
+     * Returns true if the prettyPrint argument is specified.
+     *
+     * @return true if the prettyPrint is specified; otherwise null
+     */
+    @SuppressFBWarnings(justification = "Accepting that this is a bad practice - but made more sense in this use case",
+            value = {"NP_BOOLEAN_RETURN_NULL"})
+    public Boolean isPrettyPrint() {
+        return (line != null && line.hasOption(ARGUMENT.PRETTY_PRINT)) ? true : null;
     }
 
     /**
@@ -2655,16 +2721,34 @@ public final class CliParser {
      * @return 11 if nothing is set. Otherwise it returns the int passed from
      * the command line arg
      */
-    public int getFailOnCVSS() {
+    public float getFailOnCVSS() {
         if (line.hasOption(ARGUMENT.FAIL_ON_CVSS)) {
             final String value = line.getOptionValue(ARGUMENT.FAIL_ON_CVSS);
             try {
-                return Integer.parseInt(value);
+                return Float.parseFloat(value);
             } catch (NumberFormatException nfe) {
                 return 11;
             }
         } else {
             return 11;
+        }
+    }
+
+    /**
+     * Returns the junit fail on CVSS score.
+     *
+     * @return the junit fail on CVSS score
+     */
+    public float getJunitFailOnCVSS() {
+        if (line.hasOption(ARGUMENT.FAIL_JUNIT_ON_CVSS)) {
+            final String value = line.getOptionValue(ARGUMENT.FAIL_JUNIT_ON_CVSS);
+            try {
+                return Integer.parseInt(value);
+            } catch (NumberFormatException nfe) {
+                return 0;
+            }
+        } else {
+            return 0;
         }
     }
 
@@ -2728,22 +2812,6 @@ public final class CliParser {
          */
         public static final String PROJECT = "project";
         /**
-         * The long CLI argument name specifying the name of the application to
-         * be scanned.
-         *
-         * @deprecated project should be used instead
-         */
-        @Deprecated
-        public static final String APP_NAME = "app";
-        /**
-         * The short CLI argument name specifying the name of the application to
-         * be scanned.
-         *
-         * @deprecated project should be used instead
-         */
-        @Deprecated
-        public static final String APP_NAME_SHORT = "a";
-        /**
          * The long CLI argument name asking for help.
          */
         public static final String HELP = "help";
@@ -2771,13 +2839,6 @@ public final class CliParser {
          * The CLI argument name indicating the proxy server.
          */
         public static final String PROXY_SERVER = "proxyserver";
-        /**
-         * The CLI argument name indicating the proxy url.
-         *
-         * @deprecated use {@link #PROXY_SERVER} instead
-         */
-        @Deprecated
-        public static final String PROXY_URL = "proxyurl";
         /**
          * The CLI argument name indicating the proxy username.
          */
@@ -2811,19 +2872,11 @@ public final class CliParser {
         /**
          * The CLI argument name for setting the URL for the CVE Data Files.
          */
-        public static final String CVE_MOD_12 = "cveUrl12Modified";
+        public static final String CVE_MODIFIED_URL = "cveUrlModified";
         /**
          * The CLI argument name for setting the URL for the CVE Data Files.
          */
-        public static final String CVE_MOD_20 = "cveUrl20Modified";
-        /**
-         * The CLI argument name for setting the URL for the CVE Data Files.
-         */
-        public static final String CVE_BASE_12 = "cveUrl12Base";
-        /**
-         * The CLI argument name for setting the URL for the CVE Data Files.
-         */
-        public static final String CVE_BASE_20 = "cveUrl20Base";
+        public static final String CVE_BASE_URL = "cveUrlBase";
         /**
          * The short CLI argument name for setting the location of the data
          * directory.
@@ -2919,9 +2972,22 @@ public final class CliParser {
          */
         public static final String DISABLE_CENTRAL = "disableCentral";
         /**
+         * Disables the Central Analyzer's ability to cache results locally.
+         */
+        public static final String DISABLE_CENTRAL_CACHE = "disableCentralCache";
+        /**
          * Disables the Nexus Analyzer.
          */
         public static final String DISABLE_NEXUS = "disableNexus";
+        /**
+         * Disables the Sonatype OSS Index Analyzer.
+         */
+        public static final String DISABLE_OSSINDEX = "disableOssIndex";
+        /**
+         * Disables the Sonatype OSS Index Analyzer's ability to cache results
+         * locally.
+         */
+        public static final String DISABLE_OSSINDEX_CACHE = "disableOssIndexCache";
         /**
          * Disables the OpenSSL Analyzer.
          */
@@ -2935,9 +3001,17 @@ public final class CliParser {
          */
         public static final String DISABLE_NODE_AUDIT = "disableNodeAudit";
         /**
+         * Disables the Node Audit Analyzer's ability to cache results locally.
+         */
+        public static final String DISABLE_NODE_AUDIT_CACHE = "disableNodeAuditCache";
+        /**
          * Disables the RetireJS Analyzer.
          */
         public static final String DISABLE_RETIRE_JS = "disableRetireJS";
+        /**
+         * The URL to the retire JS repository.
+         */
+        public static final String RETIREJS_URL = "retireJsUrl";
         /**
          * The URL of the nexus server.
          */
@@ -2977,10 +3051,9 @@ public final class CliParser {
          */
         public static final String DB_DRIVER_PATH = "dbDriverPath";
         /**
-         * The CLI argument name for setting the path to mono for .NET Assembly
-         * analysis on non-windows systems.
+         * The CLI argument name for setting the path to dotnet core.
          */
-        public static final String PATH_TO_MONO = "mono";
+        public static final String PATH_TO_CORE = "dotnet";
         /**
          * The CLI argument name for setting extra extensions.
          */
@@ -3046,9 +3119,26 @@ public final class CliParser {
         public static final String ARTIFACTORY_PARALLEL_ANALYSIS = "artifactoryParallelAnalysis";
 
         /**
-         * The CLI argument to enable the experimental analyzers.
+         * The CLI argument to configure when the execution should be considered
+         * a failure.
          */
         public static final String FAIL_ON_CVSS = "failOnCVSS";
+<<<<<<< HEAD
 >>>>>>> refs/heads/master
+=======
+
+        /**
+         * The CLI argument to configure if the XML and JSON reports should be
+         * pretty printed.
+         */
+        public static final String PRETTY_PRINT = "prettyPrint";
+
+        /**
+         * The CLI argument to set the threshold that is considered a failure
+         * when generating the JUNIT report format.
+         */
+        private static final String FAIL_JUNIT_ON_CVSS = "junitFailOnCVSS";
+
+>>>>>>> refs/tags/v5.0.0
     }
 }

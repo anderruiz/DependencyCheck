@@ -39,6 +39,15 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import javax.annotation.concurrent.ThreadSafe;
+
+import org.apache.commons.io.IOUtils;
+import org.owasp.dependencycheck.Engine;
+import org.owasp.dependencycheck.data.update.exception.UpdateException;
+import org.owasp.dependencycheck.utils.Settings;
+import org.owasp.dependencycheck.utils.URLConnectionFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Checks the gh-pages dependency-check site to determine the current released
@@ -86,10 +95,12 @@ public class RetireJSDataSource implements CachedWebDataSource {
     /**
      * Downloads the current RetireJS data source.
      *
+     * @return returns false as no updates are made to the database that would
+     * require compaction
      * @throws UpdateException thrown if the update failed
      */
     @Override
-    public void update(Engine engine) throws UpdateException {
+    public boolean update(Engine engine) throws UpdateException {
         this.settings = engine.getSettings();
         String url = null;
         try {
@@ -102,13 +113,12 @@ public class RetireJSDataSource implements CachedWebDataSource {
                 url = settings.getString(Settings.KEYS.ANALYZER_RETIREJS_REPO_JS_URL, DEFAULT_JS_URL);
                 initializeRetireJsRepo(settings, new URL(url));
             }
-        } catch (InvalidSettingException ex) {
-            throw new UpdateException("Unable to determine if autoupdate is enabled", ex);
         } catch (MalformedURLException ex) {
             throw new UpdateException(String.format("Inavlid URL for RetireJS repository (%s)", url), ex);
         } catch (IOException ex) {
             throw new UpdateException("Unable to get the data directory", ex);
         }
+        return false;
     }
 
     /**
@@ -156,15 +166,22 @@ public class RetireJSDataSource implements CachedWebDataSource {
             }
             LOGGER.debug("RetireJS Repo URL: {}", repoUrl.toExternalForm());
             final URLConnectionFactory factory = new URLConnectionFactory(settings);
+
             final HdivHttpConnection conn = factory.createHttpURLConnection(repoUrl, useProxy);
-            final String filename = repoUrl.getFile().substring(repoUrl.getFile().lastIndexOf("/") + 1, repoUrl.getFile().length());
+            final String filename = repoUrl.getFile().substring(repoUrl.getFile().lastIndexOf("/") + 1);
             if (conn.getResponseCode() == HttpURLConnection.HTTP_OK) {
                 final File tmpFile = new File(tmpDir, filename);
                 tmpFile.delete();
                 final File repoFile = new File(dataDir, filename);
-                try (InputStream inputStream = conn.getInputStream();
-                        FileOutputStream outputStream = new FileOutputStream(tmpFile)) {
+                InputStream inputStream = null;
+                FileOutputStream outputStream = null;
+                try {
+                	inputStream = conn.getInputStream();
+                	outputStream = new FileOutputStream(tmpFile);
                     IOUtils.copy(inputStream, outputStream);
+                } finally {
+                	IOUtils.closeQuietly(inputStream);
+                	IOUtils.closeQuietly(outputStream);
                 }
                 //using move fails if target and destination are on different disks which does happen (see #1394 and #1404)
                 repoFile.delete();
@@ -176,5 +193,28 @@ public class RetireJSDataSource implements CachedWebDataSource {
         } catch (IOException e) {
             throw new UpdateException("Failed to initialize the RetireJS repo", e);
         }
+    }
+
+    @Override
+    public boolean purge(Engine engine) {
+        boolean result = true;
+        try {
+            final File dataDir = engine.getSettings().getDataDirectory();
+            final URL repoUrl = new URL(engine.getSettings().getString(Settings.KEYS.ANALYZER_RETIREJS_REPO_JS_URL, DEFAULT_JS_URL));
+            final String filename = repoUrl.getFile().substring(repoUrl.getFile().lastIndexOf("/") + 1);
+            final File repo = new File(dataDir, filename);
+            if (repo.exists()) {
+                if (repo.delete()) {
+                    LOGGER.info("RetireJS repo removed successfully");
+                } else {
+                    LOGGER.error("Unable to delete '{}'; please delete the file manually", repo.getAbsolutePath());
+                    result = false;
+                }
+            }
+        } catch (IOException ex) {
+            LOGGER.error("Unable to delete the RetireJS repo - invalid configuration");
+            result = false;
+        }
+        return result;
     }
 }

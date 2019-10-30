@@ -17,8 +17,9 @@
  */
 package org.owasp.dependencycheck.maven;
 
+import com.github.packageurl.MalformedPackageURLException;
+import com.github.packageurl.PackageURL.StandardTypes;
 import org.apache.maven.artifact.Artifact;
-import org.apache.maven.artifact.repository.ArtifactRepository;
 import org.apache.maven.artifact.versioning.ArtifactVersion;
 import org.apache.maven.doxia.sink.Sink;
 import org.apache.maven.execution.MavenSession;
@@ -40,9 +41,12 @@ import org.apache.maven.shared.transfer.artifact.DefaultArtifactCoordinate;
 import org.apache.maven.shared.transfer.artifact.TransferUtils;
 import org.apache.maven.shared.transfer.artifact.resolve.ArtifactResolver;
 import org.apache.maven.shared.transfer.artifact.resolve.ArtifactResolverException;
+import org.eclipse.aether.artifact.ArtifactType;
+import org.apache.maven.shared.artifact.filter.PatternExcludesArtifactFilter;
 import org.apache.maven.shared.dependency.graph.DependencyGraphBuilder;
 import org.apache.maven.shared.dependency.graph.DependencyGraphBuilderException;
 import org.apache.maven.shared.dependency.graph.DependencyNode;
+import org.apache.maven.shared.dependency.graph.filter.ArtifactDependencyNodeFilter;
 import org.apache.maven.shared.dependency.graph.internal.DefaultDependencyNode;
 import org.apache.maven.shared.model.fileset.FileSet;
 import org.apache.maven.shared.model.fileset.util.FileSetManager;
@@ -53,7 +57,6 @@ import org.owasp.dependencycheck.data.nvdcve.DatabaseException;
 import org.owasp.dependencycheck.dependency.Confidence;
 import org.owasp.dependencycheck.dependency.Dependency;
 import org.owasp.dependencycheck.dependency.EvidenceType;
-import org.owasp.dependencycheck.dependency.Identifier;
 import org.owasp.dependencycheck.dependency.Vulnerability;
 import org.owasp.dependencycheck.exception.DependencyNotFoundException;
 import org.owasp.dependencycheck.exception.ExceptionCollection;
@@ -72,11 +75,20 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
-import org.apache.maven.artifact.resolver.filter.ArtifactFilter;
+import java.util.Set;
+
 import org.apache.maven.artifact.resolver.filter.ExcludesArtifactFilter;
 import org.apache.maven.shared.dependency.graph.traversal.CollectingDependencyNodeVisitor;
+
+import org.owasp.dependencycheck.agent.DependencyCheckScanAgent;
+import org.owasp.dependencycheck.dependency.naming.GenericIdentifier;
+import org.owasp.dependencycheck.dependency.naming.Identifier;
+import org.owasp.dependencycheck.dependency.naming.PurlIdentifier;
+import org.apache.maven.shared.dependency.graph.traversal.DependencyNodeVisitor;
+import org.apache.maven.shared.dependency.graph.traversal.FilteringDependencyNodeVisitor;
 
 /**
  * @author Jeremy Long
@@ -103,13 +115,7 @@ public abstract class BaseDependencyCheckMojo extends AbstractMojo implements Ma
     //</editor-fold>
     // <editor-fold defaultstate="collapsed" desc="Maven bound parameters and components">
     /**
-     * Sets whether or not the external report format should be used.
-     */
-    @SuppressWarnings("CanBeFinal")
-    @Parameter(property = "metaFileName", defaultValue = "dependency-check.ser", required = true)
-    private String dataFileName;
-    /**
-     * Sets whether or not the external report format should be used.
+     * Sets whether or not the mojo should fail if an error occurs.
      */
     @SuppressWarnings("CanBeFinal")
     @Parameter(property = "failOnError", defaultValue = "true", required = true)
@@ -144,13 +150,6 @@ public abstract class BaseDependencyCheckMojo extends AbstractMojo implements Ma
     private MavenSession session;
 
     /**
-     * Remote repositories which will be searched for artifacts.
-     */
-    @SuppressWarnings("CanBeFinal")
-    @Parameter(defaultValue = "${project.remoteArtifactRepositories}", readonly = true, required = true)
-    private List<ArtifactRepository> remoteRepositories;
-
-    /**
      * Component within Maven to build the dependency graph.
      */
     @Component
@@ -178,6 +177,14 @@ public abstract class BaseDependencyCheckMojo extends AbstractMojo implements Ma
     @Parameter(property = "failBuildOnCVSS", defaultValue = "11", required = true)
     private float failBuildOnCVSS = 11;
     /**
+     * Specifies the CVSS score that is considered a "test" failure when
+     * generating a jUnit style report. The default value is 0 - all
+     * vulnerabilities are considered a failure.
+     */
+    @SuppressWarnings("CanBeFinal")
+    @Parameter(property = "junitFailOnCVSS", defaultValue = "0", required = true)
+    private float junitFailOnCVSS = 0;
+    /**
      * Fail the build if any dependency has a vulnerability listed.
      */
     @SuppressWarnings("CanBeFinal")
@@ -202,191 +209,208 @@ public abstract class BaseDependencyCheckMojo extends AbstractMojo implements Ma
     @SuppressWarnings("CanBeFinal")
     @Parameter(property = "enableRetired")
     private Boolean enableRetired;
-    /**
-     * Generate aggregate reports in multi-module projects.
-     *
-     * @deprecated use the aggregate goal instead
-     */
-    @Parameter(property = "aggregate")
-    @Deprecated
-    private Boolean aggregate;
+
     /**
      * Use pom dependency information for snapshot dependencies that are part of
      * the Maven reactor while aggregate scanning a multi-module project.
-     *
      */
     @Parameter(property = "dependency-check.virtualSnapshotsFromReactor", defaultValue = "true")
     private Boolean virtualSnapshotsFromReactor;
     /**
-     * The report format to be generated (HTML, XML, VULN, ALL). This
-     * configuration option has no affect if using this within the Site plug-in
-     * unless the externalReport is set to true. Default is HTML.
+     * The report format to be generated (HTML, XML, JUNIT, CSV, JSON, ALL).
+     * Multiple formats can be selected using a comma delineated list.
      */
     @SuppressWarnings("CanBeFinal")
     @Parameter(property = "format", defaultValue = "HTML", required = true)
     private String format = "HTML";
+
+    /**
+     * Whether or not the XML and JSON report formats should be pretty printed.
+     * The default is false.
+     */
+    @Parameter(property = "prettyPrint")
+    private Boolean prettyPrint;
+    /**
+     * The report format to be generated (HTML, XML, JUNIT, CSV, JSON, ALL).
+     * Multiple formats can be selected using a comma delineated list.
+     */
+    @Parameter(property = "formats", required = true)
+    private String[] formats;
     /**
      * The Maven settings.
      */
     @SuppressWarnings("CanBeFinal")
-    @Parameter(property = "mavenSettings", defaultValue = "${settings}", required = false)
+    @Parameter(property = "mavenSettings", defaultValue = "${settings}")
     private org.apache.maven.settings.Settings mavenSettings;
 
     /**
      * The maven settings proxy id.
      */
     @SuppressWarnings("CanBeFinal")
-    @Parameter(property = "mavenSettingsProxyId", required = false)
+    @Parameter(property = "mavenSettingsProxyId")
     private String mavenSettingsProxyId;
 
     /**
      * The Connection Timeout.
      */
     @SuppressWarnings("CanBeFinal")
-    @Parameter(property = "connectionTimeout", defaultValue = "", required = false)
+    @Parameter(property = "connectionTimeout")
     private String connectionTimeout;
     /**
      * Sets whether dependency-check should check if there is a new version
      * available.
      */
     @SuppressWarnings("CanBeFinal")
-    @Parameter(property = "versionCheckEnabled", defaultValue = "true", required = false)
+    @Parameter(property = "versionCheckEnabled", defaultValue = "true")
     private boolean versionCheckEnabled;
     /**
-     * The paths to the suppression files.
+     * The paths to the suppression files. The parameter value can be a local
+     * file path, a URL to a suppression file, or even a reference to a file on
+     * the class path (see
+     * https://github.com/jeremylong/DependencyCheck/issues/1878#issuecomment-487533799)
      */
     @SuppressWarnings("CanBeFinal")
-    @Parameter(property = "suppressionFiles", required = false)
+    @Parameter(property = "suppressionFiles")
     private String[] suppressionFiles;
     /**
-     * The paths to the suppression file.
+     * The paths to the suppression file. The parameter value can be a local
+     * file path, a URL to a suppression file, or even a reference to a file on
+     * the class path (see
+     * https://github.com/jeremylong/DependencyCheck/issues/1878#issuecomment-487533799)
      */
     @SuppressWarnings("CanBeFinal")
-    @Parameter(property = "suppressionFile", required = false)
+    @Parameter(property = "suppressionFile")
     private String suppressionFile;
     /**
      * The path to the hints file.
      */
     @SuppressWarnings("CanBeFinal")
-    @Parameter(property = "hintsFile", defaultValue = "", required = false)
+    @Parameter(property = "hintsFile")
     private String hintsFile;
 
     /**
      * Flag indicating whether or not to show a summary in the output.
      */
     @SuppressWarnings("CanBeFinal")
-    @Parameter(property = "showSummary", defaultValue = "true", required = false)
+    @Parameter(property = "showSummary", defaultValue = "true")
     private boolean showSummary = true;
 
     /**
      * Whether or not the Jar Analyzer is enabled.
      */
     @SuppressWarnings("CanBeFinal")
-    @Parameter(property = "jarAnalyzerEnabled", required = false)
+    @Parameter(property = "jarAnalyzerEnabled")
     private Boolean jarAnalyzerEnabled;
 
     /**
      * Whether or not the Archive Analyzer is enabled.
      */
     @SuppressWarnings("CanBeFinal")
-    @Parameter(property = "archiveAnalyzerEnabled", required = false)
+    @Parameter(property = "archiveAnalyzerEnabled")
     private Boolean archiveAnalyzerEnabled;
 
     /**
      * Sets whether the Python Distribution Analyzer will be used.
      */
     @SuppressWarnings("CanBeFinal")
-    @Parameter(property = "pyDistributionAnalyzerEnabled", required = false)
+    @Parameter(property = "pyDistributionAnalyzerEnabled")
     private Boolean pyDistributionAnalyzerEnabled;
     /**
      * Sets whether the Python Package Analyzer will be used.
      */
-    @Parameter(property = "pyPackageAnalyzerEnabled", required = false)
+    @Parameter(property = "pyPackageAnalyzerEnabled")
     private Boolean pyPackageAnalyzerEnabled;
     /**
      * Sets whether the Ruby Gemspec Analyzer will be used.
      */
     @SuppressWarnings("CanBeFinal")
-    @Parameter(property = "rubygemsAnalyzerEnabled", required = false)
+    @Parameter(property = "rubygemsAnalyzerEnabled")
     private Boolean rubygemsAnalyzerEnabled;
     /**
      * Sets whether or not the openssl Analyzer should be used.
      */
     @SuppressWarnings("CanBeFinal")
-    @Parameter(property = "opensslAnalyzerEnabled", required = false)
+    @Parameter(property = "opensslAnalyzerEnabled")
     private Boolean opensslAnalyzerEnabled;
     /**
      * Sets whether or not the CMake Analyzer should be used.
      */
     @SuppressWarnings("CanBeFinal")
-    @Parameter(property = "cmakeAnalyzerEnabled", required = false)
+    @Parameter(property = "cmakeAnalyzerEnabled")
     private Boolean cmakeAnalyzerEnabled;
     /**
      * Sets whether or not the autoconf Analyzer should be used.
      */
     @SuppressWarnings("CanBeFinal")
-    @Parameter(property = "autoconfAnalyzerEnabled", required = false)
+    @Parameter(property = "autoconfAnalyzerEnabled")
     private Boolean autoconfAnalyzerEnabled;
     /**
      * Sets whether or not the PHP Composer Lock File Analyzer should be used.
      */
-    @Parameter(property = "composerAnalyzerEnabled", required = false)
+    @Parameter(property = "composerAnalyzerEnabled")
     private Boolean composerAnalyzerEnabled;
     /**
      * Sets whether or not the Node.js Analyzer should be used.
      */
     @SuppressWarnings("CanBeFinal")
-    @Parameter(property = "nodeAnalyzerEnabled", required = false)
+    @Parameter(property = "nodeAnalyzerEnabled")
     private Boolean nodeAnalyzerEnabled;
     /**
      * Sets whether or not the Node Audit Analyzer should be used.
      */
     @SuppressWarnings("CanBeFinal")
-    @Parameter(property = "nodeAuditAnalyzerEnabled", required = false)
+    @Parameter(property = "nodeAuditAnalyzerEnabled")
     private Boolean nodeAuditAnalyzerEnabled;
     /**
-     * Sets whether or not the Node Security Project Analyzer should be used.
-     *
-     * @deprecated As of release 3.3.3, replaced by
-     * {@link #nodeAuditAnalyzerEnabled}
+     * Sets whether or not the Node Audit Analyzer should use a local cache.
      */
-    @Deprecated
     @SuppressWarnings("CanBeFinal")
-    @Parameter(property = "nspAnalyzerEnabled", required = false)
-    private Boolean nspAnalyzerEnabled;
+    @Parameter(property = "nodeAuditAnalyzerUseCache")
+    private Boolean nodeAuditAnalyzerUseCache;
     /**
      * Sets whether or not the Retirejs Analyzer should be used.
      */
     @SuppressWarnings("CanBeFinal")
-    @Parameter(property = "retireJsAnalyzerEnabled", required = false)
+    @Parameter(property = "retireJsAnalyzerEnabled")
     private Boolean retireJsAnalyzerEnabled;
-
+    /**
+     * The Retire JS repository URL.
+     */
+    @SuppressWarnings("CanBeFinal")
+    @Parameter(property = "retireJsUrl")
+    private String retireJsUrl;
     /**
      * Whether or not the .NET Assembly Analyzer is enabled.
      */
-    @Parameter(property = "assemblyAnalyzerEnabled", required = false)
+    @Parameter(property = "assemblyAnalyzerEnabled")
     private Boolean assemblyAnalyzerEnabled;
-
     /**
      * Whether or not the .NET Nuspec Analyzer is enabled.
      */
     @SuppressWarnings("CanBeFinal")
-    @Parameter(property = "nuspecAnalyzerEnabled", required = false)
+    @Parameter(property = "nuspecAnalyzerEnabled")
     private Boolean nuspecAnalyzerEnabled;
 
     /**
      * Whether or not the .NET packages.config Analyzer is enabled.
      */
     @SuppressWarnings("CanBeFinal")
-    @Parameter(property = "nugetconfAnalyzerEnabled", required = false)
+    @Parameter(property = "nugetconfAnalyzerEnabled")
     private Boolean nugetconfAnalyzerEnabled;
 
     /**
      * Whether or not the Central Analyzer is enabled.
      */
     @SuppressWarnings("CanBeFinal")
-    @Parameter(property = "centralAnalyzerEnabled", required = false)
+    @Parameter(property = "centralAnalyzerEnabled")
     private Boolean centralAnalyzerEnabled;
+
+    /**
+     * Whether or not the Central Analyzer should use a local cache.
+     */
+    @SuppressWarnings("CanBeFinal")
+    @Parameter(property = "centralAnalyzerUseCache")
+    private Boolean centralAnalyzerUseCache;
 
     /**
      * Whether or not the Artifactory Analyzer is enabled.
@@ -442,34 +466,53 @@ public abstract class BaseDependencyCheckMojo extends AbstractMojo implements Ma
      * Whether or not the Nexus Analyzer is enabled.
      */
     @SuppressWarnings("CanBeFinal")
-    @Parameter(property = "nexusAnalyzerEnabled", required = false)
+    @Parameter(property = "nexusAnalyzerEnabled")
     private Boolean nexusAnalyzerEnabled;
+
+    /**
+     * Whether or not the Sonatype OSS Index analyzer is enabled.
+     */
+    @SuppressWarnings("CanBeFinal")
+    @Parameter(property = "ossindexAnalyzerEnabled")
+    private Boolean ossindexAnalyzerEnabled;
+    /**
+     * Whether or not the Sonatype OSS Index analyzer is enabled.
+     */
+    @SuppressWarnings("CanBeFinal")
+    @Parameter(property = "ossindexAnalyzerUseCache")
+    private Boolean ossindexAnalyzerUseCache;
+    /**
+     * URL of the Sonatype OSS Index service.
+     */
+    @SuppressWarnings("CanBeFinal")
+    @Parameter(property = "ossindexAnalyzerUrl")
+    private String ossindexAnalyzerUrl;
 
     /**
      * Whether or not the Ruby Bundle Audit Analyzer is enabled.
      */
-    @Parameter(property = "bundleAuditAnalyzerEnabled", required = false)
+    @Parameter(property = "bundleAuditAnalyzerEnabled")
     private Boolean bundleAuditAnalyzerEnabled;
 
     /**
      * Sets the path for the bundle-audit binary.
      */
     @SuppressWarnings("CanBeFinal")
-    @Parameter(property = "bundleAuditPath", defaultValue = "", required = false)
+    @Parameter(property = "bundleAuditPath")
     private String bundleAuditPath;
 
     /**
      * Whether or not the CocoaPods Analyzer is enabled.
      */
     @SuppressWarnings("CanBeFinal")
-    @Parameter(property = "cocoapodsAnalyzerEnabled", required = false)
+    @Parameter(property = "cocoapodsAnalyzerEnabled")
     private Boolean cocoapodsAnalyzerEnabled;
 
     /**
      * Whether or not the Swift package Analyzer is enabled.
      */
     @SuppressWarnings("CanBeFinal")
-    @Parameter(property = "swiftPackageManagerAnalyzerEnabled", required = false)
+    @Parameter(property = "swiftPackageManagerAnalyzerEnabled")
     private Boolean swiftPackageManagerAnalyzerEnabled;
 
     /**
@@ -477,7 +520,7 @@ public abstract class BaseDependencyCheckMojo extends AbstractMojo implements Ma
      * (http://domain/nexus/service/local).
      */
     @SuppressWarnings("CanBeFinal")
-    @Parameter(property = "nexusUrl", required = false)
+    @Parameter(property = "nexusUrl")
     private String nexusUrl;
     /**
      * The id of a server defined in the settings.xml that configures the
@@ -486,39 +529,39 @@ public abstract class BaseDependencyCheckMojo extends AbstractMojo implements Ma
      * API will be unauthenticated.
      */
     @SuppressWarnings("CanBeFinal")
-    @Parameter(property = "nexusServerId", required = false)
+    @Parameter(property = "nexusServerId")
     private String nexusServerId;
     /**
      * Whether or not the configured proxy is used to connect to Nexus.
      */
     @SuppressWarnings("CanBeFinal")
-    @Parameter(property = "nexusUsesProxy", required = false)
+    @Parameter(property = "nexusUsesProxy")
     private Boolean nexusUsesProxy;
     /**
      * The database connection string.
      */
     @SuppressWarnings("CanBeFinal")
-    @Parameter(property = "connectionString", defaultValue = "", required = false)
+    @Parameter(property = "connectionString")
     private String connectionString;
 
     /**
      * The database driver name. An example would be org.h2.Driver.
      */
     @SuppressWarnings("CanBeFinal")
-    @Parameter(property = "databaseDriverName", defaultValue = "", required = false)
+    @Parameter(property = "databaseDriverName")
     private String databaseDriverName;
     /**
      * The path to the database driver if it is not on the class path.
      */
     @SuppressWarnings("CanBeFinal")
-    @Parameter(property = "databaseDriverPath", defaultValue = "", required = false)
+    @Parameter(property = "databaseDriverPath")
     private String databaseDriverPath;
     /**
      * The server id in the settings.xml; used to retrieve encrypted passwords
      * from the settings.xml.
      */
     @SuppressWarnings("CanBeFinal")
-    @Parameter(property = "serverId", defaultValue = "", required = false)
+    @Parameter(property = "serverId")
     private String serverId;
     /**
      * A reference to the settings.xml settings.
@@ -534,57 +577,57 @@ public abstract class BaseDependencyCheckMojo extends AbstractMojo implements Ma
     /**
      * The database user name.
      */
-    @Parameter(property = "databaseUser", defaultValue = "", required = false)
+    @Parameter(property = "databaseUser")
     private String databaseUser;
     /**
      * The password to use when connecting to the database.
      */
-    @Parameter(property = "databasePassword", defaultValue = "", required = false)
+    @Parameter(property = "databasePassword")
     private String databasePassword;
     /**
      * A comma-separated list of file extensions to add to analysis next to jar,
      * zip, ....
      */
     @SuppressWarnings("CanBeFinal")
-    @Parameter(property = "zipExtensions", required = false)
+    @Parameter(property = "zipExtensions")
     private String zipExtensions;
     /**
      * Skip Dependency Check altogether.
      */
     @SuppressWarnings("CanBeFinal")
-    @Parameter(property = "dependency-check.skip", defaultValue = "false", required = false)
+    @Parameter(property = "dependency-check.skip", defaultValue = "false")
     private boolean skip = false;
     /**
      * Skip Analysis for Test Scope Dependencies.
      */
     @SuppressWarnings("CanBeFinal")
-    @Parameter(property = "skipTestScope", defaultValue = "true", required = false)
+    @Parameter(property = "skipTestScope", defaultValue = "true")
     private boolean skipTestScope = true;
     /**
      * Skip Analysis for Runtime Scope Dependencies.
      */
     @SuppressWarnings("CanBeFinal")
-    @Parameter(property = "skipRuntimeScope", defaultValue = "false", required = false)
+    @Parameter(property = "skipRuntimeScope", defaultValue = "false")
     private boolean skipRuntimeScope = false;
     /**
      * Skip Analysis for Provided Scope Dependencies.
      */
     @SuppressWarnings("CanBeFinal")
-    @Parameter(property = "skipProvidedScope", defaultValue = "false", required = false)
+    @Parameter(property = "skipProvidedScope", defaultValue = "false")
     private boolean skipProvidedScope = false;
 
     /**
      * Skip Analysis for System Scope Dependencies.
      */
     @SuppressWarnings("CanBeFinal")
-    @Parameter(property = "skipSystemScope", defaultValue = "false", required = false)
+    @Parameter(property = "skipSystemScope", defaultValue = "false")
     private boolean skipSystemScope = false;
 
     /**
      * Skip Analysis for dependencyManagement section.
      */
     @SuppressWarnings("CanBeFinal")
-    @Parameter(property = "skipDependencyManagement", defaultValue = "true", required = false)
+    @Parameter(property = "skipDependencyManagement", defaultValue = "true")
     private boolean skipDependencyManagement = true;
 
     /**
@@ -592,53 +635,41 @@ public abstract class BaseDependencyCheckMojo extends AbstractMojo implements Ma
      * expression.
      */
     @SuppressWarnings("CanBeFinal")
-    @Parameter(property = "skipArtifactType", required = false)
+    @Parameter(property = "skipArtifactType")
     private String skipArtifactType;
 
     /**
      * The data directory, hold DC SQL DB.
      */
     @SuppressWarnings("CanBeFinal")
-    @Parameter(property = "dataDirectory", defaultValue = "", required = false)
+    @Parameter(property = "dataDirectory")
     private String dataDirectory;
     /**
      * Data Mirror URL for CVE 1.2.
      */
     @SuppressWarnings("CanBeFinal")
-    @Parameter(property = "cveUrl12Modified", defaultValue = "", required = false)
-    private String cveUrl12Modified;
-    /**
-     * Data Mirror URL for CVE 2.0.
-     */
-    @SuppressWarnings("CanBeFinal")
-    @Parameter(property = "cveUrl20Modified", defaultValue = "", required = false)
-    private String cveUrl20Modified;
+    @Parameter(property = "cveUrlModified")
+    private String cveUrlModified;
     /**
      * Base Data Mirror URL for CVE 1.2.
      */
     @SuppressWarnings("CanBeFinal")
-    @Parameter(property = "cveUrl12Base", defaultValue = "", required = false)
-    private String cveUrl12Base;
-    /**
-     * Data Mirror URL for CVE 2.0.
-     */
-    @SuppressWarnings("CanBeFinal")
-    @Parameter(property = "cveUrl20Base", defaultValue = "", required = false)
-    private String cveUrl20Base;
+    @Parameter(property = "cveUrlBase")
+    private String cveUrlBase;
     /**
      * Optionally skip excessive CVE update checks for a designated duration in
      * hours.
      */
     @SuppressWarnings("CanBeFinal")
-    @Parameter(property = "cveValidForHours", defaultValue = "", required = false)
+    @Parameter(property = "cveValidForHours")
     private Integer cveValidForHours;
 
     /**
-     * The path to mono for .NET Assembly analysis on non-windows systems.
+     * The path to dotnet core.
      */
     @SuppressWarnings("CanBeFinal")
-    @Parameter(property = "pathToMono", defaultValue = "", required = false)
-    private String pathToMono;
+    @Parameter(property = "pathToCore")
+    private String pathToCore;
 
     /**
      * The RetireJS Analyzer configuration:
@@ -656,27 +687,15 @@ public abstract class BaseDependencyCheckMojo extends AbstractMojo implements Ma
      * </pre>
      */
     @SuppressWarnings("CanBeFinal")
-    @Parameter(property = "retirejs", required = false)
+    @Parameter(property = "retirejs")
     private Retirejs retirejs;
 
     /**
-     * The Proxy URL.
-     *
-     * @deprecated Please use mavenSettings instead
+     * The list of artifacts (and their transitive dependencies) to exclude from
+     * the check.
      */
-    @SuppressWarnings("CanBeFinal")
-    @Parameter(property = "proxyUrl", defaultValue = "", required = false)
-    @Deprecated
-    private String proxyUrl = null;
-    /**
-     * Sets whether or not the external report format should be used.
-     *
-     * @deprecated the internal report is no longer supported
-     */
-    @SuppressWarnings("CanBeFinal")
-    @Parameter(property = "externalReport")
-    @Deprecated
-    private String externalReport = null;
+    @Parameter
+    private List<String> excludes;
 
     /**
      * The artifact scope filter.
@@ -694,7 +713,7 @@ public abstract class BaseDependencyCheckMojo extends AbstractMojo implements Ma
      * specified, defaults to Maven conventions of: src/main/resources,
      * src/main/filters, and src/main/webapp
      */
-    @Parameter(property = "scanSet", required = false)
+    @Parameter(property = "scanSet")
     private FileSet[] scanSet;
 
     // </editor-fold>
@@ -708,9 +727,9 @@ public abstract class BaseDependencyCheckMojo extends AbstractMojo implements Ma
      * @return true if the groupId, artifactId, and version match
      */
     private static boolean artifactsMatch(org.apache.maven.model.Dependency d, Artifact a) {
-        return (isEqualOrNull(a.getArtifactId(), d.getArtifactId()))
-                && (isEqualOrNull(a.getGroupId(), d.getGroupId()))
-                && (isEqualOrNull(a.getVersion(), d.getVersion()));
+        return isEqualOrNull(a.getArtifactId(), d.getArtifactId())
+                && isEqualOrNull(a.getGroupId(), d.getGroupId())
+                && isEqualOrNull(a.getVersion(), d.getVersion());
     }
 
     /**
@@ -740,24 +759,8 @@ public abstract class BaseDependencyCheckMojo extends AbstractMojo implements Ma
         if (shouldSkip) {
             getLog().info("Skipping " + getName(Locale.US));
         } else {
-            validateAggregate();
-            project.setContextValue(getOutputDirectoryContextKey(), this.outputDirectory);
+            project.setContextValue("dependency-check-output-dir", this.outputDirectory);
             runCheck();
-        }
-    }
-
-    /**
-     * Checks if the aggregate configuration parameter has been set to true. If
-     * it has a MojoExecutionException is thrown because the aggregate
-     * configuration parameter is no longer supported.
-     *
-     * @throws MojoExecutionException thrown if aggregate is set to true
-     */
-    private void validateAggregate() throws MojoExecutionException {
-        if (aggregate != null && aggregate) {
-            final String msg = "Aggregate configuration detected - as of dependency-check 1.2.8 this no longer supported. "
-                    + "Please use the aggregate goal instead.";
-            throw new MojoExecutionException(msg);
         }
     }
 
@@ -819,12 +822,7 @@ public abstract class BaseDependencyCheckMojo extends AbstractMojo implements Ma
         }
 
         generatingSite = true;
-        try {
-            validateAggregate();
-        } catch (MojoExecutionException ex) {
-            throw new MavenReportException(ex.getMessage());
-        }
-        project.setContextValue(getOutputDirectoryContextKey(), getReportOutputDirectory());
+        project.setContextValue("dependency-check-output-dir", getReportOutputDirectory());
         try {
             runCheck();
         } catch (MojoExecutionException ex) {
@@ -854,10 +852,11 @@ public abstract class BaseDependencyCheckMojo extends AbstractMojo implements Ma
      * @return the directory to write the report(s)
      */
     protected File getCorrectOutputDirectory(MavenProject current) {
-        final Object obj = current.getContextValue(getOutputDirectoryContextKey());
+        final Object obj = current.getContextValue("dependency-check-output-dir");
         if (obj != null && obj instanceof File) {
             return (File) obj;
         }
+        //else we guess
         File target = new File(current.getBuild().getDirectory());
         if (target.getParentFile() != null && "target".equals(target.getParentFile().getName())) {
             target = target.getParentFile();
@@ -891,40 +890,41 @@ public abstract class BaseDependencyCheckMojo extends AbstractMojo implements Ma
     protected ExceptionCollection scanArtifacts(MavenProject project, Engine engine, boolean aggregate) {
         try {
             final List<String> filterItems = Collections.singletonList(String.format("%s:%s", project.getGroupId(), project.getArtifactId()));
-            final ProjectBuildingRequest buildingRequest = newResolveArtifactProjectBuildingRequest();
-            buildingRequest.setProject(project);
+            final ProjectBuildingRequest buildingRequest = newResolveArtifactProjectBuildingRequest(project);
             //For some reason the filter does not filter out the project being analyzed
             //if we pass in the filter below instead of null to the dependencyGraphBuilder
-            final ArtifactFilter filter = new ExcludesArtifactFilter(filterItems);
             final DependencyNode dn = dependencyGraphBuilder.buildDependencyGraph(buildingRequest, null, reactorProjects);
-            final CollectingDependencyNodeVisitor visitor = new CollectingDependencyNodeVisitor();
-            dn.accept(visitor);
+
+            final CollectingDependencyNodeVisitor collectorVisitor = new CollectingDependencyNodeVisitor();
+            // exclude artifact by pattern and its dependencies
+            final DependencyNodeVisitor transitiveFilterVisitor = new FilteringDependencyTransitiveNodeVisitor(collectorVisitor,
+                    new ArtifactDependencyNodeFilter(new PatternExcludesArtifactFilter(getExcludes())));
+            // exclude exact artifact but not its dependencies, this filter must be appied on the root for first otherwise
+            // in case the exclude has the same groupId of the current bundle its direct dependencies are not visited
+            final DependencyNodeVisitor artifactFilter = new FilteringDependencyNodeVisitor(transitiveFilterVisitor,
+                    new ArtifactDependencyNodeFilter(new ExcludesArtifactFilter(filterItems)));
+            dn.accept(artifactFilter);
 
             //collect dependencies with the filter - see comment above.
-            final List<DependencyNode> nodes = new ArrayList<>();
-            for (DependencyNode node : visitor.getNodes()) {
-                if (filter.include(node.getArtifact())) {
-                    nodes.add(node);
-                }
-            }
+            final List<DependencyNode> nodes = new ArrayList<>(collectorVisitor.getNodes());
 
             return collectDependencies(engine, project, nodes, buildingRequest, aggregate);
         } catch (DependencyGraphBuilderException ex) {
             final String msg = String.format("Unable to build dependency graph on project %s", project.getName());
             getLog().debug(msg, ex);
-            return new ExceptionCollection(msg, ex);
+            return new ExceptionCollection(ex);
         }
     }
 
     /**
-     * Converts the dependency into a dependency node
+     * Converts the dependency to a dependency node object.
      *
-     * @param buildingRequest the Maven building request
+     * @param buildingRequest the Maven project building request
      * @param parent the parent node
      * @param dependency the dependency to convert
      * @return the resulting dependency node
-     * @throws ArtifactResolverException thrown if there is an error during
-     * conversion
+     * @throws ArtifactResolverException thrown if the artifact could not be
+     * retrieved
      */
     private DependencyNode toDependencyNode(ProjectBuildingRequest buildingRequest, DependencyNode parent,
             org.apache.maven.model.Dependency dependency) throws ArtifactResolverException {
@@ -934,8 +934,10 @@ public abstract class BaseDependencyCheckMojo extends AbstractMojo implements Ma
         coordinate.setGroupId(dependency.getGroupId());
         coordinate.setArtifactId(dependency.getArtifactId());
         coordinate.setVersion(dependency.getVersion());
-        coordinate.setExtension(dependency.getType());
-        coordinate.setClassifier(dependency.getClassifier());
+
+        final ArtifactType type = session.getRepositorySession().getArtifactTypeRegistry().get(dependency.getType());
+        coordinate.setExtension(type.getExtension());
+        coordinate.setClassifier(type.getClassifier());
 
         final Artifact artifact = artifactResolver.resolveArtifact(buildingRequest, coordinate).getArtifact();
 
@@ -946,16 +948,14 @@ public abstract class BaseDependencyCheckMojo extends AbstractMojo implements Ma
     }
 
     /**
-     * Collects the dependencies defined in the dependency management
-     * configuration.
+     * Collect dependencies from the dependency management section.
      *
-     * @param buildingRequest the Maven building request
-     * @param project the Maven project
-     * @param nodes the collection to add the dependencies to from the
-     * dependency management configuration
-     * @param aggregate whether or not this is an aggregate build
-     * @return a collection of exceptions; if the return value is null no
-     * exceptions occurred
+     * @param buildingRequest the Maven project building request
+     * @param project the project being analyzed
+     * @param nodes the list of dependency nodes
+     * @param aggregate whether or not this is an aggregate analysis
+     * @return a collection of exceptions if any occurred; otherwise
+     * <code>null</code>
      */
     private ExceptionCollection collectDependencyManagementDependencies(ProjectBuildingRequest buildingRequest, MavenProject project,
             List<DependencyNode> nodes, boolean aggregate) {
@@ -993,7 +993,9 @@ public abstract class BaseDependencyCheckMojo extends AbstractMojo implements Ma
      */
     private ExceptionCollection collectMavenDependencies(Engine engine, MavenProject project,
             List<DependencyNode> nodes, ProjectBuildingRequest buildingRequest, boolean aggregate) {
+
         ExceptionCollection exCol = collectDependencyManagementDependencies(buildingRequest, project, nodes, aggregate);
+
         for (DependencyNode dependencyNode : nodes) {
             if (artifactScopeExcluded.passes(dependencyNode.getArtifact().getScope())
                     || artifactTypeExcluded.passes(dependencyNode.getArtifact().getType())) {
@@ -1029,26 +1031,34 @@ public abstract class BaseDependencyCheckMojo extends AbstractMojo implements Ma
                             + dependencyNode.toNodeString()));
                 }
             } else {
-                final ArtifactCoordinate coordinate = TransferUtils.toArtifactCoordinate(dependencyNode.getArtifact());
+                final Artifact dependencyArtifact = dependencyNode.getArtifact();
                 final Artifact result;
-                try {
-                    result = artifactResolver.resolveArtifact(buildingRequest, coordinate).getArtifact();
-                } catch (ArtifactResolverException ex) {
-                    getLog().debug(String.format("Aggregate : %s", aggregate));
-                    boolean addException = true;
-                    if (!aggregate || addReactorDependency(engine, dependencyNode.getArtifact())) {
-                        addException = false;
-                    }
-                    if (addException) {
-                        if (exCol == null) {
-                            exCol = new ExceptionCollection();
+                if (dependencyArtifact.isResolved()) {
+                    //All transitive dependencies, excluding reactor and dependencyManagement artifacts should have been resolved by Maven prior to invoking the plugin
+                    //Resolving the dependencies manually is unnecessary, and does not work in some cases (issue-1751)
+                    getLog().debug(String.format("Skipping artifact %s, already resolved", dependencyArtifact.getArtifactId()));
+                    result = dependencyArtifact;
+                } else {
+                    final ArtifactCoordinate coordinate = TransferUtils.toArtifactCoordinate(dependencyNode.getArtifact());
+                    try {
+                        result = artifactResolver.resolveArtifact(buildingRequest, coordinate).getArtifact();
+                    } catch (ArtifactResolverException ex) {
+                        getLog().debug(String.format("Aggregate : %s", aggregate));
+                        boolean addException = true;
+                        if (!aggregate || addReactorDependency(engine, dependencyNode.getArtifact())) {
+                            addException = false;
                         }
-                        exCol.addException(ex);
+                        if (addException) {
+                            if (exCol == null) {
+                                exCol = new ExceptionCollection();
+                            }
+                            exCol.addException(ex);
+                        }
+                        continue;
                     }
-                    continue;
                 }
                 if (aggregate && virtualSnapshotsFromReactor
-                        && dependencyNode.getArtifact().isSnapshot() && aggregate
+                        && dependencyNode.getArtifact().isSnapshot()
                         && addSnapshotReactorDependency(engine, dependencyNode.getArtifact())) {
                     continue;
                 }
@@ -1126,10 +1136,10 @@ public abstract class BaseDependencyCheckMojo extends AbstractMojo implements Ma
     private ExceptionCollection collectDependencies(Engine engine, MavenProject project,
             List<DependencyNode> nodes, ProjectBuildingRequest buildingRequest, boolean aggregate) {
 
-        ExceptionCollection exCol = null;
+        ExceptionCollection exCol;
         exCol = collectMavenDependencies(engine, project, nodes, buildingRequest, aggregate);
 
-        FileSet[] projectScan = null;
+        final FileSet[] projectScan;
         if (scanSet == null || scanSet.length == 0) {
             // Define the default FileSets
             final FileSet resourcesSet = new FileSet();
@@ -1269,11 +1279,15 @@ public abstract class BaseDependencyCheckMojo extends AbstractMojo implements Ma
                 d.addEvidence(EvidenceType.VENDOR, "project", "groupid", prj.getGroupId(), Confidence.HIGHEST);
                 d.addEvidence(EvidenceType.PRODUCT, "project", "groupid", prj.getGroupId(), Confidence.LOW);
                 d.setEcosystem(JarAnalyzer.DEPENDENCY_ECOSYSTEM);
-                final Identifier id = new Identifier();
-                id.setType("maven");
-                id.setConfidence(Confidence.HIGHEST);
-                id.setValue(displayName);
-                d.addIdentifier(id);
+                Identifier id;
+                try {
+                    id = new PurlIdentifier(StandardTypes.MAVEN, artifact.getGroupId(),
+                            artifact.getArtifactId(), artifact.getVersion(), Confidence.HIGHEST);
+                } catch (MalformedPackageURLException ex) {
+                    getLog().debug("Unable to create PackageURL object:" + key);
+                    id = new GenericIdentifier("maven:" + key, Confidence.HIGHEST);
+                }
+                d.addSoftwareIdentifier(id);
                 //TODO unify the setName/version and package path - they are equivelent ideas submitted by two seperate committers
                 d.setName(String.format("%s:%s", prj.getGroupId(), prj.getArtifactId()));
                 d.setVersion(prj.getVersion());
@@ -1321,13 +1335,15 @@ public abstract class BaseDependencyCheckMojo extends AbstractMojo implements Ma
     }
 
     /**
+     * @param project The target project to create a building request for.
      * @return Returns a new ProjectBuildingRequest populated from the current
-     * session and the current project remote repositories, used to resolve
+     * session and the target project remote repositories, used to resolve
      * artifacts.
      */
-    public ProjectBuildingRequest newResolveArtifactProjectBuildingRequest() {
+    public ProjectBuildingRequest newResolveArtifactProjectBuildingRequest(MavenProject project) {
         final ProjectBuildingRequest buildingRequest = new DefaultProjectBuildingRequest(session.getProjectBuildingRequest());
-        buildingRequest.setRemoteRepositories(remoteRepositories);
+        buildingRequest.setRemoteRepositories(new ArrayList<>(project.getRemoteArtifactRepositories()));
+        buildingRequest.setProject(project);
         return buildingRequest;
     }
 
@@ -1357,10 +1373,12 @@ public abstract class BaseDependencyCheckMojo extends AbstractMojo implements Ma
                 }
                 try {
                     final MavenProject p = this.getProject();
-                    engine.writeReports(p.getName(), p.getGroupId(), p.getArtifactId(), p.getVersion(), outputDir, getFormat());
+                    for (String f : getFormats()) {
+                        engine.writeReports(p.getName(), p.getGroupId(), p.getArtifactId(), p.getVersion(), outputDir, f);
+                    }
                 } catch (ReportException ex) {
                     if (exCol == null) {
-                        exCol = new ExceptionCollection("Error writing aggregate report", ex);
+                        exCol = new ExceptionCollection(ex);
                     } else {
                         exCol.addException(ex);
                     }
@@ -1435,7 +1453,7 @@ public abstract class BaseDependencyCheckMojo extends AbstractMojo implements Ma
      * @return a collection of exceptions
      * @throws MojoExecutionException thrown if a fatal exception occurs
      */
-    protected abstract ExceptionCollection scanDependencies(final Engine engine) throws MojoExecutionException;
+    protected abstract ExceptionCollection scanDependencies(Engine engine) throws MojoExecutionException;
 
     /**
      * Returns the report output directory.
@@ -1484,15 +1502,16 @@ public abstract class BaseDependencyCheckMojo extends AbstractMojo implements Ma
      */
     @Override
     public String getOutputName() {
-        if ("HTML".equalsIgnoreCase(this.format) || "ALL".equalsIgnoreCase(this.format)) {
+        final Set<String> selectedFormats = getFormats();
+        if (selectedFormats.contains("HTML") || selectedFormats.contains("ALL") || selectedFormats.size() > 1) {
             return "dependency-check-report";
-        } else if ("XML".equalsIgnoreCase(this.format)) {
-            return "dependency-check-report.xml#";
-        } else if ("VULN".equalsIgnoreCase(this.format)) {
-            return "dependency-check-vulnerability";
-        } else if ("JSON".equalsIgnoreCase(this.format)) {
+        } else if (selectedFormats.contains("XML")) {
+            return "dependency-check-report.xml";
+        } else if (selectedFormats.contains("JUNIT")) {
+            return "dependency-check-junit.xml";
+        } else if (selectedFormats.contains("JSON")) {
             return "dependency-check-report.json";
-        } else if ("CSV".equalsIgnoreCase(this.format)) {
+        } else if (selectedFormats.contains("CSV")) {
             return "dependency-check-report.csv";
         } else {
             getLog().warn("Unknown report format used during site generation.");
@@ -1527,7 +1546,7 @@ public abstract class BaseDependencyCheckMojo extends AbstractMojo implements Ma
     /**
      * Takes the properties supplied and updates the dependency-check settings.
      * Additionally, this sets the system properties required to change the
-     * proxy url, port, and connection timeout.
+     * proxy URL, port, and connection timeout.
      */
     protected void populateSettings() {
         settings = new Settings();
@@ -1554,13 +1573,6 @@ public abstract class BaseDependencyCheckMojo extends AbstractMojo implements Ma
         settings.setBooleanIfNotNull(Settings.KEYS.AUTO_UPDATE, autoUpdate);
         settings.setBooleanIfNotNull(Settings.KEYS.ANALYZER_EXPERIMENTAL_ENABLED, enableExperimental);
         settings.setBooleanIfNotNull(Settings.KEYS.ANALYZER_RETIRED_ENABLED, enableRetired);
-        if (externalReport != null) {
-            getLog().warn("The 'externalReport' option was set; this configuration option has been removed. "
-                    + "Please update the dependency-check-maven plugin's configuration");
-        }
-        if (proxyUrl != null && !proxyUrl.isEmpty()) {
-            getLog().warn("Deprecated configuration detected, proxyUrl will be ignored; use the maven settings to configure the proxy instead");
-        }
         final Proxy proxy = getMavenProxy();
         if (proxy != null) {
             settings.setString(Settings.KEYS.PROXY_SERVER, proxy.getHost());
@@ -1576,17 +1588,18 @@ public abstract class BaseDependencyCheckMojo extends AbstractMojo implements Ma
         settings.setBooleanIfNotNull(Settings.KEYS.UPDATE_VERSION_CHECK_ENABLED, versionCheckEnabled);
         settings.setStringIfNotEmpty(Settings.KEYS.CONNECTION_TIMEOUT, connectionTimeout);
         settings.setStringIfNotEmpty(Settings.KEYS.HINTS_FILE, hintsFile);
-        //File Type Analyzer Settings
+        settings.setFloat(Settings.KEYS.JUNIT_FAIL_ON_CVSS, junitFailOnCVSS);
         settings.setBooleanIfNotNull(Settings.KEYS.ANALYZER_JAR_ENABLED, jarAnalyzerEnabled);
         settings.setBooleanIfNotNull(Settings.KEYS.ANALYZER_NUSPEC_ENABLED, nuspecAnalyzerEnabled);
         settings.setBooleanIfNotNull(Settings.KEYS.ANALYZER_NUGETCONF_ENABLED, nugetconfAnalyzerEnabled);
         settings.setBooleanIfNotNull(Settings.KEYS.ANALYZER_CENTRAL_ENABLED, centralAnalyzerEnabled);
+        settings.setBooleanIfNotNull(Settings.KEYS.ANALYZER_CENTRAL_USE_CACHE, centralAnalyzerUseCache);
         settings.setBooleanIfNotNull(Settings.KEYS.ANALYZER_ARTIFACTORY_ENABLED, artifactoryAnalyzerEnabled);
         settings.setBooleanIfNotNull(Settings.KEYS.ANALYZER_NEXUS_ENABLED, nexusAnalyzerEnabled);
         settings.setBooleanIfNotNull(Settings.KEYS.ANALYZER_ASSEMBLY_ENABLED, assemblyAnalyzerEnabled);
         settings.setBooleanIfNotNull(Settings.KEYS.ANALYZER_ARCHIVE_ENABLED, archiveAnalyzerEnabled);
         settings.setStringIfNotEmpty(Settings.KEYS.ADDITIONAL_ZIP_EXTENSIONS, zipExtensions);
-        settings.setStringIfNotEmpty(Settings.KEYS.ANALYZER_ASSEMBLY_MONO_PATH, pathToMono);
+        settings.setStringIfNotEmpty(Settings.KEYS.ANALYZER_ASSEMBLY_DOTNET_PATH, pathToCore);
         settings.setStringIfNotEmpty(Settings.KEYS.ANALYZER_NEXUS_URL, nexusUrl);
         if (nexusServerId != null) {
             final Server server = settingsXml.getServer(nexusServerId);
@@ -1644,25 +1657,28 @@ public abstract class BaseDependencyCheckMojo extends AbstractMojo implements Ma
         settings.setBooleanIfNotNull(Settings.KEYS.ANALYZER_AUTOCONF_ENABLED, autoconfAnalyzerEnabled);
         settings.setBooleanIfNotNull(Settings.KEYS.ANALYZER_COMPOSER_LOCK_ENABLED, composerAnalyzerEnabled);
         settings.setBooleanIfNotNull(Settings.KEYS.ANALYZER_NODE_PACKAGE_ENABLED, nodeAnalyzerEnabled);
-        if (nspAnalyzerEnabled != null) {
-            getLog().error("The nspAnalyzerEnabled configuration has been deprecated and replaced by nodeAuditAnalyzerEnabled");
-            getLog().error("The nspAnalyzerEnabled configuration will be removed in the next major release");
-            settings.setBooleanIfNotNull(Settings.KEYS.ANALYZER_NODE_AUDIT_ENABLED, nspAnalyzerEnabled);
-        }
         settings.setBooleanIfNotNull(Settings.KEYS.ANALYZER_NODE_AUDIT_ENABLED, nodeAuditAnalyzerEnabled);
+        settings.setBooleanIfNotNull(Settings.KEYS.ANALYZER_NODE_AUDIT_USE_CACHE, nodeAuditAnalyzerUseCache);
         settings.setBooleanIfNotNull(Settings.KEYS.ANALYZER_RETIREJS_ENABLED, retireJsAnalyzerEnabled);
+        settings.setStringIfNotNull(Settings.KEYS.ANALYZER_RETIREJS_REPO_JS_URL, retireJsUrl);
         settings.setBooleanIfNotNull(Settings.KEYS.ANALYZER_BUNDLE_AUDIT_ENABLED, bundleAuditAnalyzerEnabled);
         settings.setStringIfNotNull(Settings.KEYS.ANALYZER_BUNDLE_AUDIT_PATH, bundleAuditPath);
         settings.setBooleanIfNotNull(Settings.KEYS.ANALYZER_COCOAPODS_ENABLED, cocoapodsAnalyzerEnabled);
         settings.setBooleanIfNotNull(Settings.KEYS.ANALYZER_SWIFT_PACKAGE_MANAGER_ENABLED, swiftPackageManagerAnalyzerEnabled);
+        settings.setBooleanIfNotNull(Settings.KEYS.ANALYZER_OSSINDEX_ENABLED, ossindexAnalyzerEnabled);
+        settings.setStringIfNotEmpty(Settings.KEYS.ANALYZER_OSSINDEX_URL, ossindexAnalyzerUrl);
+        settings.setBooleanIfNotNull(Settings.KEYS.ANALYZER_OSSINDEX_USE_CACHE, ossindexAnalyzerUseCache);
+
         if (retirejs != null) {
             settings.setBooleanIfNotNull(Settings.KEYS.ANALYZER_RETIREJS_FILTER_NON_VULNERABLE, retirejs.getFilterNonVulnerable());
             settings.setArrayIfNotEmpty(Settings.KEYS.ANALYZER_RETIREJS_FILTERS, retirejs.getFilters());
         }
+
         //Database configuration
         settings.setStringIfNotEmpty(Settings.KEYS.DB_DRIVER_NAME, databaseDriverName);
         settings.setStringIfNotEmpty(Settings.KEYS.DB_DRIVER_PATH, databaseDriverPath);
         settings.setStringIfNotEmpty(Settings.KEYS.DB_CONNECTION_STRING, connectionString);
+
         if (databaseUser == null && databasePassword == null && serverId != null) {
             final Server server = settingsXml.getServer(serverId);
             if (server != null) {
@@ -1694,11 +1710,10 @@ public abstract class BaseDependencyCheckMojo extends AbstractMojo implements Ma
         settings.setStringIfNotEmpty(Settings.KEYS.DB_USER, databaseUser);
         settings.setStringIfNotEmpty(Settings.KEYS.DB_PASSWORD, databasePassword);
         settings.setStringIfNotEmpty(Settings.KEYS.DATA_DIRECTORY, dataDirectory);
-        settings.setStringIfNotEmpty(Settings.KEYS.CVE_MODIFIED_12_URL, cveUrl12Modified);
-        settings.setStringIfNotEmpty(Settings.KEYS.CVE_MODIFIED_20_URL, cveUrl20Modified);
-        settings.setStringIfNotEmpty(Settings.KEYS.CVE_SCHEMA_1_2, cveUrl12Base);
-        settings.setStringIfNotEmpty(Settings.KEYS.CVE_SCHEMA_2_0, cveUrl20Base);
+        settings.setStringIfNotEmpty(Settings.KEYS.CVE_MODIFIED_JSON, cveUrlModified);
+        settings.setStringIfNotEmpty(Settings.KEYS.CVE_BASE_JSON, cveUrlBase);
         settings.setIntIfNotNull(Settings.KEYS.CVE_CHECK_VALID_FOR_HOURS, cveValidForHours);
+        settings.setBooleanIfNotNull(Settings.KEYS.PRETTY_PRINT, prettyPrint);
         artifactScopeExcluded = new ArtifactScopeExcluded(skipTestScope, skipProvidedScope, skipSystemScope, skipRuntimeScope);
         artifactTypeExcluded = new ArtifactTypeExcluded(skipArtifactType);
     }
@@ -1798,12 +1813,29 @@ public abstract class BaseDependencyCheckMojo extends AbstractMojo implements Ma
     }
 
     /**
-     * Returns the report format.
+     * Combines the format and formats properties into a single collection.
      *
-     * @return the report format
+     * @return the selected report formats
      */
-    protected String getFormat() {
-        return format;
+    private Set<String> getFormats() {
+        final Set<String> selectedFormats = formats == null ? new HashSet<>() : new HashSet<>(Arrays.asList(formats));
+        if (format != null && selectedFormats.isEmpty()) {
+            selectedFormats.add(format);
+        }
+        return selectedFormats;
+    }
+
+    /**
+     * Returns the list of excluded artifacts based on either artifact id or
+     * group id and artifact id.
+     *
+     * @return a list of artifact to exclude
+     */
+    public List<String> getExcludes() {
+        if (excludes == null) {
+            excludes = new ArrayList<>();
+        }
+        return excludes;
     }
 
     /**
@@ -1838,7 +1870,8 @@ public abstract class BaseDependencyCheckMojo extends AbstractMojo implements Ma
         for (Dependency d : dependencies) {
             boolean addName = true;
             for (Vulnerability v : d.getVulnerabilities()) {
-                if (failBuildOnAnyVulnerability || v.getCvssScore() >= failBuildOnCVSS) {
+                if (failBuildOnAnyVulnerability || (v.getCvssV2() != null && v.getCvssV2().getScore() >= failBuildOnCVSS)
+                        || (v.getCvssV3() != null && v.getCvssV3().getBaseScore() >= failBuildOnCVSS)) {
                     if (addName) {
                         addName = false;
                         ids.append(NEW_LINE).append(d.getFileName()).append(": ");
@@ -1863,7 +1896,6 @@ public abstract class BaseDependencyCheckMojo extends AbstractMojo implements Ma
                 msg = String.format("%n%nOne or more dependencies were identified with vulnerabilities.%n%n"
                         + "See the dependency-check report for more details.%n%n");
             }
-
             throw new MojoFailureException(msg);
         }
     }
@@ -1877,62 +1909,8 @@ public abstract class BaseDependencyCheckMojo extends AbstractMojo implements Ma
      */
     protected void showSummary(MavenProject mp, Dependency[] dependencies) {
         if (showSummary) {
-            final StringBuilder summary = new StringBuilder();
-            for (Dependency d : dependencies) {
-                boolean firstEntry = true;
-                final StringBuilder ids = new StringBuilder();
-                for (Vulnerability v : d.getVulnerabilities()) {
-                    if (firstEntry) {
-                        firstEntry = false;
-                    } else {
-                        ids.append(", ");
-                    }
-                    ids.append(v.getName());
-                }
-                if (ids.length() > 0) {
-                    summary.append(d.getFileName()).append(" (");
-                    firstEntry = true;
-                    for (Identifier id : d.getIdentifiers()) {
-                        if (firstEntry) {
-                            firstEntry = false;
-                        } else {
-                            summary.append(", ");
-                        }
-                        summary.append(id.getValue());
-                    }
-                    summary.append(") : ").append(ids).append(NEW_LINE);
-                }
-            }
-            if (summary.length() > 0) {
-                final String msg = String.format("%n%n" + "One or more dependencies were identified with known vulnerabilities in %s:%n%n%s"
-                        + "%n%nSee the dependency-check report for more details.%n%n", mp.getName(), summary.toString());
-                getLog().warn(msg);
-            }
+            DependencyCheckScanAgent.showSummary(mp.getName(), dependencies);
         }
-    }
-
-    //</editor-fold>
-    //<editor-fold defaultstate="collapsed" desc="Methods to read/write the serialized data file">
-    /**
-     * Returns the key used to store the path to the data file that is saved by
-     * <code>writeDataFile()</code>. This key is used in the
-     * <code>MavenProject.(set|get)ContextValue</code>.
-     *
-     * @return the key used to store the path to the data file
-     */
-    protected String getDataFileContextKey() {
-        return "dependency-check-path-" + dataFileName;
-    }
-
-    /**
-     * Returns the key used to store the path to the output directory. When
-     * generating the report in the <code>executeAggregateReport()</code> the
-     * output directory should be obtained by using this key.
-     *
-     * @return the key used to store the path to the output directory
-     */
-    protected String getOutputDirectoryContextKey() {
-        return "dependency-output-dir-" + dataFileName;
     }
 
     //</editor-fold>

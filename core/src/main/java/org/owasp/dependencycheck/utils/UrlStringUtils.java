@@ -44,7 +44,7 @@ public final class UrlStringUtils {
      * A listing of domain parts that should not be used as evidence. Yes, this
      * is an incomplete list.
      */
-    private static final String[] IGNORE_LIST = {"www", "com", "org", "gov", "info", "name", "net", "pro", "tel", "mobi", "xxx"};
+    private static final String[] IGNORE_LIST = {"www", "com", "org", "gov", "info", "name", "net", "pro", "tel", "mobi", "xxx", "github"};
 
     static {
         Arrays.sort(IGNORE_LIST);
@@ -92,6 +92,7 @@ public final class UrlStringUtils {
      * @return importantParts a list of the important parts of the URL
      * @throws MalformedURLException thrown if the URL is malformed
      */
+    @SuppressWarnings("StringSplitter")
     public static List<String> extractImportantUrlData(String text) throws MalformedURLException {
         final List<String> importantParts = new ArrayList<>();
         final URL url = new URL(text);
@@ -104,7 +105,7 @@ public final class UrlStringUtils {
             }
         }
         final String document = url.getPath();
-        final String[] pathParts = document.split("[\\//]");
+        final String[] pathParts = document.split("[\\\\//]");
         for (int i = 0; i < pathParts.length - 1; i++) {
             if (!pathParts[i].isEmpty()) {
                 importantParts.add(pathParts[i]);

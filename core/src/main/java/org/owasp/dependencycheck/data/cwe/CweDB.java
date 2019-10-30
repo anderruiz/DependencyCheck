@@ -13,10 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Copyright (c) 2012 Jeremy Long. All Rights Reserved.
+ * Copyright (c) 2018 Jeremy Long. All Rights Reserved.
  */
 package org.owasp.dependencycheck.data.cwe;
 
+import org.apache.commons.io.IOUtils;
 import org.owasp.dependencycheck.utils.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,8 +60,11 @@ public final class CweDB {
     @SuppressWarnings("unchecked")
     private static Map<String, String> loadData() {
         final String filePath = "data/cwe.hashmap.serialized";
-        try (InputStream input = FileUtils.getResourceAsStream(filePath);
-                ObjectInputStream oin = new ObjectInputStream(input)) {
+        InputStream input = null;
+        ObjectInputStream oin = null;
+        try  {
+        	input = FileUtils.getResourceAsStream(filePath);
+            oin = new ObjectInputStream(input);
             return (HashMap<String, String>) oin.readObject();
         } catch (ClassNotFoundException ex) {
             LOGGER.warn("Unable to load CWE data. This should not be an issue.");
@@ -68,6 +72,9 @@ public final class CweDB {
         } catch (IOException ex) {
             LOGGER.warn("Unable to load CWE data due to an IO Error. This should not be an issue.");
             LOGGER.debug("", ex);
+        } finally {
+        	IOUtils.closeQuietly(input);
+        	IOUtils.closeQuietly(oin);
         }
         return null;
     }
@@ -79,10 +86,25 @@ public final class CweDB {
      * @param cweId the CWE ID
      * @return the full name of the CWE
      */
-    public static synchronized String getCweName(String cweId) {
+    public static synchronized String getName(String cweId) {
         if (cweId != null) {
             return CWE.get(cweId);
         }
         return null;
+    }
+
+    /**
+     * <p>
+     * Returns the full CWE name from the CWE ID.</p>
+     *
+     * @param cweId the CWE ID
+     * @return the full name of the CWE
+     */
+    public static synchronized String getFullName(String cweId) {
+        final String name = getName(cweId);
+        if (name != null) {
+            return cweId + " " + name;
+        }
+        return cweId;
     }
 }

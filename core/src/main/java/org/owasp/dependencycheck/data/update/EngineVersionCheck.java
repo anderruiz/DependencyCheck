@@ -26,7 +26,6 @@ import org.owasp.dependencycheck.data.nvdcve.DatabaseProperties;
 import org.owasp.dependencycheck.data.update.exception.UpdateException;
 import org.owasp.dependencycheck.utils.DateUtil;
 import org.owasp.dependencycheck.utils.DependencyVersion;
-import org.owasp.dependencycheck.utils.InvalidSettingException;
 import org.owasp.dependencycheck.utils.Settings;
 import org.owasp.dependencycheck.utils.StandardCharsets;
 import org.owasp.dependencycheck.utils.URLConnectionFactory;
@@ -112,18 +111,20 @@ public class EngineVersionCheck implements CachedWebDataSource {
      * running engine's version number. If the released version number is newer
      * a warning is printed recommending an upgrade.
      *
+     * @return returns false as no updates are made to the database that would
+     * require compaction
      * @throws UpdateException thrown if the local database properties could not
      * be updated
      */
     @Override
-    public void update(Engine engine) throws UpdateException {
+    public boolean update(Engine engine) throws UpdateException {
         this.settings = engine.getSettings();
         try {
             final CveDB db = engine.getDatabase();
             final boolean autoupdate = settings.getBoolean(Settings.KEYS.AUTO_UPDATE, true);
             final boolean enabled = settings.getBoolean(Settings.KEYS.UPDATE_VERSION_CHECK_ENABLED, true);
-            final String original = settings.getString(Settings.KEYS.CVE_ORIGINAL_MODIFIED_20_URL);
-            final String current = settings.getString(Settings.KEYS.CVE_MODIFIED_20_URL);
+            final String original = settings.getString(Settings.KEYS.CVE_ORIGINAL_JSON);
+            final String current = settings.getString(Settings.KEYS.CVE_MODIFIED_JSON);
             /*
              * Only update if auto-update is enabled, the engine check is
              * enabled, and the NVD CVE URLs have not been modified (i.e. the
@@ -134,8 +135,8 @@ public class EngineVersionCheck implements CachedWebDataSource {
 
                 final DatabaseProperties properties = db.getDatabaseProperties();
 
-                final long lastChecked = Long.parseLong(properties.getProperty(ENGINE_VERSION_CHECKED_ON, "0"));
-                final long now = System.currentTimeMillis();
+                final long lastChecked = DateUtil.getEpochValueInSeconds(properties.getProperty(ENGINE_VERSION_CHECKED_ON, "0"));
+                final long now = System.currentTimeMillis() / 1000;
                 updateToVersion = properties.getProperty(CURRENT_ENGINE_RELEASE, "");
                 final String currentVersion = settings.getString(Settings.KEYS.APPLICATION_VERSION, "0.0.0");
                 LOGGER.debug("Last checked: {}", lastChecked);
@@ -150,9 +151,8 @@ public class EngineVersionCheck implements CachedWebDataSource {
         } catch (DatabaseException ex) {
             LOGGER.debug("Database Exception opening databases to retrieve properties", ex);
             throw new UpdateException("Error occurred updating database properties.");
-        } catch (InvalidSettingException ex) {
-            LOGGER.debug("Unable to determine if autoupdate is enabled", ex);
         }
+        return false;
     }
 
     /**
@@ -234,5 +234,10 @@ public class EngineVersionCheck implements CachedWebDataSource {
             }
         }
         return null;
+    }
+
+    @Override
+    public boolean purge(Engine engine) {
+        return true;
     }
 }

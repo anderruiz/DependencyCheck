@@ -17,6 +17,7 @@
  */
 package org.owasp.dependencycheck.analyzer;
 
+import org.apache.commons.compress.utils.IOUtils;
 import org.apache.commons.io.FileUtils;
 import org.owasp.dependencycheck.Engine;
 import org.owasp.dependencycheck.analyzer.exception.AnalysisException;
@@ -207,15 +208,19 @@ public class NodePackageAnalyzer extends AbstractNpmAnalyzer {
             return;
         }
 
-        try (JsonReader jsonReader = Json.createReader(FileUtils.openInputStream(dependencyFile))) {
+        JsonReader jsonReader = null;
+        try {
+        	jsonReader = Json.createReader(FileUtils.openInputStream(dependencyFile));
             final JsonObject json = jsonReader.readObject();
             final String parentName = json.getString("name", "");
             final String parentVersion = json.getString("version", "");
             if (parentName.isEmpty()) {
                 return;
             }
+            dependency.setName(parentName);
             final String parentPackage;
             if (!parentVersion.isEmpty()) {
+                dependency.setVersion(parentVersion);
                 parentPackage = String.format("%s:%s", parentName, parentVersion);
             } else {
                 parentPackage = parentName;
@@ -225,6 +230,8 @@ public class NodePackageAnalyzer extends AbstractNpmAnalyzer {
             LOGGER.warn("Failed to parse package.json file.", e);
         } catch (IOException e) {
             throw new AnalysisException("Problem occurred while reading dependency file.", e);
+        } finally {
+        	IOUtils.closeQuietly(jsonReader);
         }
     }
 
@@ -248,8 +255,14 @@ public class NodePackageAnalyzer extends AbstractNpmAnalyzer {
                 final JsonObject jo = (JsonObject) entry.getValue();
                 final String name = entry.getKey();
                 final String version = jo.getString("version");
+                final boolean optional = jo.getBoolean("optional", false);
                 final File base = new File(new File(baseDir.getPath(), "node_modules"), name);
                 final File f = new File(base, PACKAGE_JSON);
+
+                if (optional && !f.exists()) {
+                    LOGGER.warn("node module {} seems optional and not installed, skip it", name);
+                    continue;
+                }
 
                 if (jo.containsKey("dependencies")) {
                     final String subPackageName = String.format("%s/%s:%s", parentPackage, name, version);

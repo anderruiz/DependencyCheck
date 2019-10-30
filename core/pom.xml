@@ -20,7 +20,7 @@ Copyright (c) 2012 Jeremy Long. All Rights Reserved.
     <parent>
         <groupId>org.owasp</groupId>
         <artifactId>dependency-check-parent</artifactId>
-        <version>4.0.2.rc19.hdiv</version>
+        <version>5.0.0.rc19.hdiv</version>
     </parent>
 
     <artifactId>dependency-check-core</artifactId>
@@ -101,6 +101,32 @@ Copyright (c) 2012 Jeremy Long. All Rights Reserved.
         </testResources>
         <plugins>
             <plugin>
+                <groupId>org.jsonschema2pojo</groupId>
+                <artifactId>jsonschema2pojo-maven-plugin</artifactId>
+                <configuration>
+                    <sourceDirectory>${basedir}/src/main/resources/schema/nvdcve/json</sourceDirectory>
+                    <outputDirectory>${project.build.directory}/generated-sources/java</outputDirectory>
+                    <includeGetters>true</includeGetters>
+                    <annotationStyle>gson</annotationStyle>
+                    <targetPackage>org.owasp.dependencycheck.data.nvd.json</targetPackage>
+                </configuration>
+                <executions>
+                    <execution>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>generate</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <configuration>
+                    <excludes>${project.build.directory}/generated-sources/java/**/*.java</excludes>
+                </configuration>
+            </plugin>
+            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-dependency-plugin</artifactId>
                 <executions>
@@ -143,18 +169,24 @@ Copyright (c) 2012 Jeremy Long. All Rights Reserved.
     </build>
     <dependencies>
         <dependency>
-            <groupId>com.vdurmont</groupId>
-            <artifactId>semver4j</artifactId>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-jcs-core</artifactId>
         </dependency>
-        <!-- Note, to stay compatible with Jenkins installations only JARs compiled to 1.6 can be used -->
+        <dependency>
+            <groupId>com.github.package-url</groupId>
+            <artifactId>packageurl-java</artifactId>
+        </dependency>
         <dependency>
             <groupId>joda-time</groupId>
             <artifactId>joda-time</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.google.code.findbugs</groupId>
-            <artifactId>annotations</artifactId>
-            <optional>true</optional>
+            <groupId>us.springett</groupId>
+            <artifactId>cpe-parser</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.vdurmont</groupId>
+            <artifactId>semver4j</artifactId>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
@@ -181,7 +213,6 @@ Copyright (c) 2012 Jeremy Long. All Rights Reserved.
             <artifactId>jmockit</artifactId>
             <scope>test</scope>
         </dependency>
-        <!-- Upgrading transitive commons-collections-3.2.1 from velocity-1.7. -->
         <dependency>
             <groupId>commons-collections</groupId>
             <artifactId>commons-collections</artifactId>
@@ -236,6 +267,11 @@ Copyright (c) 2012 Jeremy Long. All Rights Reserved.
             <artifactId>javax.mail-api</artifactId>
         </dependency>
         <dependency>
+            <groupId>com.sun.mail</groupId>
+            <artifactId>javax.mail</artifactId>
+            <version>${javax.mail.version}</version>
+        </dependency>
+        <dependency>
             <groupId>com.google.code.gson</groupId>
             <artifactId>gson</artifactId>
         </dependency>
@@ -243,13 +279,25 @@ Copyright (c) 2012 Jeremy Long. All Rights Reserved.
             <groupId>com.h3xstream.retirejs</groupId>
             <artifactId>retirejs-core</artifactId>
         </dependency>
+        <!-- dependency>
+            <groupId>org.sonatype.ossindex</groupId>
+            <artifactId>ossindex-service-client</artifactId>
+        </dependency-->
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
             <scope>test</scope>
         </dependency>
-        <!-- The following dependencies are only used during testing 
+        <!-- The following dependencies are only used during testing
              and must not be converted to a properties based version number -->
+        <dependency>
+            <groupId>io.github.faob-dev</groupId>
+            <artifactId>aar</artifactId>
+            <version>1.0.0</version>
+            <type>aar</type>
+            <scope>test</scope>
+            <optional>true</optional>
+        </dependency>
         <dependency>
             <groupId>org.jslipc</groupId>
             <artifactId>jslipc</artifactId>
@@ -386,7 +434,6 @@ Copyright (c) 2012 Jeremy Long. All Rights Reserved.
             <scope>test</scope>
             <optional>true</optional>
         </dependency>
-
     </dependencies>
     <profiles>
         <profile>
@@ -482,10 +529,10 @@ Copyright (c) 2012 Jeremy Long. All Rights Reserved.
                 </plugins>
             </build>
         </profile>
-        <!-- 
-            The following profile adds additional dependencies that are only 
+        <!--
+            The following profile adds additional dependencies that are only
             used during testing.
-        
+
             TODO move the following FP tests to a seperate invoker test in the
             maven plugin project. Add checks against the XML to validate that
             these do not report FP.

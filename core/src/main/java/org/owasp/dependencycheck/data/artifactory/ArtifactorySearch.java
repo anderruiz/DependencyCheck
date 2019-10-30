@@ -35,6 +35,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.concurrent.ThreadSafe;
 import javax.xml.bind.DatatypeConverter;
+
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -195,7 +196,7 @@ public class ArtifactorySearch {
      */
     protected List<MavenArtifact> processResponse(Dependency dependency, HdivHttpConnection conn) throws IOException {
         final JsonObject asJsonObject;
-        try (final InputStreamReader streamReader = new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8)) {
+        try (InputStreamReader streamReader = new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8)) {
             asJsonObject = new JsonParser().parse(streamReader).getAsJsonObject();
         }
         final JsonArray results = asJsonObject.getAsJsonArray("results");
@@ -221,7 +222,7 @@ public class ArtifactorySearch {
 
             final Matcher pathMatcher = PATH_PATTERN.matcher(path);
             if (!pathMatcher.matches()) {
-                throw new IllegalStateException("Cannot extract the Maven information from the apth retrieved in Artifactory " + path);
+                throw new IllegalStateException("Cannot extract the Maven information from the path retrieved in Artifactory " + path);
             }
             final String groupId = pathMatcher.group(1).replace('/', '.');
             final String artifactId = pathMatcher.group(2);

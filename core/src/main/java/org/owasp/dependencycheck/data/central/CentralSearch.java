@@ -17,7 +17,25 @@
  */
 package org.owasp.dependencycheck.data.central;
 
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
+import javax.annotation.concurrent.ThreadSafe;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.xpath.XPath;
+import javax.xml.xpath.XPathConstants;
+import javax.xml.xpath.XPathExpressionException;
+import javax.xml.xpath.XPathFactory;
+
 import org.hdiv.ee.ssl.HdivHttpConnection;
+import org.owasp.dependencycheck.data.cache.DataCache;
+import org.owasp.dependencycheck.data.cache.DataCacheFactory;
 import org.owasp.dependencycheck.data.nexus.MavenArtifact;
 import org.owasp.dependencycheck.utils.Settings;
 import org.owasp.dependencycheck.utils.URLConnectionFactory;
@@ -27,22 +45,6 @@ import org.slf4j.LoggerFactory;
 import org.w3c.dom.Document;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
-
-import javax.annotation.concurrent.ThreadSafe;
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.xpath.XPath;
-import javax.xml.xpath.XPathConstants;
-import javax.xml.xpath.XPathExpressionException;
-import javax.xml.xpath.XPathFactory;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URISyntaxException;
-import java.net.URL;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 
 /**
  * Class of methods to search Maven Central via Central.
@@ -75,6 +77,10 @@ public class CentralSearch {
      * The configured settings.
      */
     private final Settings settings;
+    /**
+     * Persisted disk cache for `npm audit` results.
+     */
+    private DataCache<List<MavenArtifact>> cache;
 
     /**
      * Creates a NexusSearch for the given repository URL.
@@ -106,6 +112,10 @@ public class CentralSearch {
             useProxy = false;
             LOGGER.debug("Not using proxy");
         }
+        if (settings.getBoolean(Settings.KEYS.ANALYZER_CENTRAL_USE_CACHE, true)) {
+            final DataCacheFactory factory = new DataCacheFactory(settings);
+            cache = factory.getCache(DataCacheFactory.CacheType.CENTRAL);
+        }
     }
 
     /**
@@ -117,81 +127,108 @@ public class CentralSearch {
      * @return the populated Maven GAV.
      * @throws FileNotFoundException if the specified artifact is not found
      * @throws IOException if it's unable to connect to the specified repository
+     * @throws TooManyRequestsException if Central has received too many
+     * requests.
      */
-    public List<MavenArtifact> searchSha1(String sha1) throws IOException {
+    public List<MavenArtifact> searchSha1(String sha1) throws IOException, TooManyRequestsException {
         if (null == sha1 || !sha1.matches("^[0-9A-Fa-f]{40}$")) {
             throw new IllegalArgumentException("Invalid SHA1 format");
         }
+        if (cache != null) {
+            final List<MavenArtifact> cached = cache.get(sha1);
+            if (cached != null) {
+                LOGGER.debug("cache hit for Central: " + sha1);
+                if (cached.isEmpty()) {
+                    throw new FileNotFoundException("Artifact not found in Central");
+                }
+                return cached;
+            }
+        }
+        final List<MavenArtifact> result = new ArrayList<>();
         final URL url = new URL(String.format(query, rootURL, sha1));
 
         LOGGER.debug("Searching Central url {}", url);
 
+        int retries = 3;
+        IOException ioex = null;
+        TooManyRequestsException torex = null;
+        while (retries-- > 0) {
+            try {
         // Determine if we need to use a proxy. The rules:
         // 1) If the proxy is set, AND the setting is set to true, use the proxy
         // 2) Otherwise, don't use the proxy (either the proxy isn't configured,
         // or proxy is specifically set to false)
-        int retries = 3;
-        IOException ioex = null;
-        while (retries-- > 0) {
+        final URLConnectionFactory factory = new URLConnectionFactory(settings);
+        final HdivHttpConnection conn = factory.createHttpURLConnection(url, useProxy);
+
+        conn.setDoOutput(true);
+
+        // JSON would be more elegant, but there's not currently a dependency
+        // on JSON, so don't want to add one just for this
+        conn.addRequestProperty("Accept", "application/xml");
+        conn.connect();
+
+        if (conn.getResponseCode() == 200) {
+        	retries = 0;
+            boolean missing = false;
             try {
-                final URLConnectionFactory factory = new URLConnectionFactory(settings);
-                final HdivHttpConnection conn = factory.createHttpURLConnection(url, useProxy);
-
-                conn.setDoOutput(true);
-
-                // JSON would be more elegant, but there's not currently a dependency
-                // on JSON, so don't want to add one just for this
-                conn.addRequestProperty("Accept", "application/xml");
-                conn.connect();
-
-                if (conn.getResponseCode() == 200) {
-                    retries = 0;
-                    boolean missing = false;
-                    List<MavenArtifact> result = new ArrayList<>();
-                    try {
-                        final DocumentBuilder builder = XmlUtils.buildSecureDocumentBuilder();
-                        final Document doc = builder.parse(conn.getInputStream());
-                        final XPath xpath = XPathFactory.newInstance().newXPath();
-                        final String numFound = xpath.evaluate("/response/result/@numFound", doc);
-                        if ("0".equals(numFound)) {
-                            missing = true;
-                        } else {
-                            final NodeList docs = (NodeList) xpath.evaluate("/response/result/doc", doc, XPathConstants.NODESET);
-                            for (int i = 0; i < docs.getLength(); i++) {
-                                final String g = xpath.evaluate("./str[@name='g']", docs.item(i));
-                                LOGGER.trace("GroupId: {}", g);
-                                final String a = xpath.evaluate("./str[@name='a']", docs.item(i));
-                                LOGGER.trace("ArtifactId: {}", a);
-                                final String v = xpath.evaluate("./str[@name='v']", docs.item(i));
-                                final NodeList attributes = (NodeList) xpath.evaluate("./arr[@name='ec']/str", docs.item(i), XPathConstants.NODESET);
-                                boolean pomAvailable = false;
-                                boolean jarAvailable = false;
-                                for (int x = 0; x < attributes.getLength(); x++) {
-                                    final String tmp = xpath.evaluate(".", attributes.item(x));
-                                    if (".pom".equals(tmp)) {
-                                        pomAvailable = true;
-                                    } else if (".jar".equals(tmp)) {
-                                        jarAvailable = true;
-                                    }
-                                }
-                                LOGGER.trace("Version: {}", v);
-                                result.add(new MavenArtifact(g, a, v, jarAvailable, pomAvailable, settings));
+                final DocumentBuilder builder = XmlUtils.buildSecureDocumentBuilder();
+                final Document doc = builder.parse(conn.getInputStream());
+                final XPath xpath = XPathFactory.newInstance().newXPath();
+                final String numFound = xpath.evaluate("/response/result/@numFound", doc);
+                if ("0".equals(numFound)) {
+                    missing = true;
+                } else {
+                    final NodeList docs = (NodeList) xpath.evaluate("/response/result/doc", doc, XPathConstants.NODESET);
+                    for (int i = 0; i < docs.getLength(); i++) {
+                        final String g = xpath.evaluate("./str[@name='g']", docs.item(i));
+                        LOGGER.trace("GroupId: {}", g);
+                        final String a = xpath.evaluate("./str[@name='a']", docs.item(i));
+                        LOGGER.trace("ArtifactId: {}", a);
+                        final String v = xpath.evaluate("./str[@name='v']", docs.item(i));
+                        final NodeList attributes = (NodeList) xpath.evaluate("./arr[@name='ec']/str", docs.item(i), XPathConstants.NODESET);
+                        boolean pomAvailable = false;
+                        boolean jarAvailable = false;
+                        for (int x = 0; x < attributes.getLength(); x++) {
+                            final String tmp = xpath.evaluate(".", attributes.item(x));
+                            if (".pom".equals(tmp)) {
+                                pomAvailable = true;
+                            } else if (".jar".equals(tmp)) {
+                                jarAvailable = true;
                             }
                         }
-                    } catch (ParserConfigurationException | SAXException | XPathExpressionException e) {
-                        // Anything else is jacked up XML stuff that we really can't recover from well
-                        final String errorMessage = "Bad XML response payload: " + e.getMessage();
-                        throw new IOException(errorMessage, e);
-                    }
 
-                    if (missing) {
-                        throw new FileNotFoundException("Artifact not found in Central");
+//                        attributes = (NodeList) xpath.evaluate("./arr[@name='tags']/str", docs.item(i), XPathConstants.NODESET);
+//                        boolean useHTTPS = true;//false;
+//                        for (int x = 0; x < attributes.getLength(); x++) {
+//                            final String tmp = xpath.evaluate(".", attributes.item(x));
+//                            if ("https".equals(tmp)) {
+//                                useHTTPS = true;
+//                            }
+//                        }
+                        LOGGER.trace("Version: {}", v);
+                        result.add(new MavenArtifact(g, a, v, jarAvailable, pomAvailable, settings));
                     }
-                    return result;
-                } else {
-                    final String errorMessage = "Bad HTTP response, code: " + conn.getResponseCode() + ", reason: " + conn.getResponseMessage() + " url:"+conn.getURL();
-                    throw new IOException(errorMessage);
                 }
+            } catch (ParserConfigurationException | SAXException | XPathExpressionException e) {
+                // Anything else is jacked up XML stuff that we really can't recover from well
+                final String errorMessage = "Bad XML response payload: " + e.getMessage();
+                throw new IOException(errorMessage, e);
+            }
+
+            if (missing) {
+                if (cache != null) {
+                    cache.put(sha1, result);
+                }
+                throw new FileNotFoundException("Artifact not found in Central");
+            }
+        } else if (conn.getResponseCode() == 429) {
+            final String errorMessage = "Too many requests sent to MavenCentral; additional requests are being rejected.";
+            torex = new TooManyRequestsException(errorMessage);
+        } else {
+            final String errorMessage = "Could not connect to MavenCentral (" + conn.getResponseCode() + "): " + conn.getResponseMessage();
+            ioex = new IOException(errorMessage);
+        }
             } catch (FileNotFoundException e) {
                 throw e;
             } catch (Exception e) {
@@ -202,7 +239,13 @@ public class CentralSearch {
         if (ioex != null) {
             throw ioex;
         }
-        return Collections.emptyList();
+        if (torex != null) {
+            throw torex;
+        }
+        if (cache != null) {
+            cache.put(sha1, result);
+        }
+        return result;
     }
 
     /**

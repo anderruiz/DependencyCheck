@@ -101,30 +101,36 @@ Configuration: dependency-check Task
 --------------------
 The following properties can be set on the dependency-check task.
 
-Property              | Description                                                                                                                                                                                        | Default Value
-----------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------
-autoUpdate            | Sets whether auto-updating of the NVD CVE/CPE data is enabled. It is not recommended that this be turned to false.                                                                                 | true
-cveValidForHours      | Sets the number of hours to wait before checking for new updates from the NVD                                                                                                                      | 4
+Property              | Description                                                                                                                                                                                                    | Default Value
+----------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------
+autoUpdate            | Sets whether auto-updating of the NVD CVE/CPE data is enabled. It is not recommended that this be turned to false.                                                                                             | true
+cveValidForHours      | Sets the number of hours to wait before checking for new updates from the NVD                                                                                                                                  | 4
+failOnError           | Whether the build should fail if there is an error executing the dependency-check analysis                                                                                                                     | true
 failBuildOnCVSS       | Specifies if the build should be failed if a CVSS score equal to or above a specified level is identified. The default is 11 which means since the CVSS scores are 0-10, by default the build will never fail. | 11
-failOnError           | Whether the build should fail if there is an error executing the dependency-check analysis                                                                                                         | true
-projectName           | The name of the project being scanned.                                                                                                                                                             | Dependency-Check
-reportFormat          | The report format to be generated (HTML, XML, CSV, JSON, VULN, ALL). This configuration option has no affect if using this within the Site plugin unless the externalReport is set to true.        | HTML
-reportOutputDirectory | The location to write the report(s). Note, this is not used if generating the report as part of a `mvn site` build                                                                                 | 'target'
-hintsFile             | The file path to the XML hints file \- used to resolve [false negatives](../general/hints.html)                                                                                                    | &nbsp;
-proxyServer           | The Proxy Server; see the [proxy configuration](../data/proxy.html) page for more information.                                                                                                     | &nbsp;
-proxyPort             | The Proxy Port.                                                                                                                                                                                    | &nbsp;
-proxyUsername         | Defines the proxy user name.                                                                                                                                                                       | &nbsp;
-proxyPassword         | Defines the proxy password.                                                                                                                                                                        | &nbsp;
-connectionTimeout     | The URL Connection Timeout.                                                                                                                                                                        | &nbsp;
-enableExperimental    | Enable the [experimental analyzers](../analyzers/index.html). If not enabled the experimental analyzers (see below) will not be loaded or used.                                                    | false
-enableRetired         | Enable the [retired analyzers](../analyzers/index.html). If not enabled the retired analyzers (see below) will not be loaded or used.                                                              | false
-suppressionFile       | The file path to the XML suppression file \- used to suppress [false positives](../general/suppression.html).                                                                                      | &nbsp;
+junitFailOnCVSS       | If using the JUNIT report format the junitFailOnCVSS sets the CVSS score threshold that is considered a failure.                                                                                               | 0
+prettyPrint           | Whether the XML and JSON formatted reports should be pretty printed.                                                                                                                                           | false
+projectName           | The name of the project being scanned.                                                                                                                                                                         | Dependency-Check
+reportFormat          | The report format to be generated (HTML, XML, CSV, JSON, JUNIT, ALL).                                                                                                                                          | HTML
+reportOutputDirectory | The location to write the report(s). Note, this is not used if generating the report as part of a `mvn site` build                                                                                             | 'target'
+hintsFile             | The file path to the XML hints file \- used to resolve [false negatives](../general/hints.html)                                                                                                                | &nbsp;
+proxyServer           | The Proxy Server; see the [proxy configuration](../data/proxy.html) page for more information.                                                                                                                 | &nbsp;
+proxyPort             | The Proxy Port.                                                                                                                                                                                                | &nbsp;
+proxyUsername         | Defines the proxy user name.                                                                                                                                                                                   | &nbsp;
+proxyPassword         | Defines the proxy password.                                                                                                                                                                                    | &nbsp; 
+nonProxyHosts         | Defines the hosts that will not be proxied.                                                                                                                                                                    | &nbsp;
+connectionTimeout     | The URL Connection Timeout.                                                                                                                                                                                    | &nbsp;
+enableExperimental    | Enable the [experimental analyzers](../analyzers/index.html). If not enabled the experimental analyzers (see below) will not be loaded or used.                                                                | false
+enableRetired         | Enable the [retired analyzers](../analyzers/index.html). If not enabled the retired analyzers (see below) will not be loaded or used.                                                                          | false
+suppressionFile       | The file path to the XML suppression file \- used to suppress [false positives](../general/suppression.html). The parameter value can be a local file path, a URL to a suppression file, or even a reference to a file on the class path (see https://github.com/jeremylong/DependencyCheck/issues/1878#issuecomment-487533799) | &nbsp;
+junitFailOnCVSS       | If using the JUNIT report format the junitFailOnCVSS sets the CVSS score threshold that is considered a failure.                                                                                               | 0
 
 The following nested elements can be set on the dependency-check task.
 
 Element           | Property | Description                                                                                                                                                                                        | Default Value
 ------------------|----------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------
-suppressionFile   | path     | The file path to the XML suppression file \- used to suppress [false positives](../general/suppression.html). Element can be specified multiple times.                                             | &nbsp;
+suppressionFile   | path     | The file path to the XML suppression file \- used to suppress [false positives](../general/suppression.html). Element can be specified multiple times. The parameter value can be a local file path, a URL to a suppression file, or even a reference to a file on the class path (see https://github.com/jeremylong/DependencyCheck/issues/1878#issuecomment-487533799) | &nbsp;| &nbsp;
+reportFormat      | format   | The report format to be generated (HTML, XML, CSV, JSON, JUNIT, ALL). Element can be specified multiple times.                                                                                     | &nbsp;
+
 
 Analyzer Configuration
 ====================
@@ -139,7 +145,10 @@ Property                            | Description                               
 archiveAnalyzerEnabled              | Sets whether the Archive Analyzer will be used.                                                            | true
 zipExtensions                       | A comma-separated list of additional file extensions to be treated like a ZIP file, the contents will be extracted and analyzed. | &nbsp;
 jarAnalyzer                         | Sets whether the Jar Analyzer will be used.                                                                | true
-centralAnalyzerEnabled              | Sets whether the Central Analyzer will be used. **Disabling this analyzer is not recommended as it could lead to false negatives (e.g. libraries that have vulnerabilities may not be reported correctly).** If this analyzer is being disabled there is a good chance you also want to disable the Nexus Analyzer (see below).                                  | true
+centralAnalyzerEnabled              | Sets whether the Central Analyzer will be used. **Disabling this analyzer for Ant builds is not recommended as it could lead to false negatives (e.g. libraries that have vulnerabilities may not be reported correctly).** If this analyzer is being disabled there is a good chance you also want to disable the Nexus Analyzer (see below).                                  | true
+centralAnalyzerUseCache             | Sets whether the Central Analyer will cache results. Cached results expire after 30 days.                  | true
+ossIndexAnalyzerEnabled             | Sets whether the OSS Index Analyzer will be enabled.                                                       | true
+ossindexAnalyzerUseCache            | Sets whether the OSS Index Analyzer will cache results. Cached results expire after 24 hours.              | true
 nexusAnalyzerEnabled                | Sets whether Nexus Analyzer will be used (requires Nexus Pro). This analyzer is superceded by the Central Analyzer; however, you can configure this to run against a Nexus Pro installation. | true
 nexusUrl                            | Defines the Nexus web service endpoint (example http://domain.enterprise/nexus/service/local/). If not set the Nexus Analyzer will be disabled. | &nbsp;
 nexusUser                           | The username to authenticate to the Nexus Server's web service end point. If not set the Nexus Analyzer will use an unauthenticated connection. | &nbsp;
@@ -160,10 +169,12 @@ cmakeAnalyzerEnabled                | Sets whether the [experimental](../analyze
 autoconfAnalyzerEnabled             | Sets whether the [experimental](../analyzers/index.html) autoconf Analyzer should be used.                 | true
 composerAnalyzerEnabled             | Sets whether the [experimental](../analyzers/index.html) PHP Composer Lock File Analyzer should be used.   | true
 nodeAnalyzerEnabled                 | Sets whether the [retired](../analyzers/index.html) Node.js Analyzer should be used.                       | true
-nodeAuditAnalyzerEnabled            | Sets whether the Node Audit Analyzer should be used.                                                              | true
+nodeAuditAnalyzerEnabled            | Sets whether the Node Audit Analyzer should be used.                                                       | true
+nodeAuditAnalyzerUseCache           | Sets whether the Node Audit Analyzer will cache results. Cached results expire after 24 hours.             | true
 retireJsAnalyzerEnabled             | Sets whether the [experimental](../analyzers/index.html) RetireJS Analyzer should be used.                 | true
 retirejsFilterNonVulnerable         | Configures the RetireJS Analyzer to remove non-vulnerable JS dependencies from the report.                 | false
 retirejsFilter                      | A nested configuration that can be specified multple times; The regex defined is used to filter JS files based on content. | &nbsp;
+retireJsUrl                         | The URL to the Retire JS repository.                                                                       | https://raw.githubusercontent.com/Retirejs/retire.js/master/repository/jsrepository.json
 nuspecAnalyzerEnabled               | Sets whether the .NET Nuget Nuspec Analyzer will be used.                                                  | true
 nugetconfAnalyzerEnabled            | Sets whether the [experimental](../analyzers/index.html) .NET Nuget packages.config Analyzer will be used.                                                                                                           | true
 cocoapodsAnalyzerEnabled            | Sets whether the [experimental](../analyzers/index.html) Cocoapods Analyzer should be used.                | true

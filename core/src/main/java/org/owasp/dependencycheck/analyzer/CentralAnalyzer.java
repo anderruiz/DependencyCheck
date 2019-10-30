@@ -20,7 +20,9 @@ package org.owasp.dependencycheck.analyzer;
 import org.apache.commons.io.FileUtils;
 import org.owasp.dependencycheck.Engine;
 import org.owasp.dependencycheck.analyzer.exception.AnalysisException;
+import org.owasp.dependencycheck.analyzer.exception.UnexpectedAnalysisException;
 import org.owasp.dependencycheck.data.central.CentralSearch;
+import org.owasp.dependencycheck.data.central.TooManyRequestsException;
 import org.owasp.dependencycheck.data.nexus.MavenArtifact;
 import org.owasp.dependencycheck.dependency.Confidence;
 import org.owasp.dependencycheck.dependency.Dependency;
@@ -38,6 +40,7 @@ import java.net.URL;
 import java.text.MessageFormat;
 import java.util.List;
 import javax.annotation.concurrent.ThreadSafe;
+
 import org.owasp.dependencycheck.dependency.EvidenceType;
 import org.owasp.dependencycheck.exception.InitializationException;
 import org.owasp.dependencycheck.utils.DownloadFailedException;
@@ -131,12 +134,7 @@ public class CentralAnalyzer extends AbstractFileTypeAnalyzer {
      */
     @Override
     public boolean supportsParallelProcessing() {
-        try {
-            return getSettings().getBoolean(Settings.KEYS.ANALYZER_CENTRAL_PARALLEL_ANALYSIS, true);
-        } catch (InvalidSettingException ex) {
-            LOGGER.debug("Invalid setting for analyzer.central.parallel.analysis; using true.");
-        }
-        return true;
+        return getSettings().getBoolean(Settings.KEYS.ANALYZER_CENTRAL_PARALLEL_ANALYSIS, true);
     }
 
     /**
@@ -226,7 +224,7 @@ public class CentralAnalyzer extends AbstractFileTypeAnalyzer {
      * Performs the analysis.
      *
      * @param dependency the dependency to analyze
-     * @param engine the engine
+     * @param engine     the engine
      * @throws AnalysisException when there's an exception during analysis
      */
     @Override
@@ -269,8 +267,9 @@ public class CentralAnalyzer extends AbstractFileTypeAnalyzer {
                                     Thread.sleep(sleepingTimeBetweenRetriesInMillis);
                                     sleepingTimeBetweenRetriesInMillis *= 2;
                                 } catch (InterruptedException ex1) {
-                                    throw new RuntimeException(ex1);
+                                    throw new UnexpectedAnalysisException(ex1);
                                 }
+                                sleepingTimeBetweenRetriesInMillis *= 2;
                             }
                             //CSON: NestedTryDepth
                         } while (!success && retryCount++ < maxAttempts);
@@ -293,6 +292,11 @@ public class CentralAnalyzer extends AbstractFileTypeAnalyzer {
                     }
                 }
             }
+        } catch (TooManyRequestsException tre) {
+            this.setEnabled(false);
+            final String message = "Connections to Central search refused. Analysis failed.";
+            LOGGER.error(message, tre);
+            throw new AnalysisException(message, tre);
         } catch (IllegalArgumentException iae) {
             LOGGER.info("invalid sha1-hash on {}", dependency.getFileName());
         } catch (FileNotFoundException fnfe) {
@@ -313,10 +317,11 @@ public class CentralAnalyzer extends AbstractFileTypeAnalyzer {
      *
      * @param dependency the dependency to analyze
      * @return the downloaded list of MavenArtifacts
-     * @throws FileNotFoundException if the specified artifact is not found
-     * @throws IOException if connecting to MavenCentral finally failed
+     * @throws FileNotFoundException    if the specified artifact is not found
+     * @throws IOException              if connecting to MavenCentral finally failed
+     * @throws TooManyRequestsException if Central has received too many requests.
      */
-    protected List<MavenArtifact> fetchMavenArtifacts(Dependency dependency) throws IOException {
+    protected List<MavenArtifact> fetchMavenArtifacts(Dependency dependency) throws IOException, TooManyRequestsException {
         IOException lastException = null;
         Set<String> messages = new HashSet<>();
         long sleepingTimeBetweenRetriesInMillis = 100;
@@ -340,6 +345,7 @@ public class CentralAnalyzer extends AbstractFileTypeAnalyzer {
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
                     }
+                    sleepingTimeBetweenRetriesInMillis *= 2;
                 }
             }
         }

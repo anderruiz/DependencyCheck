@@ -18,6 +18,8 @@
 package org.owasp.dependencycheck.utils;
 
 import com.google.gson.Gson;
+
+import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,6 +35,7 @@ import java.net.URLDecoder;
 import java.security.ProtectionDomain;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.UUID;
 
@@ -40,6 +43,7 @@ import java.util.UUID;
  * A simple settings container that wraps the dependencycheck.properties file.
  *
  * @author Jeremy Long
+ * @version $Id: $Id
  */
 public final class Settings {
 
@@ -132,35 +136,28 @@ public final class Settings {
         public static final String DB_VERSION = "data.version";
         /**
          * The starts with filter used to exclude CVE entries from the database.
-         * By default this is set to 'cpe:/a:' which limits the CVEs imported to
-         * just those that are related to applications. If this were set to just
-         * 'cpe:' the OS, hardware, and application related CVEs would be
-         * imported.
+         * By default this is set to 'cpe:2.3:a:' which limits the CVEs imported
+         * to just those that are related to applications. If this were set to
+         * just 'cpe:2.3:' the OS, hardware, and application related CVEs would
+         * be imported.
          */
         public static final String CVE_CPE_STARTS_WITH_FILTER = "cve.cpe.startswith.filter";
         /**
-         * The properties key for the URL to retrieve the "meta" data from about
-         * the CVE entries.
-         *
-         * @deprecated this is not currently used
+         * The properties key for the URL to retrieve the recently modified and
+         * added CVE entries (last 8 days) using the JSON data feeds.
          */
-        @Deprecated
-        public static final String CVE_META_URL = "cve.url.meta";
+        public static final String CVE_MODIFIED_JSON = "cve.url.modified";
+        /**
+         * The properties key for the original/modified URL to retrieve the
+         * recently modified and added CVE entries (last 8 days). Note, this is
+         * only used to compare against CVE_MODIFIED_JSON.
+         */
+        public static final String CVE_ORIGINAL_JSON = "cve.url.original";
         /**
          * The properties key for the URL to retrieve the recently modified and
-         * added CVE entries (last 8 days) using the 2.0 schema.
+         * added CVE entries (last 8 days) using the JSON data feeds.
          */
-        public static final String CVE_MODIFIED_20_URL = "cve.url-2.0.modified";
-        /**
-         * The properties key for the URL to retrieve the recently modified and
-         * added CVE entries (last 8 days) using the 2.0 schema.
-         */
-        public static final String CVE_ORIGINAL_MODIFIED_20_URL = "cve.url-2.0.original";
-        /**
-         * The properties key for the URL to retrieve the recently modified and
-         * added CVE entries (last 8 days) using the 1.2 schema.
-         */
-        public static final String CVE_MODIFIED_12_URL = "cve.url-1.2.modified";
+        public static final String CVE_BASE_JSON = "cve.url.base";
         /**
          * The properties key for the URL to retrieve the recently modified and
          * added CVE entries (last 8 days).
@@ -178,14 +175,6 @@ public final class Settings {
          */
         public static final String CVE_START_YEAR = "cve.startyear";
         /**
-         * The properties key for the CVE schema version 1.2.
-         */
-        public static final String CVE_SCHEMA_1_2 = "cve.url-1.2.base";
-        /**
-         * The properties key for the CVE schema version 2.0.
-         */
-        public static final String CVE_SCHEMA_2_0 = "cve.url-2.0.base";
-        /**
          * The properties key that indicates how often the CPE data needs to be
          * updated.
          */
@@ -200,15 +189,6 @@ public final class Settings {
          * string.
          */
         public static final String PROXY_DISABLE_SCHEMAS = "proxy.disableSchemas";
-        /**
-         * The properties key for the proxy server.
-         *
-         * @deprecated use
-         * {@link org.owasp.dependencycheck.utils.Settings.KEYS#PROXY_SERVER}
-         * instead.
-         */
-        @Deprecated
-        public static final String PROXY_URL = "proxy.server";
         /**
          * The properties key for the proxy server.
          */
@@ -259,6 +239,12 @@ public final class Settings {
          */
         public static final String HINTS_FILE = "hints.file";
         /**
+         * The key for the property that controls what CVSS scores are
+         * considered failing test cases for the JUNIT repor.
+         */
+        public static final String JUNIT_FAIL_ON_CVSS = "junit.fail.on.cvss";
+
+        /**
          * The properties key for whether the Jar Analyzer is enabled.
          */
         public static final String ANALYZER_JAR_ENABLED = "analyzer.jar.enabled";
@@ -288,6 +274,10 @@ public final class Settings {
          */
         public static final String ANALYZER_NODE_AUDIT_URL = "analyzer.node.audit.url";
         /**
+         * The properties key for whether Central search results will be cached.
+         */
+        public static final String ANALYZER_NODE_AUDIT_USE_CACHE = "analyzer.node.audit.use.cache";
+        /**
          * The properties key for whether the RetireJS analyzer is enabled.
          */
         public static final String ANALYZER_RETIREJS_ENABLED = "analyzer.retirejs.enabled";
@@ -301,7 +291,6 @@ public final class Settings {
          * out non-vulnerable dependencies.
          */
         public static final String ANALYZER_RETIREJS_FILTER_NON_VULNERABLE = "analyzer.retirejs.filternonvulnerable";
-
         /**
          * The properties key for defining the URL to the RetireJS repository.
          */
@@ -455,9 +444,13 @@ public final class Settings {
         
         public static final String ANALYZER_CENTRAL_SECURE_CONTENT_URL = "analyzer.central.content.secure.url";
         /**
-         * The path to mono, if available.
+         * The properties key for whether Central search results will be cached.
          */
-        public static final String ANALYZER_ASSEMBLY_MONO_PATH = "analyzer.assembly.mono.path";
+        public static final String ANALYZER_CENTRAL_USE_CACHE = "analyzer.central.use.cache";
+        /**
+         * The path to dotnet core, if available.
+         */
+        public static final String ANALYZER_ASSEMBLY_DOTNET_PATH = "analyzer.assembly.dotnet.path";
         /**
          * The path to bundle-audit, if available.
          */
@@ -549,11 +542,6 @@ public final class Settings {
          */
         public static final String ECOSYSTEM_SKIP_CPEANALYZER = "ecosystem.skip.cpeanalyzer";
         /**
-         * The key to determine minimum score for Lucene search matches.
-         */
-        public static final String LUCENE_MIN_SCORE_FILTER = "dependency.check.lucene.min.score";
-        /**
-         *
          * Adds capabilities to batch insert. Tested on PostgreSQL and H2.
          */
         public static final String ENABLE_BATCH_UPDATES = "database.batchinsert.enabled";
@@ -570,6 +558,25 @@ public final class Settings {
          * The key that specifies the list of trusted hosts (there won't be certificate validation for them)
          */
         public static final String SSL_TRUSTED_HOSTS = "ssl.trusted.hosts";
+        /**
+         * The properties key for whether the Sonatype OSS Index analyzer is
+         * enabled.
+         */
+        public static final String ANALYZER_OSSINDEX_ENABLED = "analyzer.ossindex.enabled";
+        /**
+         * The properties key for whether the Sonatype OSS Index should use a
+         * local cache.
+         */
+        public static final String ANALYZER_OSSINDEX_USE_CACHE = "analyzer.ossindex.use.cache";
+        /**
+         * The properties key for the Sonatype OSS Index URL.
+         */
+        public static final String ANALYZER_OSSINDEX_URL = "analyzer.ossindex.url";
+        /**
+         * The properties key setting whether or not the JSON and XML reports
+         * will be pretty printed.
+         */
+        public static final String PRETTY_PRINT = "odc.reports.pretty.print";
 
         /**
          * private constructor because this is a "utility" class containing
@@ -589,11 +596,22 @@ public final class Settings {
     }
 
     /**
+     * Initialize the settings object using the given properties.
+     *
+     * @param properties the properties to be used with this Settings instance
+     * @since 4.0.3
+     */
+    public Settings(final Properties properties) {
+        props = properties;
+        logProperties("Properties loaded", props);
+    }
+
+    /**
      * Initialize the settings object using the given properties file.
      *
      * @param propertiesFilePath the path to the base properties file to load
      */
-    public Settings(String propertiesFilePath) {
+    public Settings(final String propertiesFilePath) {
         initialize(propertiesFilePath);
     }
 
@@ -602,9 +620,11 @@ public final class Settings {
      *
      * @param propertiesFilePath the path to the settings property file
      */
-    private void initialize(String propertiesFilePath) {
+    private void initialize(final String propertiesFilePath) {
+    	System.out.println("Loading from:"+propertiesFilePath);
         props = new Properties();
-        try (InputStream in = FileUtils.getResourceAsStream(propertiesFilePath)) {
+        InputStream in = FileUtils.getResourceAsStream(propertiesFilePath);
+        try {
             props.load(in);
         } catch (NullPointerException ex) {
             LOGGER.error("Did not find settings file '{}'.", propertiesFilePath);
@@ -612,13 +632,22 @@ public final class Settings {
         } catch (IOException ex) {
             LOGGER.error("Unable to load settings from '{}'.", propertiesFilePath);
             LOGGER.debug("", ex);
+        } finally {
+        	try {
+				in.close();
+			}
+			catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
         }
+        System.out.println("Entry k:"+Settings.KEYS.CVE_MODIFIED_JSON+" v:"+System.getProperty(Settings.KEYS.CVE_MODIFIED_JSON));
+        System.out.println("Loading from:"+propertiesFilePath+" props:"+props.size()+" value:"+getString(Settings.KEYS.CVE_MODIFIED_JSON)+" p:"+props.getProperty(Settings.KEYS.CVE_MODIFIED_JSON));
         logProperties("Properties loaded", props);
     }
 
     /**
      * Cleans up resources to prevent memory leaks.
-     *
      */
     public void cleanup() {
         cleanup(true);
@@ -645,10 +674,11 @@ public final class Settings {
      * @param header the header to print with the log message
      * @param properties the properties to log
      */
-    private void logProperties(String header, Properties properties) {
+    private void logProperties(final String header, final Properties properties) {
         if (LOGGER.isDebugEnabled()) {
             final StringWriter sw = new StringWriter();
-            try (PrintWriter pw = new PrintWriter(sw)) {
+            PrintWriter pw = new PrintWriter(sw);
+            try {
                 pw.format("%s:%n%n", header);
                 final Enumeration<?> e = properties.propertyNames();
                 while (e.hasMoreElements()) {
@@ -664,6 +694,8 @@ public final class Settings {
                 }
                 pw.flush();
                 LOGGER.debug(sw.toString());
+            } finally {
+            	pw.close();
             }
 
         }
@@ -675,7 +707,7 @@ public final class Settings {
      * @param key the key for the property
      * @param value the value for the property
      */
-    public void setString(String key, String value) {
+    public void setString(final String key, final String value) {
         props.setProperty(key, value);
         LOGGER.debug("Setting: {}='{}'", key, value);
     }
@@ -686,7 +718,7 @@ public final class Settings {
      * @param key the key for the property
      * @param value the value for the property
      */
-    public void setStringIfNotNull(String key, String value) {
+    public void setStringIfNotNull(final String key, final String value) {
         if (null != value) {
             setString(key, value);
         }
@@ -698,7 +730,7 @@ public final class Settings {
      * @param key the key for the property
      * @param value the value for the property
      */
-    public void setStringIfNotEmpty(String key, String value) {
+    public void setStringIfNotEmpty(final String key, final String value) {
         if (null != value && !value.isEmpty()) {
             setString(key, value);
         }
@@ -710,7 +742,7 @@ public final class Settings {
      * @param key the key for the property
      * @param value the value for the property
      */
-    public void setArrayIfNotEmpty(String key, String[] value) {
+    public void setArrayIfNotEmpty(final String key, final String[] value) {
         if (null != value && value.length > 0) {
             setString(key, new Gson().toJson(value));
         }
@@ -722,7 +754,7 @@ public final class Settings {
      * @param key the key for the property
      * @param value the value for the property
      */
-    public void setArrayIfNotEmpty(String key, List<String> value) {
+    public void setArrayIfNotEmpty(final String key, final List<String> value) {
         if (null != value && !value.isEmpty()) {
             setString(key, new Gson().toJson(value));
         }
@@ -734,7 +766,7 @@ public final class Settings {
      * @param key the key for the property
      * @param value the value for the property
      */
-    public void setBoolean(String key, boolean value) {
+    public void setBoolean(final String key, boolean value) {
         setString(key, Boolean.toString(value));
     }
 
@@ -744,10 +776,20 @@ public final class Settings {
      * @param key the key for the property
      * @param value the value for the property
      */
-    public void setBooleanIfNotNull(String key, Boolean value) {
+    public void setBooleanIfNotNull(final String key, final Boolean value) {
         if (null != value) {
             setBoolean(key, value);
         }
+    }
+
+    /**
+     * Sets a float property value.
+     *
+     * @param key the key for the property
+     * @param value the value for the property
+     */
+    public void setFloat(final String key, final float value) {
+        setString(key, Float.toString(value));
     }
 
     /**
@@ -756,7 +798,7 @@ public final class Settings {
      * @param key the key for the property
      * @param value the value for the property
      */
-    public void setInt(String key, int value) {
+    public void setInt(final String key, final int value) {
         props.setProperty(key, String.valueOf(value));
         LOGGER.debug("Setting: {}='{}'", key, value);
     }
@@ -767,7 +809,7 @@ public final class Settings {
      * @param key the key for the property
      * @param value the value for the property
      */
-    public void setIntIfNotNull(String key, Integer value) {
+    public void setIntIfNotNull(final String key, final Integer value) {
         if (null != value) {
             setInt(key, value);
         }
@@ -780,14 +822,17 @@ public final class Settings {
      * before properties loaded from files.
      *
      * @param filePath the path to the properties file to merge.
-     * @throws FileNotFoundException is thrown when the filePath points to a
-     * non-existent file
-     * @throws IOException is thrown when there is an exception loading/merging
-     * the properties
+     * @throws java.io.FileNotFoundException is thrown when the filePath points
+     * to a non-existent file
+     * @throws java.io.IOException is thrown when there is an exception
+     * loading/merging the properties
      */
-    public void mergeProperties(File filePath) throws FileNotFoundException, IOException {
-        try (FileInputStream fis = new FileInputStream(filePath)) {
+    public void mergeProperties(final File filePath) throws FileNotFoundException, IOException {
+    	FileInputStream fis = new FileInputStream(filePath);
+        try {
             mergeProperties(fis);
+        } finally {
+        	IOUtils.closeQuietly(fis);;
         }
     }
 
@@ -798,14 +843,17 @@ public final class Settings {
      * properties loaded from files.
      *
      * @param filePath the path to the properties file to merge.
-     * @throws FileNotFoundException is thrown when the filePath points to a
-     * non-existent file
-     * @throws IOException is thrown when there is an exception loading/merging
-     * the properties
+     * @throws java.io.FileNotFoundException is thrown when the filePath points
+     * to a non-existent file
+     * @throws java.io.IOException is thrown when there is an exception
+     * loading/merging the properties
      */
-    public void mergeProperties(String filePath) throws FileNotFoundException, IOException {
-        try (FileInputStream fis = new FileInputStream(filePath)) {
+    public void mergeProperties(final String filePath) throws FileNotFoundException, IOException {
+    	FileInputStream fis = new FileInputStream(filePath);
+    	try {
             mergeProperties(fis);
+        } finally {
+        	IOUtils.closeQuietly(fis);;
         }
     }
 
@@ -816,10 +864,10 @@ public final class Settings {
      * before properties loaded from files.
      *
      * @param stream an Input Stream pointing at a properties file to merge
-     * @throws IOException is thrown when there is an exception loading/merging
-     * the properties
+     * @throws java.io.IOException is thrown when there is an exception
+     * loading/merging the properties
      */
-    public void mergeProperties(InputStream stream) throws IOException {
+    public void mergeProperties(final InputStream stream) throws IOException {
         props.load(stream);
         logProperties("Properties updated via merge", props);
     }
@@ -833,7 +881,7 @@ public final class Settings {
      * @param key the key to lookup within the properties file
      * @return the property from the properties file converted to a File object
      */
-    public File getFile(String key) {
+    public File getFile(final String key) {
         final String file = getString(key);
         if (file == null) {
             return null;
@@ -846,7 +894,7 @@ public final class Settings {
      * was specified as a system property or passed in via the -Dprop=value
      * argument - this method will return the value from the system properties
      * before the values in the contained configuration file.
-     *
+     * <p>
      * This method will check the configured base directory and will use this as
      * the base of the file path. Additionally, if the base directory begins
      * with a leading "[JAR]\" sequence with the path to the folder containing
@@ -855,7 +903,7 @@ public final class Settings {
      * @param key the key to lookup within the properties file
      * @return the property from the properties file converted to a File object
      */
-    protected File getDataFile(String key) {
+    protected File getDataFile(final String key) {
         final String file = getString(key);
         LOGGER.debug("Settings.getDataFile() - file: '{}'", file);
         if (file == null) {
@@ -909,7 +957,7 @@ public final class Settings {
      * @param defaultValue the default value for the requested property
      * @return the property from the properties file
      */
-    public String getString(String key, String defaultValue) {
+    public String getString(final String key, final String defaultValue) {
         return System.getProperty(key, props.getProperty(key, defaultValue));
     }
 
@@ -917,8 +965,7 @@ public final class Settings {
      * Returns the temporary directory.
      *
      * @return the temporary directory
-     * @throws java.io.IOException thrown if the temporary directory does not
-     * exist and cannot be created
+     * @throws java.io.IOException if any.
      */
     public synchronized File getTempDirectory() throws IOException {
         if (tempDirectory == null) {
@@ -937,16 +984,17 @@ public final class Settings {
      * @param key the key to lookup within the properties file
      * @return the property from the properties file
      */
-    public String getString(String key) {
+    public String getString(final String key) {
         return System.getProperty(key, props.getProperty(key));
     }
 
     /**
      * Returns a list with the given key.
-     *
+     * <p>
      * If the property is not set then {@code null} will be returned.
      *
-     * @param key the key to get from this {@link Settings}.
+     * @param key the key to get from this
+     * {@link org.owasp.dependencycheck.utils.Settings}.
      * @return the list or {@code null} if the key wasn't present.
      */
     public String[] getArray(final String key) {
@@ -967,7 +1015,7 @@ public final class Settings {
      *
      * @param key the property key to remove
      */
-    public void removeProperty(String key) {
+    public void removeProperty(final String key) {
         props.remove(key);
     }
 
@@ -979,10 +1027,10 @@ public final class Settings {
      *
      * @param key the key to lookup within the properties file
      * @return the property from the properties file
-     * @throws InvalidSettingException is thrown if there is an error retrieving
-     * the setting
+     * @throws org.owasp.dependencycheck.utils.InvalidSettingException is thrown
+     * if there is an error retrieving the setting
      */
-    public int getInt(String key) throws InvalidSettingException {
+    public int getInt(final String key) throws InvalidSettingException {
         try {
             return Integer.parseInt(getString(key));
         } catch (NumberFormatException ex) {
@@ -1001,7 +1049,7 @@ public final class Settings {
      * @return the property from the properties file or the defaultValue if the
      * property does not exist or cannot be converted to an integer
      */
-    public int getInt(String key, int defaultValue) {
+    public int getInt(final String key, int defaultValue) {
         int value;
         try {
             value = Integer.parseInt(getString(key));
@@ -1022,10 +1070,10 @@ public final class Settings {
      *
      * @param key the key to lookup within the properties file
      * @return the property from the properties file
-     * @throws InvalidSettingException is thrown if there is an error retrieving
-     * the setting
+     * @throws org.owasp.dependencycheck.utils.InvalidSettingException is thrown
+     * if there is an error retrieving the setting
      */
-    public long getLong(String key) throws InvalidSettingException {
+    public long getLong(final String key) throws InvalidSettingException {
         try {
             return Long.parseLong(getString(key));
         } catch (NumberFormatException ex) {
@@ -1042,10 +1090,10 @@ public final class Settings {
      *
      * @param key the key to lookup within the properties file
      * @return the property from the properties file
-     * @throws InvalidSettingException is thrown if there is an error retrieving
-     * the setting
+     * @throws org.owasp.dependencycheck.utils.InvalidSettingException is thrown
+     * if there is an error retrieving the setting
      */
-    public boolean getBoolean(String key) throws InvalidSettingException {
+    public boolean getBoolean(final String key) throws InvalidSettingException {
         return Boolean.parseBoolean(getString(key));
     }
 
@@ -1060,10 +1108,8 @@ public final class Settings {
      * @param defaultValue the default value to return if the setting does not
      * exist
      * @return the property from the properties file
-     * @throws InvalidSettingException is thrown if there is an error retrieving
-     * the setting
      */
-    public boolean getBoolean(String key, boolean defaultValue) throws InvalidSettingException {
+    public boolean getBoolean(final String key, boolean defaultValue) {
         return Boolean.parseBoolean(getString(key, Boolean.toString(defaultValue)));
     }
 
@@ -1079,12 +1125,12 @@ public final class Settings {
      * exist
      * @return the property from the properties file
      */
-    public float getFloat(String key, float defaultValue) {
+    public float getFloat(final String key, float defaultValue) {
         float retValue = defaultValue;
         try {
             retValue = Float.parseFloat(getString(key));
-        } catch (Throwable ignore) {
-            LOGGER.trace("ignore", ignore);
+        } catch (Throwable ex) {
+            LOGGER.trace("ignore", ex);
         }
         return retValue;
     }
@@ -1121,7 +1167,7 @@ public final class Settings {
                         dbFileNameKey);
                 throw new InvalidSettingException(msg);
             }
-            if (connStr.startsWith("jdbc:h2:file:") && fileName.endsWith(".h2.db")) {
+            if (connStr.startsWith("jdbc:h2:file:") && fileName.endsWith(".mv.db")) {
                 fileName = fileName.substring(0, fileName.length() - 6);
             }
             // yes, for H2 this path won't actually exists - but this is sufficient to get the value needed
@@ -1138,7 +1184,8 @@ public final class Settings {
      * content.
      *
      * @return the data directory to store data files
-     * @throws IOException is thrown if an IOException occurs of course...
+     * @throws java.io.IOException is thrown if an java.io.IOException occurs of
+     * course...
      */
     public File getDataDirectory() throws IOException {
         final File path = getDataFile(Settings.KEYS.DATA_DIRECTORY);
@@ -1154,7 +1201,8 @@ public final class Settings {
      * temp directory this method will return the temp directory.
      *
      * @return the data directory to store data files
-     * @throws IOException is thrown if an IOException occurs of course...
+     * @throws java.io.IOException is thrown if an java.io.IOException occurs of
+     * course...
      */
     public File getH2DataDirectory() throws IOException {
         final String h2Test = getString(Settings.KEYS.
@@ -1178,10 +1226,9 @@ public final class Settings {
      * @param prefix the prefix for the file name to generate
      * @param extension the extension of the generated file name
      * @return a temporary File
-     * @throws java.io.IOException thrown if the temporary folder could not be
-     * created
+     * @throws java.io.IOException if any.
      */
-    public File getTempFile(String prefix, String extension) throws IOException {
+    public File getTempFile(final String prefix, final String extension) throws IOException {
         final File dir = getTempDirectory();
         final String tempFileName = String.format("%s%s.%s", prefix, UUID.randomUUID().toString(), extension);
         final File tempFile = new File(dir, tempFileName);

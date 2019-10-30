@@ -64,7 +64,7 @@ public final class ConnectionFactory {
     /**
      * The URL that discusses upgrading non-H2 databases.
      */
-    public static final String UPGRADE_HELP_URL = "http://jeremylong.github.io/DependencyCheck/data/upgrade.html";
+    public static final String UPGRADE_HELP_URL = "https://jeremylong.github.io/DependencyCheck/data/upgrade.html";
     /**
      * The database driver used to connect to the database.
      */
@@ -229,7 +229,7 @@ public final class ConnectionFactory {
      */
     public synchronized Connection getConnection() throws DatabaseException {
         initialize();
-        Connection conn = null;
+        final Connection conn;
         try {
             conn = DriverManager.getConnection(connectionString, userName, password);
         } catch (SQLException ex) {
@@ -275,8 +275,7 @@ public final class ConnectionFactory {
     public static File getH2DataFile(Settings configuration) throws IOException {
         final File dir = configuration.getH2DataDirectory();
         final String fileName = configuration.getString(Settings.KEYS.DB_FILE_NAME);
-        final File file = new File(dir, fileName);
-        return file;
+        return new File(dir, fileName);
     }
 
     /**
@@ -355,13 +354,7 @@ public final class ConnectionFactory {
     private void updateSchema(Connection conn, DependencyVersion appExpectedVersion, DependencyVersion currentDbVersion)
             throws DatabaseException {
 
-        final String databaseProductName;
-        try {
-            databaseProductName = conn.getMetaData().getDatabaseProductName();
-        } catch (SQLException ex) {
-            throw new DatabaseException("Unable to get the database product name", ex);
-        }
-        if ("h2".equalsIgnoreCase(databaseProductName)) {
+        if (connectionString.startsWith("jdbc:h2:file:")) {
             LOGGER.debug("Updating database structure");
             InputStream is = null;
             String updateFile = null;
@@ -376,14 +369,10 @@ public final class ConnectionFactory {
                 Statement statement = null;
                 try {
                     statement = conn.createStatement();
-                    final boolean success = statement.execute(dbStructureUpdate);
-                    if (!success && statement.getUpdateCount() <= 0) {
-                        throw new DatabaseException(String.format("Unable to upgrade the database schema to %s",
-                                currentDbVersion.toString()));
-                    }
+                    statement.execute(dbStructureUpdate);
                 } catch (SQLException ex) {
-                    LOGGER.debug("", ex);
-                    throw new DatabaseException("Unable to update database schema", ex);
+                    throw new DatabaseException(String.format("Unable to upgrade the database schema from %s to %s",
+                            currentDbVersion.toString(), appExpectedVersion.toString()), ex);
                 } finally {
                     DBUtils.closeStatement(statement);
                 }
@@ -438,9 +427,9 @@ public final class ConnectionFactory {
                 if (db == null) {
                     throw new DatabaseException("Invalid database schema");
                 }
+                LOGGER.debug("DC Schema: {}", appDbVersion.toString());
+                LOGGER.debug("DB Schema: {}", db.toString());
                 if (appDbVersion.compareTo(db) > 0) {
-                    LOGGER.debug("Current Schema: {}", dbSchemaVersion);
-                    LOGGER.debug("DB Schema: {}", rs.getString(1));
                     updateSchema(conn, appDbVersion, db);
                     if (++callDepth < 10) {
                         ensureSchemaVersion(conn);

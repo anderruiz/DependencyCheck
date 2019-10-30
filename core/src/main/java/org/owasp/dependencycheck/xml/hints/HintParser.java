@@ -17,6 +17,7 @@
  */
 package org.owasp.dependencycheck.xml.hints;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -30,6 +31,7 @@ import javax.annotation.concurrent.NotThreadSafe;
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.parsers.SAXParser;
 
+import org.apache.commons.io.IOUtils;
 import org.owasp.dependencycheck.utils.FileUtils;
 import org.owasp.dependencycheck.utils.XmlUtils;
 
@@ -116,12 +118,17 @@ public class HintParser {
      * @param file an XML file containing hints
      * @throws HintParseException thrown if the XML file cannot be parsed
      */
+    @SuppressFBWarnings(justification = "try with resources will clean up the input stream", value = {"OBL_UNSATISFIED_OBLIGATION"})
     public void parseHints(File file) throws HintParseException {
-        try (FileInputStream fis = new FileInputStream(file)) {
+    	InputStream fis = null;
+        try {
+        	fis = new FileInputStream(file);
             parseHints(fis);
         } catch (SAXException | IOException ex) {
             LOGGER.debug("", ex);
             throw new HintParseException(ex);
+        } finally {
+        	IOUtils.closeQuietly(fis);
         }
     }
 
@@ -134,10 +141,11 @@ public class HintParser {
      * @throws SAXException thrown if the XML cannot be parsed
      */
     public void parseHints(InputStream inputStream) throws HintParseException, SAXException {
-        try (
-                InputStream schemaStream13 = FileUtils.getResourceAsStream(HINT_SCHEMA_1_3);
-                InputStream schemaStream12 = FileUtils.getResourceAsStream(HINT_SCHEMA_1_2);
-                InputStream schemaStream11 = FileUtils.getResourceAsStream(HINT_SCHEMA_1_1);) {
+    	InputStream schemaStream13 = null, schemaStream12 = null, schemaStream11 = null;
+        try  {
+        	schemaStream13 = FileUtils.getResourceAsStream(HINT_SCHEMA_1_3);
+            schemaStream12 = FileUtils.getResourceAsStream(HINT_SCHEMA_1_2);
+            schemaStream11 = FileUtils.getResourceAsStream(HINT_SCHEMA_1_1);
             final HintHandler handler = new HintHandler();
             final SAXParser saxParser = XmlUtils.buildSecureSaxParser(schemaStream13, schemaStream12, schemaStream11);
             final XMLReader xmlReader = saxParser.getXMLReader();
@@ -162,6 +170,10 @@ public class HintParser {
         } catch (IOException ex) {
             LOGGER.debug("", ex);
             throw new HintParseException(ex);
+        } finally {
+        	IOUtils.closeQuietly(schemaStream13);
+        	IOUtils.closeQuietly(schemaStream12);
+        	IOUtils.closeQuietly(schemaStream11);
         }
     }
 }

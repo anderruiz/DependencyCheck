@@ -22,6 +22,8 @@ import java.util.List;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonToken;
 import com.google.gson.stream.JsonWriter;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -35,14 +37,23 @@ import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
 import org.owasp.dependencycheck.utils.StandardCharsets;
 import javax.annotation.concurrent.NotThreadSafe;
+import javax.xml.XMLConstants;
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.transform.OutputKeys;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerConfigurationException;
+import javax.xml.transform.TransformerException;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.sax.SAXSource;
+import javax.xml.transform.sax.SAXTransformerFactory;
+import javax.xml.transform.stream.StreamResult;
+
+import org.apache.commons.compress.utils.IOUtils;
 import org.apache.commons.text.WordUtils;
 import org.apache.velocity.VelocityContext;
 import org.apache.velocity.app.VelocityEngine;
 import org.apache.velocity.context.Context;
 import org.apache.velocity.runtime.RuntimeConstants;
-import org.joda.time.DateTime;
-import org.joda.time.format.DateTimeFormat;
-import org.joda.time.format.DateTimeFormatter;
 import org.owasp.dependencycheck.analyzer.Analyzer;
 import org.owasp.dependencycheck.data.nvdcve.DatabaseProperties;
 import org.owasp.dependencycheck.dependency.Dependency;
@@ -50,8 +61,12 @@ import org.owasp.dependencycheck.dependency.EvidenceType;
 import org.owasp.dependencycheck.exception.ReportException;
 import org.owasp.dependencycheck.utils.FileUtils;
 import org.owasp.dependencycheck.utils.Settings;
+import org.owasp.dependencycheck.utils.XmlUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.xml.sax.InputSource;
+import org.xml.sax.SAXException;
+import org.xml.sax.XMLReader;
 
 /**
  * The ReportGenerator is used to, as the name implies, generate reports.
@@ -87,18 +102,19 @@ public class ReportGenerator {
          */
         HTML,
         /**
-         * Generate HTML Vulnerability report.
-         */
-        VULN,
-        /**
          * Generate JSON report.
          */
         JSON,
         /**
          * Generate CSV report.
          */
-        CSV
+        CSV,
+        /**
+         * Generate JUNIT report.
+         */
+        JUNIT
     }
+
     /**
      * The Velocity Engine.
      */
@@ -165,10 +181,7 @@ public class ReportGenerator {
      * @return a velocity engine
      */
     private VelocityEngine createVelocityEngine() {
-        final VelocityEngine velocity = new VelocityEngine();
-        // Logging redirection for Velocity - Required by Jenkins and other server applications
-        velocity.setProperty(RuntimeConstants.RUNTIME_LOG_LOGSYSTEM_CLASS, VelocityLoggerRedirect.class.getName());
-        return velocity;
+        return new VelocityEngine();
     }
 
     /**
@@ -184,13 +197,10 @@ public class ReportGenerator {
      */
     private VelocityContext createContext(String applicationName, List<Dependency> dependencies,
             List<Analyzer> analyzers, DatabaseProperties properties) {
-        final DateTime dt = new DateTime();
-        final DateTimeFormatter dateFormat = DateTimeFormat.forPattern("MMM d, yyyy 'at' HH:mm:ss z");
-        final DateTimeFormatter dateFormatXML = DateTimeFormat.forPattern("yyyy-MM-dd'T'HH:mm:ss.SSSZ");
 
-        final String scanDate = dateFormat.print(dt);
-        final String scanDateXML = dateFormatXML.print(dt);
-
+        final String scanDate = "";
+        final String scanDateXML = "";
+        
         final VelocityContext ctxt = new VelocityContext();
         ctxt.put("applicationName", applicationName);
         ctxt.put("dependencies", dependencies);
@@ -198,12 +208,15 @@ public class ReportGenerator {
         ctxt.put("properties", properties);
         ctxt.put("scanDate", scanDate);
         ctxt.put("scanDateXML", scanDateXML);
+        ctxt.put("scanDateJunit", "");
         ctxt.put("enc", new EscapeTool());
+        ctxt.put("rpt", new ReportTool());
         ctxt.put("WordUtils", new WordUtils());
         ctxt.put("VENDOR", EvidenceType.VENDOR);
         ctxt.put("PRODUCT", EvidenceType.PRODUCT);
         ctxt.put("VERSION", EvidenceType.VERSION);
         ctxt.put("version", settings.getString(Settings.KEYS.APPLICATION_VERSION, "Unknown"));
+        ctxt.put("settings", settings);
         return ctxt;
     }
 
@@ -256,8 +269,12 @@ public class ReportGenerator {
             final File out = getReportFile(outputLocation, format);
             final String templateName = format.toString().toLowerCase() + "Report";
             processTemplate(templateName, out);
-            if (format == Format.JSON) {
-                pretifyJson(out.getPath());
+            if (settings.getBoolean(Settings.KEYS.PRETTY_PRINT, false)) {
+                if (format == Format.JSON) {
+                    pretifyJson(out.getPath());
+                } else if (format == Format.XML || format == Format.JUNIT) {
+                    pretifyXml(out.getPath());
+                }
             }
         }
     }
@@ -285,14 +302,14 @@ public class ReportGenerator {
         if (format == Format.HTML && !pathToCheck.endsWith(".html") && !pathToCheck.endsWith(".htm")) {
             return new File(outFile, "dependency-check-report.html");
         }
-        if (format == Format.VULN && !pathToCheck.endsWith(".html") && !pathToCheck.endsWith(".htm")) {
-            return new File(outFile, "dependency-check-vulnerability.html");
-        }
         if (format == Format.JSON && !pathToCheck.endsWith(".json")) {
             return new File(outFile, "dependency-check-report.json");
         }
         if (format == Format.CSV && !pathToCheck.endsWith(".csv")) {
             return new File(outFile, "dependency-check-report.csv");
+        }
+        if (format == Format.JUNIT && !pathToCheck.endsWith(".xml")) {
+            return new File(outFile, "dependency-check-junit.xml");
         }
         return outFile;
     }
@@ -307,12 +324,17 @@ public class ReportGenerator {
      * @param file the output file to write the report to
      * @throws ReportException is thrown when the report cannot be generated
      */
+    @SuppressFBWarnings(justification = "try with resources will clean up the output stream", value = {"OBL_UNSATISFIED_OBLIGATION"})
     protected void processTemplate(String template, File file) throws ReportException {
         ensureParentDirectoryExists(file);
-        try (OutputStream output = new FileOutputStream(file)) {
+        OutputStream output = null;
+        try {
+        	output = new FileOutputStream(file);
             processTemplate(template, output);
         } catch (IOException ex) {
             throw new ReportException(String.format("Unable to write to file: %s", file), ex);
+        } finally {
+        	IOUtils.closeQuietly(output);
         }
     }
 
@@ -328,7 +350,7 @@ public class ReportGenerator {
      */
     protected void processTemplate(String templateName, OutputStream outputStream) throws ReportException {
         InputStream input = null;
-        String logTag = null;
+        String logTag;
         final File f = new File(templateName);
         try {
             if (f.isFile()) {
@@ -350,8 +372,11 @@ public class ReportGenerator {
                 throw new ReportException("Template file doesn't exist: " + logTag);
             }
 
-            try (InputStreamReader reader = new InputStreamReader(input, StandardCharsets.UTF_8);
-                    OutputStreamWriter writer = new OutputStreamWriter(outputStream, StandardCharsets.UTF_8)) {
+            InputStreamReader reader = null;
+            OutputStreamWriter writer = null;
+            try {
+            	reader = new InputStreamReader(input, StandardCharsets.UTF_8);
+            	writer = new OutputStreamWriter(outputStream, StandardCharsets.UTF_8);
                 if (!velocityEngine.evaluate(context, writer, logTag, reader)) {
                     throw new ReportException("Failed to convert the template into html.");
                 }
@@ -360,7 +385,10 @@ public class ReportGenerator {
                 throw new ReportException("Unable to generate the report using UTF-8", ex);
             } catch (IOException ex) {
                 throw new ReportException("Unable to write the report", ex);
-            }
+            } finally {
+				org.apache.commons.io.IOUtils.closeQuietly(reader);
+				org.apache.commons.io.IOUtils.closeQuietly(writer);
+			}
         } finally {
             if (input != null) {
                 try {
@@ -392,6 +420,45 @@ public class ReportGenerator {
     }
 
     /**
+     * Reformats the given XML file.
+     *
+     * @param path the path to the XML file to be reformatted
+     * @throws ReportException thrown if the given JSON file is malformed
+     */
+    private void pretifyXml(String path) throws ReportException {
+        final String outputPath = path + ".pretty";
+        final File in = new File(path);
+        final File out = new File(outputPath);
+        try {
+            final TransformerFactory transformerFactory = SAXTransformerFactory.newInstance();
+            transformerFactory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+            final Transformer transformer = transformerFactory.newTransformer();
+            transformer.setOutputProperty(OutputKeys.ENCODING, "UTF-8");
+            transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+            transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "2");
+
+            final SAXSource saxs = new SAXSource(new InputSource(path));
+            final XMLReader saxReader = XmlUtils.buildSecureSaxParser().getXMLReader();
+
+            saxs.setXMLReader(saxReader);
+            transformer.transform(saxs, new StreamResult(new OutputStreamWriter(new FileOutputStream(out), "utf-8")));
+        } catch (ParserConfigurationException | TransformerConfigurationException ex) {
+            LOGGER.debug("Configuration exception when pretty printing", ex);
+            LOGGER.error("Unable to generate pretty report, caused by: {}", ex.getMessage());
+        } catch (TransformerException | SAXException | FileNotFoundException | UnsupportedEncodingException ex) {
+            LOGGER.debug("Malformed XML?", ex);
+            LOGGER.error("Unable to generate pretty report, caused by: {}", ex.getMessage());
+        }
+        if (out.isFile() && in.isFile() && in.delete()) {
+            try {
+                org.apache.commons.io.FileUtils.moveFile(out, in);
+            } catch (IOException ex) {
+                LOGGER.error("Unable to generate pretty report, caused by: {}", ex.getMessage());
+            }
+        }
+    }
+
+    /**
      * Reformats the given JSON file.
      *
      * @param pathToJson the path to the JSON file to be reformatted
@@ -401,25 +468,31 @@ public class ReportGenerator {
         final String outputPath = pathToJson + ".pretty";
         final File in = new File(pathToJson);
         final File out = new File(outputPath);
-        try (JsonReader reader = new JsonReader(new InputStreamReader(new FileInputStream(in), StandardCharsets.UTF_8));
-                JsonWriter writer = new JsonWriter(new OutputStreamWriter(new FileOutputStream(out), StandardCharsets.UTF_8))) {
+        JsonReader reader = null;
+        JsonWriter writer = null;
+        try {
+            reader = new JsonReader(new InputStreamReader(new FileInputStream(in), StandardCharsets.UTF_8));
+            writer = new JsonWriter(new OutputStreamWriter(new FileOutputStream(out), StandardCharsets.UTF_8));
             prettyPrint(reader, writer);
         } catch (IOException ex) {
             LOGGER.debug("Malformed JSON?", ex);
             throw new ReportException("Unable to generate json report", ex);
+        } finally {
+        	org.apache.commons.io.IOUtils.closeQuietly(reader);
+        	org.apache.commons.io.IOUtils.closeQuietly(writer);
         }
         if (out.isFile() && in.isFile() && in.delete()) {
             try {
                 org.apache.commons.io.FileUtils.moveFile(out, in);
             } catch (IOException ex) {
-                LOGGER.error("Unable to generate pretty report, caused by: ", ex.getMessage());
+                LOGGER.error("Unable to generate pretty report, caused by: {}", ex.getMessage());
             }
         }
     }
 
     /**
      * Streams from a json reader to a json writer and performs pretty printing.
-     *
+     * <p>
      * This function is copied from https://sites.google.com/site/gson/streaming
      *
      * @param reader json reader

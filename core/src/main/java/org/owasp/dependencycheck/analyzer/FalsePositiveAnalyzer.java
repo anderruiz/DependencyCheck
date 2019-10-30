@@ -17,6 +17,7 @@
  */
 package org.owasp.dependencycheck.analyzer;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.FileFilter;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
@@ -35,12 +36,16 @@ import org.owasp.dependencycheck.analyzer.exception.AnalysisException;
 import org.owasp.dependencycheck.dependency.Dependency;
 import org.owasp.dependencycheck.dependency.Evidence;
 import org.owasp.dependencycheck.dependency.EvidenceType;
-import org.owasp.dependencycheck.dependency.Identifier;
-import org.owasp.dependencycheck.dependency.VulnerableSoftware;
+import org.owasp.dependencycheck.dependency.naming.CpeIdentifier;
+import org.owasp.dependencycheck.dependency.naming.Identifier;
 import org.owasp.dependencycheck.utils.FileFilterBuilder;
 import org.owasp.dependencycheck.utils.Settings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import us.springett.parsers.cpe.Cpe;
+import us.springett.parsers.cpe.CpeBuilder;
+import us.springett.parsers.cpe.exceptions.CpeValidationException;
+import us.springett.parsers.cpe.values.Part;
 
 /**
  * This analyzer attempts to remove some well known false positives -
@@ -150,9 +155,8 @@ public class FalsePositiveAnalyzer extends AbstractAnalyzer {
      */
     private void removeBadSpringMatches(Dependency dependency) {
         String mustContain = null;
-        for (Identifier i : dependency.getIdentifiers()) {
-            if ("maven".contains(i.getType())
-                    && i.getValue() != null && i.getValue().startsWith(" org.springframework.".substring(1))) {
+        for (Identifier i : dependency.getSoftwareIdentifiers()) {
+            if (i.getValue() != null && i.getValue().startsWith(" org.springframework.".substring(1))) {
                 final int endPoint = i.getValue().indexOf(':', 19);
                 if (endPoint >= 0) {
                     mustContain = i.getValue().substring(19, endPoint).toLowerCase();
@@ -162,17 +166,16 @@ public class FalsePositiveAnalyzer extends AbstractAnalyzer {
         }
         if (mustContain != null) {
             final Set<Identifier> removalSet = new HashSet<>();
-            for (Identifier i : dependency.getIdentifiers()) {
-                if ("cpe".contains(i.getType())
-                        && i.getValue() != null
+            for (Identifier i : dependency.getVulnerableSoftwareIdentifiers()) {
+                if (i.getValue() != null
                         && i.getValue().startsWith("cpe:/a:springsource:")
                         && !i.getValue().toLowerCase().contains(mustContain)) {
                     removalSet.add(i);
                 }
             }
             for (Identifier i : removalSet) {
-                dependency.removeIdentifier(i);
-            }
+            	dependency.removeVulnerableSoftwareIdentifier(i);
+			}
         }
     }
 
@@ -195,49 +198,52 @@ public class FalsePositiveAnalyzer extends AbstractAnalyzer {
      *
      * @param dependency the dependency being analyzed
      */
+    //CSOFF: NestedIfDepth
     @SuppressWarnings("null")
+    @SuppressFBWarnings(justification = "null checks are working correctly to prevent NPE", value = {"NP_NULL_ON_SOME_PATH_MIGHT_BE_INFEASIBLE"})
     private void removeSpuriousCPE(Dependency dependency) {
-        final List<Identifier> ids = new ArrayList<>(dependency.getIdentifiers());
+        final List<Identifier> ids = new ArrayList<>(dependency.getVulnerableSoftwareIdentifiers());
         Collections.sort(ids);
         final ListIterator<Identifier> mainItr = ids.listIterator();
         while (mainItr.hasNext()) {
-            final Identifier currentId = mainItr.next();
-            final VulnerableSoftware currentCpe = parseCpe(currentId.getType(), currentId.getValue());
-            if (currentCpe == null) {
-                continue;
-            }
-            final ListIterator<Identifier> subItr = ids.listIterator(mainItr.nextIndex());
-            while (subItr.hasNext()) {
-                final Identifier nextId = subItr.next();
-                final VulnerableSoftware nextCpe = parseCpe(nextId.getType(), nextId.getValue());
-                if (nextCpe == null) {
-                    continue;
-                }
-                //TODO fix the version problem below
-                if (currentCpe.getVendor().equals(nextCpe.getVendor())) {
-                    if (currentCpe.getProduct().equals(nextCpe.getProduct())) {
-                        // see if one is contained in the other.. remove the contained one from dependency.getIdentifier
-                        final String currentVersion = currentCpe.getVersion();
-                        final String nextVersion = nextCpe.getVersion();
-                        if (currentVersion == null && nextVersion == null) {
-                            //how did we get here?
-                            LOGGER.debug("currentVersion and nextVersion are both null?");
-                        } else if (currentVersion == null && nextVersion != null) {
-                            dependency.removeIdentifier(currentId);
-                        } else if (nextVersion == null && currentVersion != null) {
-                            dependency.removeIdentifier(nextId);
-                        } else if (currentVersion.length() < nextVersion.length()) {
-                            if (nextVersion.startsWith(currentVersion) || "-".equals(currentVersion)) {
-                                dependency.removeIdentifier(currentId);
+            final Identifier temp = mainItr.next();
+            if (temp instanceof CpeIdentifier) {
+                final CpeIdentifier currentId = (CpeIdentifier) temp;
+                final Cpe currentCpe = currentId.getCpe();
+                final ListIterator<Identifier> subItr = ids.listIterator(mainItr.nextIndex());
+                while (subItr.hasNext()) {
+                    final Identifier nextId = subItr.next();
+                    if (nextId instanceof CpeIdentifier) {
+                        final CpeIdentifier nextCpeId = (CpeIdentifier) nextId;
+                        final Cpe nextCpe = nextCpeId.getCpe();
+                        //TODO fix the version problem below
+                        if (currentCpe.getVendor().equals(nextCpe.getVendor())) {
+                            if (currentCpe.getProduct().equals(nextCpe.getProduct())) {
+                                // see if one is contained in the other.. remove the contained one from dependency.getIdentifier
+                                final String currentVersion = currentCpe.getVersion();
+                                final String nextVersion = nextCpe.getVersion();
+                                if (currentVersion == null && nextVersion == null) {
+                                    //how did we get here?
+                                    LOGGER.debug("currentVersion and nextVersion are both null?");
+                                } else if (currentVersion == null && nextVersion != null) {
+                                    dependency.removeVulnerableSoftwareIdentifier(currentId);
+                                } else if (nextVersion == null && currentVersion != null) {
+                                    dependency.removeVulnerableSoftwareIdentifier(nextId);
+                                } else if (currentVersion.length() < nextVersion.length()) {
+                                    if (nextVersion.startsWith(currentVersion) || "-".equals(currentVersion)) {
+                                        dependency.removeVulnerableSoftwareIdentifier(currentId);
+                                    }
+                                } else if (currentVersion.startsWith(nextVersion) || "-".equals(nextVersion)) {
+                                    dependency.removeVulnerableSoftwareIdentifier(nextId);
+                                }
                             }
-                        } else if (currentVersion.startsWith(nextVersion) || "-".equals(nextVersion)) {
-                            dependency.removeIdentifier(nextId);
                         }
                     }
                 }
             }
         }
     }
+    //CSON: NestedIfDepth
 
     /**
      * Removes any CPE entries for the JDK/JRE unless the filename ends with
@@ -247,42 +253,19 @@ public class FalsePositiveAnalyzer extends AbstractAnalyzer {
      */
     private void removeJreEntries(Dependency dependency) {
         final Set<Identifier> removalSet = new HashSet<>();
-        for (Identifier i : dependency.getIdentifiers()) {
-            final Matcher coreCPE = CORE_JAVA.matcher(i.getValue());
+        for (Identifier i : dependency.getVulnerableSoftwareIdentifiers()) {
+        	final Matcher coreCPE = CORE_JAVA.matcher(i.getValue());
             final Matcher coreFiles = CORE_FILES.matcher(dependency.getFileName());
-            if (coreCPE.matches() && !coreFiles.matches()) {
-                removalSet.add(i);
-            }
             final Matcher coreJsfCPE = CORE_JAVA_JSF.matcher(i.getValue());
             final Matcher coreJsfFiles = CORE_JSF_FILES.matcher(dependency.getFileName());
-            if (coreJsfCPE.matches() && !coreJsfFiles.matches()) {
+            if ((coreCPE.matches() && !coreFiles.matches())
+                    || (coreJsfCPE.matches() && !coreJsfFiles.matches())) {
                 removalSet.add(i);
             }
-        }
+		}
         for (Identifier i : removalSet) {
-            dependency.removeIdentifier(i);
-        }
-    }
-
-    /**
-     * Parses a CPE string into an IndexEntry.
-     *
-     * @param type the type of identifier
-     * @param value the cpe identifier to parse
-     * @return an VulnerableSoftware object constructed from the identifier
-     */
-    private VulnerableSoftware parseCpe(String type, String value) {
-        if (!"cpe".equals(type)) {
-            return null;
-        }
-        final VulnerableSoftware cpe = new VulnerableSoftware();
-        try {
-            cpe.parseName(value);
-        } catch (UnsupportedEncodingException ex) {
-            LOGGER.trace("", ex);
-            return null;
-        }
-        return cpe;
+        	dependency.removeVulnerableSoftwareIdentifier(i);
+		}
     }
 
     /**
@@ -301,17 +284,19 @@ public class FalsePositiveAnalyzer extends AbstractAnalyzer {
          */
         //Set<Evidence> groupId = dependency.getVendorEvidence().getEvidence("pom", "groupid");
         //Set<Evidence> artifactId = dependency.getVendorEvidence().getEvidence("pom", "artifactid");
-        for (Identifier i : dependency.getIdentifiers()) {
+        for (Identifier i : dependency.getVulnerableSoftwareIdentifiers()) {
             //TODO move this startsWith expression to the base suppression file
-            if ("cpe".equals(i.getType())) {
-                if ((i.getValue().matches(".*c\\+\\+.*")
-                        || i.getValue().startsWith("cpe:/a:file:file")
-                        || i.getValue().startsWith("cpe:/a:mozilla:mozilla")
-                        || i.getValue().startsWith("cpe:/a:cvs:cvs")
-                        || i.getValue().startsWith("cpe:/a:ftp:ftp")
-                        || i.getValue().startsWith("cpe:/a:tcp:tcp")
-                        || i.getValue().startsWith("cpe:/a:ssh:ssh")
-                        || i.getValue().startsWith("cpe:/a:lookup:lookup"))
+            if (i instanceof CpeIdentifier) {
+                final CpeIdentifier cpeId = (CpeIdentifier) i;
+                final Cpe cpe = cpeId.getCpe();
+                if ((cpe.getProduct().matches(".*c\\+\\+.*")
+                        || ("file".equals(cpe.getVendor()) && "file".equals(cpe.getProduct()))
+                        || ("mozilla".equals(cpe.getVendor()) && "mozilla".equals(cpe.getProduct()))
+                        || ("cvs".equals(cpe.getVendor()) && "cvs".equals(cpe.getProduct()))
+                        || ("ftp".equals(cpe.getVendor()) && "ftp".equals(cpe.getProduct()))
+                        || ("tcp".equals(cpe.getVendor()) && "tcp".equals(cpe.getProduct()))
+                        || ("ssh".equals(cpe.getVendor()) && "ssh".equals(cpe.getProduct()))
+                        || ("lookup".equals(cpe.getVendor()) && "lookup".equals(cpe.getProduct())))
                         && (dependency.getFileName().toLowerCase().endsWith(".jar")
                         || dependency.getFileName().toLowerCase().endsWith("pom.xml")
                         || dependency.getFileName().toLowerCase().endsWith(".dll")
@@ -325,34 +310,30 @@ public class FalsePositiveAnalyzer extends AbstractAnalyzer {
                         || dependency.getFileName().toLowerCase().endsWith(".tgz")
                         || dependency.getFileName().toLowerCase().endsWith(".ear")
                         || dependency.getFileName().toLowerCase().endsWith(".war"))) {
-                    //itr.remove();
-                    dependency.removeIdentifier(i);
-                } else if ((i.getValue().startsWith("cpe:/a:jquery:jquery")
-                        || i.getValue().startsWith("cpe:/a:prototypejs:prototype")
-                        || i.getValue().startsWith("cpe:/a:yahoo:yui"))
+                    dependency.removeVulnerableSoftwareIdentifier(i);
+                } else if ((("jquery".equals(cpe.getVendor()) && "jquery".equals(cpe.getProduct()))
+                        || ("prototypejs".equals(cpe.getVendor()) && "prototype".equals(cpe.getProduct()))
+                        || ("yahoo".equals(cpe.getVendor()) && "yui".equals(cpe.getProduct())))
                         && (dependency.getFileName().toLowerCase().endsWith(".jar")
                         || dependency.getFileName().toLowerCase().endsWith("pom.xml")
                         || dependency.getFileName().toLowerCase().endsWith(".dll")
                         || dependency.getFileName().toLowerCase().endsWith(".exe"))) {
-                    //itr.remove();
-                    dependency.removeIdentifier(i);
-                } else if ((i.getValue().startsWith("cpe:/a:microsoft:excel")
-                        || i.getValue().startsWith("cpe:/a:microsoft:word")
-                        || i.getValue().startsWith("cpe:/a:microsoft:visio")
-                        || i.getValue().startsWith("cpe:/a:microsoft:powerpoint")
-                        || i.getValue().startsWith("cpe:/a:microsoft:office")
-                        || i.getValue().startsWith("cpe:/a:core_ftp:core_ftp"))
+                    dependency.removeVulnerableSoftwareIdentifier(i);
+                } else if ((("microsoft".equals(cpe.getVendor()) && "excel".equals(cpe.getProduct()))
+                        || ("microsoft".equals(cpe.getVendor()) && "word".equals(cpe.getProduct()))
+                        || ("microsoft".equals(cpe.getVendor()) && "visio".equals(cpe.getProduct()))
+                        || ("microsoft".equals(cpe.getVendor()) && "powerpoint".equals(cpe.getProduct()))
+                        || ("microsoft".equals(cpe.getVendor()) && "office".equals(cpe.getProduct()))
+                        || ("core_ftp".equals(cpe.getVendor()) && "core_ftp".equals(cpe.getProduct())))
                         && (dependency.getFileName().toLowerCase().endsWith(".jar")
                         || dependency.getFileName().toLowerCase().endsWith(".ear")
                         || dependency.getFileName().toLowerCase().endsWith(".war")
                         || dependency.getFileName().toLowerCase().endsWith("pom.xml"))) {
-                    //itr.remove();
-                    dependency.removeIdentifier(i);
-                } else if (i.getValue().startsWith("cpe:/a:apache:maven")
-                        && !dependency.getFileName().toLowerCase().matches("maven-core-[\\d\\.]+\\.jar")) {
-                    //itr.remove();
-                    dependency.removeIdentifier(i);
-                } else if (i.getValue().startsWith("cpe:/a:m-core:m-core")) {
+                    dependency.removeVulnerableSoftwareIdentifier(i);
+                } else if (("apache".equals(cpe.getVendor()) && "maven".equals(cpe.getProduct()))
+                        && !dependency.getFileName().toLowerCase().matches("maven-core-[\\d.]+\\.jar")) {
+                    dependency.removeVulnerableSoftwareIdentifier(i);
+                } else if (("m-core".equals(cpe.getVendor()) && "m-core".equals(cpe.getProduct()))) {
                     boolean found = false;
                     for (Evidence e : dependency.getEvidence(EvidenceType.PRODUCT)) {
                         if ("m-core".equalsIgnoreCase(e.getValue())) {
@@ -369,13 +350,11 @@ public class FalsePositiveAnalyzer extends AbstractAnalyzer {
                         }
                     }
                     if (!found) {
-                        //itr.remove();
-                        dependency.removeIdentifier(i);
+                        dependency.removeVulnerableSoftwareIdentifier(i);
                     }
-                } else if (i.getValue().startsWith("cpe:/a:jboss:jboss")
-                        && !dependency.getFileName().toLowerCase().matches("jboss-?[\\d\\.-]+(GA)?\\.jar")) {
-                    //itr.remove();
-                    dependency.removeIdentifier(i);
+                } else if (("jboss".equals(cpe.getVendor()) && "jboss".equals(cpe.getProduct()))
+                        && !dependency.getFileName().toLowerCase().matches("jboss-?[\\d.-]+(GA)?\\.jar")) {
+                    dependency.removeVulnerableSoftwareIdentifier(i);
                 }
             }
         }
@@ -391,27 +370,23 @@ public class FalsePositiveAnalyzer extends AbstractAnalyzer {
         final Set<Identifier> identifiersToRemove = new HashSet<>();
         final String fileName = dependency.getFileName();
         if (fileName != null && fileName.contains("axis2")) {
-            for (Identifier i : dependency.getIdentifiers()) {
-                if ("cpe".equals(i.getType())) {
-                    final String cpe = i.getValue();
-                    if (cpe != null && (cpe.startsWith("cpe:/a:apache:axis:") || "cpe:/a:apache:axis".equals(cpe))) {
-                        identifiersToRemove.add(i);
-                    }
+        	 for (CpeIdentifier c : dependency.getVulnerableSoftwareCpeIdentifiers()) {
+				final Cpe cpe = c.getCpe();
+                if ("apache".equals(cpe.getVendor()) && "axis".equals(cpe.getProduct())) {
+                	identifiersToRemove.add(c);
                 }
-            }
+        	}
         } else if (fileName != null && fileName.contains("axis")) {
-            for (Identifier i : dependency.getIdentifiers()) {
-                if ("cpe".equals(i.getType())) {
-                    final String cpe = i.getValue();
-                    if (cpe != null && (cpe.startsWith("cpe:/a:apache:axis2:") || "cpe:/a:apache:axis2".equals(cpe))) {
-                        identifiersToRemove.add(i);
-                    }
-                }
-            }
+        	for (CpeIdentifier c : dependency.getVulnerableSoftwareCpeIdentifiers()) {
+        		final Cpe cpe = c.getCpe();
+        		if ("apache".equals(cpe.getVendor()) && "axis2".equals(cpe.getProduct())) {
+        			identifiersToRemove.add(c);
+        		}
+			}
         }
         for (Identifier i : identifiersToRemove) {
-            dependency.removeIdentifier(i);
-        }
+        	dependency.removeVulnerableSoftwareIdentifier(i);
+		}
     }
 
     /**
@@ -422,51 +397,50 @@ public class FalsePositiveAnalyzer extends AbstractAnalyzer {
      *
      * @param dependency the dependency being analyzed
      */
+    @SuppressWarnings("UnnecessaryParentheses")
     private void addFalseNegativeCPEs(Dependency dependency) {
+        final CpeBuilder builder = new CpeBuilder();
         //TODO move this to the hint analyzer
-        for (final Identifier identifier : dependency.getIdentifiers()) {
-            if ("cpe".equals(identifier.getType()) && identifier.getValue() != null
-                    && (identifier.getValue().startsWith("cpe:/a:oracle:opensso:")
-                    || identifier.getValue().startsWith("cpe:/a:oracle:opensso_enterprise:")
-                    || identifier.getValue().startsWith("cpe:/a:sun:opensso_enterprise:")
-                    || identifier.getValue().startsWith("cpe:/a:sun:opensso:"))) {
-                final String[] parts = identifier.getValue().split(":");
-                final int pos = parts[0].length() + parts[1].length() + parts[2].length() + parts[3].length() + 4;
-                final String newCpe = String.format("cpe:/a:sun:opensso_enterprise:%s", identifier.getValue().substring(pos));
-                final String newCpe2 = String.format("cpe:/a:oracle:opensso_enterprise:%s", identifier.getValue().substring(pos));
-                final String newCpe3 = String.format("cpe:/a:sun:opensso:%s", identifier.getValue().substring(pos));
-                final String newCpe4 = String.format("cpe:/a:oracle:opensso:%s", identifier.getValue().substring(pos));
-                try {
-                    dependency.addIdentifier("cpe", newCpe,
-                            String.format(CPEAnalyzer.NVD_SEARCH_URL, URLEncoder.encode(newCpe, StandardCharsets.UTF_8.name())),
-                            identifier.getConfidence());
-                    dependency.addIdentifier("cpe", newCpe2,
-                            String.format(CPEAnalyzer.NVD_SEARCH_URL, URLEncoder.encode(newCpe2, StandardCharsets.UTF_8.name())),
-                            identifier.getConfidence());
-                    dependency.addIdentifier("cpe", newCpe3,
-                            String.format(CPEAnalyzer.NVD_SEARCH_URL, URLEncoder.encode(newCpe3, StandardCharsets.UTF_8.name())),
-                            identifier.getConfidence());
-                    dependency.addIdentifier("cpe", newCpe4,
-                            String.format(CPEAnalyzer.NVD_SEARCH_URL, URLEncoder.encode(newCpe4, StandardCharsets.UTF_8.name())),
-                            identifier.getConfidence());
-                } catch (UnsupportedEncodingException ex) {
-                    LOGGER.debug("", ex);
+        for (CpeIdentifier c : dependency.getVulnerableSoftwareCpeIdentifiers()) {
+				final Cpe cpe = c.getCpe();
+                if ((("oracle".equals(cpe.getVendor())
+                        && ("opensso".equals(cpe.getProduct()) || "opensso_enterprise".equals(cpe.getProduct()))))
+                        || ("sun".equals(cpe.getVendor())
+                        && ("opensso".equals(cpe.getProduct()) || "opensso_enterprise".equals(cpe.getProduct())))) {
+
+                    try {
+                        final Cpe newCpe1 = builder.part(Part.APPLICATION).vendor("sun")
+                                .product("opensso_enterprise").version(cpe.getVersion()).build();
+                        final Cpe newCpe2 = builder.part(Part.APPLICATION).vendor("oracle")
+                                .product("opensso_enterprise").version(cpe.getVersion()).build();
+                        final Cpe newCpe3 = builder.part(Part.APPLICATION).vendor("sun")
+                                .product("opensso").version(cpe.getVersion()).build();
+                        final Cpe newCpe4 = builder.part(Part.APPLICATION).vendor("oracle")
+                                .product("opensso").version(cpe.getVersion()).build();
+                        final CpeIdentifier newCpeId1 = new CpeIdentifier(newCpe1, c.getConfidence());
+                        final CpeIdentifier newCpeId2 = new CpeIdentifier(newCpe2, c.getConfidence());
+                        final CpeIdentifier newCpeId3 = new CpeIdentifier(newCpe3, c.getConfidence());
+                        final CpeIdentifier newCpeId4 = new CpeIdentifier(newCpe4, c.getConfidence());
+                        dependency.addVulnerableSoftwareIdentifier(newCpeId1);
+                        dependency.addVulnerableSoftwareIdentifier(newCpeId2);
+                        dependency.addVulnerableSoftwareIdentifier(newCpeId3);
+                        dependency.addVulnerableSoftwareIdentifier(newCpeId4);
+
+                    } catch (CpeValidationException ex) {
+                        LOGGER.warn("Unable to add oracle and sun CPEs", ex);
+                    }
                 }
-            }
-            if ("cpe".equals(identifier.getType()) && identifier.getValue() != null
-                    && identifier.getValue().startsWith("cpe:/a:apache:santuario_xml_security_for_java:")) {
-                final String[] parts = identifier.getValue().split(":");
-                final int pos = parts[0].length() + parts[1].length() + parts[2].length() + parts[3].length() + 4;
-                final String newCpe = String.format("cpe:/a:apache:xml_security_for_java:%s", identifier.getValue().substring(pos));
-                try {
-                    dependency.addIdentifier("cpe", newCpe,
-                            String.format(CPEAnalyzer.NVD_SEARCH_URL, URLEncoder.encode(newCpe, StandardCharsets.UTF_8.name())),
-                            identifier.getConfidence());
-                } catch (UnsupportedEncodingException ex) {
-                    LOGGER.debug("", ex);
+                if ("apache".equals(cpe.getVendor()) && "santuario_xml_security_for_java".equals(cpe.getProduct())) {
+                    try {
+                        final Cpe newCpe1 = builder.part(Part.APPLICATION).vendor("apache")
+                                .product("xml_security_for_java").version(cpe.getVersion()).build();
+                        final CpeIdentifier newCpeId1 = new CpeIdentifier(newCpe1, c.getConfidence());
+                        dependency.addVulnerableSoftwareIdentifier(newCpeId1);
+                    } catch (CpeValidationException ex) {
+                        LOGGER.warn("Unable to add apache xml_security_for_java CPE", ex);
+                    }
                 }
-            }
-        }
+		}
     }
 
     /**
@@ -486,20 +460,21 @@ public class FalsePositiveAnalyzer extends AbstractAnalyzer {
                 final Dependency[] dependencies = engine.getDependencies();
                 final Dependency parent = findDependency(parentPath, dependencies);
                 if (parent != null) {
-                    boolean remove = false;
-                    for (Identifier i : dependency.getIdentifiers()) {
-                        if ("cpe".equals(i.getType())) {
-                            final String trimmedCPE = trimCpeToVendor(i.getValue());
-                            for (Identifier parentId : parent.getIdentifiers()) {
-                                if ("cpe".equals(parentId.getType()) && parentId.getValue().startsWith(trimmedCPE)) {
-                                    remove |= true;
-                                }
-                            }
-                        }
-                        if (!remove) { //we can escape early
-                            return;
-                        }
-                    }
+                	boolean remove = false;
+                	for (CpeIdentifier i : dependency.getVulnerableSoftwareCpeIdentifiers()) {
+						for (CpeIdentifier p : parent.getVulnerableSoftwareCpeIdentifiers()) {
+							if(!p.equals(i)
+                                    && p.getCpe().getPart().equals(i.getCpe().getPart())
+                                    && p.getCpe().getVendor().equals(i.getCpe().getVendor())
+                                    && p.getCpe().getProduct().equals(i.getCpe().getProduct())) {
+								remove =true;
+								break;
+							}
+							if(remove) {
+								break;
+							}
+						}
+					}
                     if (remove) {
                         engine.removeDependency(dependency);
                     }
@@ -523,23 +498,5 @@ public class FalsePositiveAnalyzer extends AbstractAnalyzer {
             }
         }
         return null;
-    }
-
-    /**
-     * Takes a full CPE and returns the CPE trimmed to include only vendor and
-     * product.
-     *
-     * @param value the CPE value to trim
-     * @return a CPE value that only includes the vendor and product
-     */
-    private String trimCpeToVendor(String value) {
-        //cpe:/a:jruby:jruby:1.0.8
-        final int pos1 = value.indexOf(':', 7); //right of vendor
-        final int pos2 = value.indexOf(':', pos1 + 1); //right of product
-        if (pos2 < 0) {
-            return value;
-        } else {
-            return value.substring(0, pos2);
-        }
     }
 }

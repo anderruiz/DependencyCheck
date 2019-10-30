@@ -29,7 +29,7 @@ import java.util.concurrent.Callable;
 import javax.annotation.concurrent.ThreadSafe;
 
 /**
- * Task to support parallelism of dependency-check analysis. Analyses a single
+ * Task to support parallelism of dependency-check analysis. Analysis a single
  * {@link Dependency} by a specific {@link Analyzer}.
  *
  * @author Stefan Neuhaus
@@ -68,7 +68,7 @@ public class AnalysisTask implements Callable<Void> {
      * @param exceptions exceptions that occur during analysis will be added to
      * this collection of exceptions
      */
-    AnalysisTask(Analyzer analyzer, Dependency dependency, Engine engine, List<Throwable> exceptions) {
+    public AnalysisTask(Analyzer analyzer, Dependency dependency, Engine engine, List<Throwable> exceptions) {
         this.analyzer = analyzer;
         this.dependency = dependency;
         this.engine = engine;
@@ -93,7 +93,7 @@ public class AnalysisTask implements Callable<Void> {
             } catch (Throwable ex) {
                 LOGGER.warn("An unexpected error occurred during analysis of '{}' ({}): {}",
                         dependency.getActualFilePath(), analyzer.getName(), ex.getMessage());
-                LOGGER.debug("", ex);
+                LOGGER.error("", ex);
                 exceptions.add(ex);
             }
         }

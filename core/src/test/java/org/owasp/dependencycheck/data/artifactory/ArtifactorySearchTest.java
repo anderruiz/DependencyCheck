@@ -17,6 +17,7 @@
  */
 package org.owasp.dependencycheck.data.artifactory;
 
+import org.hdiv.ee.ssl.HdivHttpConnection;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -52,7 +53,7 @@ public class ArtifactorySearchTest extends BaseTest {
             httpsProxyHostOrig = System.getenv("https.proxyHost");
         }
         httpsPortOrig = System.getProperty("https.proxyPort");
-        if(httpsPortOrig == null) {
+        if (httpsPortOrig == null) {
             httpsPortOrig = System.getenv("https.proxyPort");
         }
         System.setProperty("https.proxyHost", "");
@@ -98,9 +99,9 @@ public class ArtifactorySearchTest extends BaseTest {
         } catch (SocketTimeoutException exception) {
             // Then
             assertEquals("connect timed out", exception.getMessage());
+        } catch (IOException ex) {
+            assertEquals("Connection refused (Connection refused)", ex.getMessage());
         }
-        
-
     }
 
 
@@ -110,7 +111,7 @@ public class ArtifactorySearchTest extends BaseTest {
         Dependency dependency = new Dependency();
         dependency.setSha1sum("2e66da15851f9f5b5079228f856c2f090ba98c38");
         dependency.setMd5sum("3dbee72667f107b4f76f2d5aa33c5687");
-        final HttpConnection urlConnection = mock(HttpConnection.class);
+        final HdivHttpConnection urlConnection = mock(HdivHttpConnection.class);
         final byte[] payload = ("{\n" +
                 "  \"results\" : [ {\n" +
                 "    \"repo\" : \"jcenter-cache\",\n" +
@@ -391,7 +392,7 @@ public class ArtifactorySearchTest extends BaseTest {
             fail("SHA256 mismatching should throw an exception!");
         } catch (IllegalStateException e) {
             // Then
-            assertEquals("Cannot extract the Maven information from the apth retrieved in Artifactory /2.8.5/gson-2.8.5-sources.jar", e.getMessage());
+            assertEquals("Cannot extract the Maven information from the path retrieved in Artifactory /2.8.5/gson-2.8.5-sources.jar", e.getMessage());
         }
     }
 }

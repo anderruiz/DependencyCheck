@@ -67,13 +67,19 @@ public class ReportGeneratorIT extends BaseDBTestCase {
             //File jetty = new File(this.getClass().getClassLoader().getResource("org.mortbay.jetty.jar").getPath());
             File jetty = BaseTest.getResourceAsFile(this, "org.mortbay.jetty.jar");
 
+            File nodeTest = BaseTest.getResourceAsFile(this, "nodejs");
+
             getSettings().setBoolean(Settings.KEYS.AUTO_UPDATE, false);
-            Engine engine = null;
+
+            getSettings().setBoolean(Settings.KEYS.ANALYZER_RETIREJS_ENABLED, false);
+            getSettings().setBoolean(Settings.KEYS.ANALYZER_NODE_AUDIT_ENABLED, false);
+            getSettings().setBoolean(Settings.KEYS.ANALYZER_NODE_PACKAGE_ENABLED, false);
+            Engine engine = new Engine(getSettings());
             try {
-                engine = new Engine(getSettings());
                 engine.scan(struts);
                 engine.scan(axis);
                 engine.scan(jetty);
+                engine.scan(nodeTest);
                 engine.analyzeDependencies();
                 engine.writeReports("Test Report", "org.owasp", "dependency-check-core", "1.4.8", writeTo, "XML");
             } finally {
@@ -81,7 +87,7 @@ public class ReportGeneratorIT extends BaseDBTestCase {
                     engine.close();
                 }
             }
-            InputStream xsdStream = ReportGenerator.class.getClassLoader().getResourceAsStream("schema/dependency-check.1.8.xsd");
+            InputStream xsdStream = ReportGenerator.class.getClassLoader().getResourceAsStream("schema/dependency-check.2.1.xsd");
             StreamSource xsdSource = new StreamSource(xsdStream);
             StreamSource xmlSource = new StreamSource(writeTo);
             SchemaFactory sf = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);

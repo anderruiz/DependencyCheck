@@ -3,11 +3,14 @@
 
     <taskdef name="dependency-check" classname="org.owasp.dependencycheck.taskdefs.Check" />
 
+    <!-- HACK: disabling ossindex analyzer as it may cause failures due to rate-limiting -->
+
     <target name="test.fileset">
         <dependency-check
-            applicationName="My Project"
+            projectName="My Project"
             reportOutputDirectory="${project.build.directory}"
             autoupdate="false"
+            ossindexAnalyzerEnabled="false"
             reportFormat="HTML">
 
             <!-- Scan a single file -->
@@ -25,9 +28,10 @@
     </target>
     <target name="test.filelist">
         <dependency-check
-            applicationName="My Project"
+            projectName="My Project"
             reportOutputDirectory="${project.build.directory}"
             autoupdate="false"
+            ossindexAnalyzerEnabled="false"
             reportFormat="XML">
             <!-- Scan specific files -->
             <filelist
@@ -37,10 +41,11 @@
     </target>
     <target name="test.dirset">
         <dependency-check
-            applicationName="My Project"
+            projectName="My Project"
             reportOutputDirectory="${project.build.directory}"
             autoupdate="false"
-            reportFormat="VULN">
+            ossindexAnalyzerEnabled="false"
+            reportFormat="CSV">
 
             <!-- Scan a specific directory -->
             <dirset dir="${project.build.directory}/test-classes">
@@ -52,19 +57,21 @@
 
     <target name="formatBAD">
         <dependency-check
-            applicationName="test formatBAD"
+            projectName="test formatBAD"
             reportOutputDirectory="${project.build.directory}"
             autoupdate="false"
+            ossindexAnalyzerEnabled="false"
             reportFormat="BAD">
         </dependency-check>
     </target>
 
     <target name="failCVSS">
         <dependency-check
-            applicationName="test failCVSS"
+            projectName="test failCVSS"
             reportOutputDirectory="${project.build.directory}"
             reportFormat="XML"
             autoupdate="false"
+            ossindexAnalyzerEnabled="false"
             failBuildOnCVSS="3">
             <fileset dir="${project.build.directory}/test-classes/jars">
                 <include name="axis-1.4.jar"/>
@@ -74,9 +81,10 @@
 
     <target name="retireJS">
         <dependency-check
-            applicationName="test retireJS configuration"
+            projectName="test retireJS configuration"
             reportOutputDirectory="${project.build.directory}/retirejs-report.html"
             autoupdate="false"
+            ossindexAnalyzerEnabled="false"
             retirejsFilterNonVulnerable="true">
             <retirejsFilter regex="copyright.*jeremy long" />
             <retirejsFilter regex="owasp dependency-check" />
@@ -91,9 +99,10 @@
 
     <target name="suppression">
         <dependency-check
-            applicationName="test suppression"
+            projectName="test suppression"
             reportOutputDirectory="${project.build.directory}/suppression-report.html"
             autoupdate="false"
+            ossindexAnalyzerEnabled="false"
             failBuildOnCVSS="3">
             <suppressionfile path="${project.build.directory}/test-classes/test-suppression1.xml" />
             <suppressionfile path="${project.build.directory}/test-classes/test-suppression2.xml" />
@@ -107,9 +116,10 @@
     </target>
     <target name="suppression-single">
         <dependency-check
-            applicationName="test suppression"
+            projectName="test suppression"
             reportOutputDirectory="${project.build.directory}/suppression-single-report.html"
             autoupdate="false"
+            ossindexAnalyzerEnabled="false"
             failBuildOnCVSS="3"
             suppressionFile="${project.build.directory}/test-classes/test-suppression.xml">
             <fileset dir="${project.build.directory}/test-classes/jars">
@@ -119,9 +129,10 @@
     </target>
     <target name="suppression-multiple">
         <dependency-check
-            applicationName="test suppression"
+            projectName="test suppression"
             reportOutputDirectory="${project.build.directory}/suppression-multiple-report.html"
             autoupdate="false"
+            ossindexAnalyzerEnabled="false"
             failBuildOnCVSS="3"
             suppressionFile="${project.build.directory}/test-classes/test-suppression1.xml">
             <suppressionfile path="${project.build.directory}/test-classes/test-suppression2.xml"/>

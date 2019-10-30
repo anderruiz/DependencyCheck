@@ -18,6 +18,7 @@
 package org.owasp.dependencycheck;
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -622,9 +623,14 @@ public class App {
 		}
 	}
 =======
+=======
+import ch.qos.logback.classic.Level;
+>>>>>>> refs/tags/v5.0.0
 import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.encoder.PatternLayoutEncoder;
+import ch.qos.logback.classic.filter.ThresholdFilter;
 import ch.qos.logback.classic.spi.ILoggingEvent;
+
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -632,6 +638,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+
 import org.apache.commons.cli.ParseException;
 import org.owasp.dependencycheck.data.nvdcve.DatabaseException;
 import org.owasp.dependencycheck.dependency.Dependency;
@@ -641,6 +648,7 @@ import org.owasp.dependencycheck.utils.Settings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ch.qos.logback.core.FileAppender;
+import org.apache.tools.ant.types.LogLevel;
 import org.owasp.dependencycheck.data.update.exception.UpdateException;
 import org.owasp.dependencycheck.exception.ExceptionCollection;
 import org.owasp.dependencycheck.exception.ReportException;
@@ -661,7 +669,7 @@ public class App {
     /**
      * The configured settings.
      */
-    private Settings settings = null;
+    private Settings settings;
 
     /**
      * The main method for the application.
@@ -669,7 +677,7 @@ public class App {
      * @param args the command line arguments
      */
     public static void main(String[] args) {
-        int exitCode = 0;
+        final int exitCode;
         final App app = new App();
         exitCode = app.run(args);
         LOGGER.debug("Exit code: {}", exitCode);
@@ -731,23 +739,11 @@ public class App {
                     exitCode = -4;
                     return exitCode;
                 }
-                final File db;
-                try {
-                    db = new File(settings.getDataDirectory(), settings.getString(Settings.KEYS.DB_FILE_NAME, "dc.h2.db"));
-                    if (db.exists()) {
-                        if (db.delete()) {
-                            LOGGER.info("Database file purged; local copy of the NVD has been removed");
-                        } else {
-                            LOGGER.error("Unable to delete '{}'; please delete the file manually", db.getAbsolutePath());
-                            exitCode = -5;
-                        }
-                    } else {
-                        LOGGER.error("Unable to purge database; the database file does not exist: {}", db.getAbsolutePath());
-                        exitCode = -6;
+                try (Engine engine = new Engine(Engine.Mode.EVIDENCE_PROCESSING, settings)) {
+                    if (!engine.purge()) {
+                        exitCode = -7;
+                        return exitCode;
                     }
-                } catch (IOException ex) {
-                    LOGGER.error("Unable to delete the database");
-                    exitCode = -7;
                 } finally {
                     settings.cleanup();
                 }
@@ -766,10 +762,10 @@ public class App {
             try {
                 runUpdateOnly();
             } catch (UpdateException ex) {
-                LOGGER.error(ex.getMessage());
+                LOGGER.error(ex.getMessage(), ex);
                 exitCode = -8;
             } catch (DatabaseException ex) {
-                LOGGER.error(ex.getMessage());
+                LOGGER.error(ex.getMessage(), ex);
                 exitCode = -9;
             } finally {
                 settings.cleanup();
@@ -786,8 +782,11 @@ public class App {
             try {
                 final String[] scanFiles = cli.getScanFiles();
                 if (scanFiles != null) {
-                    exitCode = runScan(cli.getReportDirectory(), cli.getReportFormat(), cli.getProjectName(), scanFiles,
-                            cli.getExcludeList(), cli.getSymLinkDepth(), cli.getFailOnCVSS());
+                    final String[] formats = cli.getReportFormat();
+                    for (String format : formats) {
+                        exitCode = runScan(cli.getReportDirectory(), format, cli.getProjectName(), scanFiles,
+                                cli.getExcludeList(), cli.getSymLinkDepth(), cli.getFailOnCVSS());
+                    }
                 } else {
                     LOGGER.error("No scan files configured");
                 }
@@ -807,6 +806,7 @@ public class App {
                 for (Throwable e : ex.getExceptions()) {
                     if (e.getMessage() != null) {
                         LOGGER.error(e.getMessage());
+                        LOGGER.debug("unexpected error", e);
                     }
                 }
             } finally {
@@ -831,7 +831,6 @@ public class App {
      * @param symLinkDepth the depth that symbolic links will be followed
      * @param cvssFailScore the score to fail on if a vulnerability is found
      * @return the exit code if there was an error
-     *
      * @throws ReportException thrown when the report cannot be generated
      * @throws DatabaseException thrown when there is an error connecting to the
      * database
@@ -840,7 +839,7 @@ public class App {
      * collection.
      */
     private int runScan(String reportDirectory, String outputFormat, String applicationName, String[] files,
-            String[] excludes, int symLinkDepth, int cvssFailScore) throws DatabaseException,
+            String[] excludes, int symLinkDepth, float cvssFailScore) throws DatabaseException,
             ExceptionCollection, ReportException {
         Engine engine = null;
         try {
@@ -890,14 +889,15 @@ public class App {
      * @return returns <code>1</code> if a severe enough vulnerability is
      * identified; otherwise <code>0</code>
      */
-    private int determineReturnCode(Engine engine, int cvssFailScore) {
+    private int determineReturnCode(Engine engine, float cvssFailScore) {
         int retCode = 0;
         //Set the exit code based on whether we found a high enough vulnerability
         for (Dependency dep : engine.getDependencies()) {
             if (!dep.getVulnerabilities().isEmpty()) {
                 for (Vulnerability vuln : dep.getVulnerabilities()) {
                     LOGGER.debug("VULNERABILITY FOUND {}", dep.getDisplayFileName());
-                    if (vuln.getCvssScore() > cvssFailScore) {
+                    if ((vuln.getCvssV2() != null && vuln.getCvssV2().getScore() > cvssFailScore)
+                            || (vuln.getCvssV3() != null && vuln.getCvssV3().getBaseScore() > cvssFailScore)) {
                         retCode = 1;
                     }
                 }
@@ -925,7 +925,7 @@ public class App {
             final String tmpBase = include.substring(0, pos);
             final String tmpInclude = include.substring(pos + 1);
             if (tmpInclude.indexOf('*') >= 0 || tmpInclude.indexOf('?') >= 0
-                    || (new File(include)).isFile()) {
+                    || new File(include).isFile()) {
                 baseDir = new File(tmpBase);
                 include = tmpInclude;
             } else {
@@ -988,7 +988,6 @@ public class App {
      *
      * @param cli a reference to the CLI Parser that contains the command line
      * arguments used to set the corresponding settings in the core engine.
-     *
      * @throws InvalidSettingException thrown when a user defined properties
      * file is unable to be loaded.
      */
@@ -1011,11 +1010,9 @@ public class App {
         final String databaseUser = cli.getDatabaseUser();
         final String databasePassword = cli.getDatabasePassword();
         final String additionalZipExtensions = cli.getAdditionalZipExtensions();
-        final String pathToMono = cli.getPathToMono();
-        final String cveMod12 = cli.getModifiedCve12Url();
-        final String cveMod20 = cli.getModifiedCve20Url();
-        final String cveBase12 = cli.getBaseCve12Url();
-        final String cveBase20 = cli.getBaseCve20Url();
+        final String pathToCore = cli.getPathToCore();
+        final String cveModified = cli.getModifiedCveUrl();
+        final String cveBase = cli.getBaseCveUrl();
         final Integer cveValidForHours = cli.getCveValidForHours();
         final Boolean autoUpdate = cli.isAutoUpdate();
         final Boolean experimentalEnabled = cli.isExperimentalEnabled();
@@ -1075,12 +1072,19 @@ public class App {
         settings.setBoolean(Settings.KEYS.ANALYZER_COMPOSER_LOCK_ENABLED, !cli.isComposerDisabled());
         settings.setBoolean(Settings.KEYS.ANALYZER_NODE_PACKAGE_ENABLED, !cli.isNodeJsDisabled());
         settings.setBoolean(Settings.KEYS.ANALYZER_NODE_AUDIT_ENABLED, !cli.isNodeAuditDisabled());
+        settings.setBoolean(Settings.KEYS.ANALYZER_NODE_AUDIT_USE_CACHE, !cli.isNodeAuditCacheDisabled());
         settings.setBoolean(Settings.KEYS.ANALYZER_RETIREJS_ENABLED, !cli.isRetireJSDisabled());
+        settings.setBooleanIfNotNull(Settings.KEYS.PRETTY_PRINT, cli.isPrettyPrint());
+        settings.setStringIfNotNull(Settings.KEYS.ANALYZER_RETIREJS_REPO_JS_URL, cli.getRetireJSUrl());
         settings.setBoolean(Settings.KEYS.ANALYZER_SWIFT_PACKAGE_MANAGER_ENABLED, !cli.isSwiftPackageAnalyzerDisabled());
         settings.setBoolean(Settings.KEYS.ANALYZER_COCOAPODS_ENABLED, !cli.isCocoapodsAnalyzerDisabled());
         settings.setBoolean(Settings.KEYS.ANALYZER_RUBY_GEMSPEC_ENABLED, !cli.isRubyGemspecDisabled());
         settings.setBoolean(Settings.KEYS.ANALYZER_CENTRAL_ENABLED, !cli.isCentralDisabled());
+        settings.setBoolean(Settings.KEYS.ANALYZER_CENTRAL_USE_CACHE, !cli.isCentralCacheDisabled());
         settings.setBoolean(Settings.KEYS.ANALYZER_NEXUS_ENABLED, !cli.isNexusDisabled());
+        settings.setBoolean(Settings.KEYS.ANALYZER_OSSINDEX_ENABLED, !cli.isOssIndexDisabled());
+        settings.setBoolean(Settings.KEYS.ANALYZER_OSSINDEX_USE_CACHE, !cli.isOssIndexCacheDisabled());
+        settings.setFloat(Settings.KEYS.JUNIT_FAIL_ON_CVSS, cli.getJunitFailOnCVSS());
 
         settings.setBooleanIfNotNull(Settings.KEYS.ANALYZER_ARTIFACTORY_ENABLED,
                 cli.hasArgument(CliParser.ARGUMENT.ARTIFACTORY_ENABLED));
@@ -1108,12 +1112,10 @@ public class App {
         settings.setStringIfNotEmpty(Settings.KEYS.DB_USER, databaseUser);
         settings.setStringIfNotEmpty(Settings.KEYS.DB_PASSWORD, databasePassword);
         settings.setStringIfNotEmpty(Settings.KEYS.ADDITIONAL_ZIP_EXTENSIONS, additionalZipExtensions);
-        settings.setStringIfNotEmpty(Settings.KEYS.ANALYZER_ASSEMBLY_MONO_PATH, pathToMono);
-        if (cveBase12 != null && !cveBase12.isEmpty()) {
-            settings.setString(Settings.KEYS.CVE_SCHEMA_1_2, cveBase12);
-            settings.setString(Settings.KEYS.CVE_SCHEMA_2_0, cveBase20);
-            settings.setString(Settings.KEYS.CVE_MODIFIED_12_URL, cveMod12);
-            settings.setString(Settings.KEYS.CVE_MODIFIED_20_URL, cveMod20);
+        settings.setStringIfNotEmpty(Settings.KEYS.ANALYZER_ASSEMBLY_DOTNET_PATH, pathToCore);
+        if (cveBase != null && !cveBase.isEmpty()) {
+            settings.setString(Settings.KEYS.CVE_BASE_JSON, cveBase);
+            settings.setString(Settings.KEYS.CVE_MODIFIED_JSON, cveModified);
         }
     }
 
@@ -1144,6 +1146,12 @@ public class App {
         fa.setName(name);
         fa.start();
         final ch.qos.logback.classic.Logger rootLogger = context.getLogger(ch.qos.logback.classic.Logger.ROOT_LOGGER_NAME);
+        rootLogger.setLevel(Level.DEBUG);
+        final ThresholdFilter filter = new ThresholdFilter();
+        filter.setLevel(LogLevel.INFO.getValue());
+        filter.setContext(context);
+        filter.start();
+        rootLogger.iteratorForAppenders().forEachRemaining(action -> action.addFilter(filter));
         rootLogger.addAppender(fa);
     }
 

@@ -17,6 +17,9 @@
  */
 package org.owasp.dependencycheck.analyzer;
 
+import com.github.packageurl.MalformedPackageURLException;
+import com.github.packageurl.PackageURL;
+import com.github.packageurl.PackageURLBuilder;
 import org.owasp.dependencycheck.Engine;
 import org.owasp.dependencycheck.analyzer.exception.AnalysisException;
 import org.owasp.dependencycheck.data.composer.ComposerDependency;
@@ -35,6 +38,8 @@ import java.io.FileFilter;
 import java.io.FileInputStream;
 import java.io.IOException;
 import org.owasp.dependencycheck.dependency.EvidenceType;
+import org.owasp.dependencycheck.dependency.naming.GenericIdentifier;
+import org.owasp.dependencycheck.dependency.naming.PurlIdentifier;
 
 /**
  * Used to analyze a composer.lock file for a composer PHP app.
@@ -107,10 +112,19 @@ public class ComposerLockAnalyzer extends AbstractFileTypeAnalyzer {
             LOGGER.debug("Checking composer.lock file {}", dependency.getActualFilePath());
             clp.process();
             for (ComposerDependency dep : clp.getDependencies()) {
-                final Dependency d = new Dependency(dependency.getActualFile(), true);
+            	final Dependency d = new Dependency(dependency.getActualFile(), true);
                 final String filePath = String.format("%s:%s/%s/%s", dependency.getFilePath(), dep.getGroup(), dep.getProject(), dep.getVersion());
                 d.setName(dep.getProject());
                 d.setVersion(dep.getVersion());
+                try {
+                    final PackageURL purl = PackageURLBuilder.aPackageURL().withType("composer").withNamespace(dep.getGroup())
+                            .withName(dep.getProject()).withVersion(dep.getVersion()).build();
+                    d.addSoftwareIdentifier(new PurlIdentifier(purl, Confidence.HIGHEST));
+                } catch (MalformedPackageURLException ex) {
+                    LOGGER.debug("Unable to build package url for composer", ex);
+                    d.addSoftwareIdentifier(new GenericIdentifier("cocoapods:" + dep.getGroup() + "/" + dep.getProject()
+                            + "@" + dep.getVersion(), Confidence.HIGHEST));
+                }
                 d.setPackagePath(String.format("%s:%s", dep.getProject(), dep.getVersion()));
                 d.setEcosystem(DEPENDENCY_ECOSYSTEM);
                 d.setFilePath(filePath);
@@ -122,7 +136,7 @@ public class ComposerLockAnalyzer extends AbstractFileTypeAnalyzer {
                 d.addEvidence(EvidenceType.VERSION, COMPOSER_LOCK, "version", dep.getVersion(), Confidence.HIGHEST);
                 LOGGER.debug("Adding dependency {}", d.getDisplayFileName());
                 engine.addDependency(d);
-            }
+			}
         } catch (IOException ex) {
             LOGGER.warn("Error opening dependency {}", dependency.getActualFilePath());
         } catch (ComposerException ce) {

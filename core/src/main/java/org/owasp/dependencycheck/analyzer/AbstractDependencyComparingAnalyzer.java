@@ -107,8 +107,8 @@ public abstract class AbstractDependencyComparingAnalyzer extends AbstractAnalyz
                 }
             }
             for (Dependency d : dependenciesToRemove) {
-                engine.removeDependency(d);
-            }
+            	engine.removeDependency(d);
+			}
         }
     }
 
@@ -120,6 +120,6 @@ public abstract class AbstractDependencyComparingAnalyzer extends AbstractAnalyz
      * @param dependenciesToRemove a set of dependencies that will be removed
      * @return true if a dependency is removed; otherwise false
      */
-    protected abstract boolean evaluateDependencies(final Dependency dependency,
-            final Dependency nextDependency, final Set<Dependency> dependenciesToRemove);
+    protected abstract boolean evaluateDependencies(Dependency dependency,
+            Dependency nextDependency, Set<Dependency> dependenciesToRemove);
 }

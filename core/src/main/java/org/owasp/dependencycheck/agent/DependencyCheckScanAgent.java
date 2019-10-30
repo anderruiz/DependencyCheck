@@ -19,14 +19,15 @@ package org.owasp.dependencycheck.agent;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.owasp.dependencycheck.Engine;
 import org.owasp.dependencycheck.data.nvdcve.DatabaseException;
 import org.owasp.dependencycheck.data.update.exception.UpdateException;
 import org.owasp.dependencycheck.dependency.Dependency;
-import org.owasp.dependencycheck.dependency.Identifier;
 import org.owasp.dependencycheck.dependency.Vulnerability;
+import org.owasp.dependencycheck.dependency.naming.Identifier;
 import org.owasp.dependencycheck.exception.ExceptionCollection;
 import org.owasp.dependencycheck.exception.ReportException;
 import org.owasp.dependencycheck.exception.ScanAgentException;
@@ -114,7 +115,7 @@ public class DependencyCheckScanAgent {
      */
     private boolean generateReport = true;
     /**
-     * The report format to be generated (HTML, XML, VULN, ALL). This
+     * The report format to be generated (HTML, XML, CSV, JSON, JUNIT, ALL). This
      * configuration option has no affect if using this within the Site plugin
      * unless the externalReport is set to true. Default is HTML.
      */
@@ -156,7 +157,8 @@ public class DependencyCheckScanAgent {
      */
     private String databasePassword;
     /**
-     * The starting string that identifies CPEs that are qualified to be imported.
+     * The starting string that identifies CPEs that are qualified to be
+     * imported.
      */
     private String cpeStartsWithFilter;
     /**
@@ -201,25 +203,17 @@ public class DependencyCheckScanAgent {
      */
     private String zipExtensions;
     /**
-     * The url for the modified NVD CVE (1.2 schema).
+     * The URL for the modified NVD CVE JSON.
      */
-    private String cveUrl12Modified;
+    private String cveUrlModified;
     /**
-     * The url for the modified NVD CVE (2.0 schema).
+     * The base URL for the NVD CVE JSON data feeds.
      */
-    private String cveUrl20Modified;
+    private String cveUrlBase;
     /**
-     * Base Data Mirror URL for CVE 1.2.
+     * The path to dotnet core for .NET assembly analysis.
      */
-    private String cveUrl12Base;
-    /**
-     * Data Mirror URL for CVE 2.0.
-     */
-    private String cveUrl20Base;
-    /**
-     * The path to Mono for .NET assembly analysis on non-windows systems.
-     */
-    private String pathToMono;
+    private String pathToCore;
     /**
      * The configured settings.
      */
@@ -565,15 +559,20 @@ public class DependencyCheckScanAgent {
     }
 
     /**
-     * Sets starting string that identifies CPEs that are qualified to be imported.
-     * @param cpeStartsWithFilter filters CPEs based on this starting string (i.e. cpe:/a: )
+     * Sets starting string that identifies CPEs that are qualified to be
+     * imported.
+     *
+     * @param cpeStartsWithFilter filters CPEs based on this starting string
+     * (i.e. cpe:/a: )
      */
     public void setCpeStartsWithFilter(String cpeStartsWithFilter) {
         this.cpeStartsWithFilter = cpeStartsWithFilter;
     }
 
     /**
-     * Returns the starting string that identifies CPEs that are qualified to be imported.
+     * Returns the starting string that identifies CPEs that are qualified to be
+     * imported.
+     *
      * @return the CPE starting filter (i.e. cpe:/a: )
      */
     public String getCpeStartsWithFilter() {
@@ -779,93 +778,57 @@ public class DependencyCheckScanAgent {
     }
 
     /**
-     * Get the value of cveUrl12Modified.
+     * Get the value of cveUrlModified.
      *
-     * @return the value of cveUrl12Modified
+     * @return the value of cveUrlModified
      */
-    public String getCveUrl12Modified() {
-        return cveUrl12Modified;
+    public String getCveUrlModified() {
+        return cveUrlModified;
     }
 
     /**
-     * Set the value of cveUrl12Modified.
+     * Set the value of cveUrlModified.
      *
-     * @param cveUrl12Modified new value of cveUrl12Modified
+     * @param cveUrlModified new value of cveUrlModified
      */
-    public void setCveUrl12Modified(String cveUrl12Modified) {
-        this.cveUrl12Modified = cveUrl12Modified;
+    public void setCveUrlModified(String cveUrlModified) {
+        this.cveUrlModified = cveUrlModified;
     }
 
     /**
-     * Get the value of cveUrl20Modified.
+     * Get the value of cveUrlBase.
      *
-     * @return the value of cveUrl20Modified
+     * @return the value of cveUrlBase
      */
-    public String getCveUrl20Modified() {
-        return cveUrl20Modified;
+    public String getCveUrlBase() {
+        return cveUrlBase;
     }
 
     /**
-     * Set the value of cveUrl20Modified.
+     * Set the value of cveUrlBase.
      *
-     * @param cveUrl20Modified new value of cveUrl20Modified
+     * @param cveUrlBase new value of cveUrlBase
      */
-    public void setCveUrl20Modified(String cveUrl20Modified) {
-        this.cveUrl20Modified = cveUrl20Modified;
+    public void setCveUrlBase(String cveUrlBase) {
+        this.cveUrlBase = cveUrlBase;
     }
 
     /**
-     * Get the value of cveUrl12Base.
+     * Get the value of pathToCore.
      *
-     * @return the value of cveUrl12Base
+     * @return the value of pathToCore
      */
-    public String getCveUrl12Base() {
-        return cveUrl12Base;
+    public String getPathToDotnetCore() {
+        return pathToCore;
     }
 
     /**
-     * Set the value of cveUrl12Base.
+     * Set the value of pathToCore.
      *
-     * @param cveUrl12Base new value of cveUrl12Base
+     * @param pathToCore new value of pathToCore
      */
-    public void setCveUrl12Base(String cveUrl12Base) {
-        this.cveUrl12Base = cveUrl12Base;
-    }
-
-    /**
-     * Get the value of cveUrl20Base.
-     *
-     * @return the value of cveUrl20Base
-     */
-    public String getCveUrl20Base() {
-        return cveUrl20Base;
-    }
-
-    /**
-     * Set the value of cveUrl20Base.
-     *
-     * @param cveUrl20Base new value of cveUrl20Base
-     */
-    public void setCveUrl20Base(String cveUrl20Base) {
-        this.cveUrl20Base = cveUrl20Base;
-    }
-
-    /**
-     * Get the value of pathToMono.
-     *
-     * @return the value of pathToMono
-     */
-    public String getPathToMono() {
-        return pathToMono;
-    }
-
-    /**
-     * Set the value of pathToMono.
-     *
-     * @param pathToMono new value of pathToMono
-     */
-    public void setPathToMono(String pathToMono) {
-        this.pathToMono = pathToMono;
+    public void setPathToDotnetCore(String pathToCore) {
+        this.pathToCore = pathToCore;
     }
 
     /**
@@ -888,8 +851,9 @@ public class DependencyCheckScanAgent {
     //</editor-fold>
 
     /**
-     * Executes the Dependency-Check on the dependent libraries. <b>Note</b>, the engine
-     * object returned from this method must be closed by calling `close()`
+     * Executes the Dependency-Check on the dependent libraries. <b>Note</b>,
+     * the engine object returned from this method must be closed by calling
+     * `close()`
      *
      * @return the Engine used to scan the dependencies.
      * @throws ExceptionCollection a collection of one or more exceptions that
@@ -907,7 +871,7 @@ public class DependencyCheckScanAgent {
             try {
                 engine.doUpdates();
             } catch (UpdateException ex) {
-                throw new ExceptionCollection("Unable to perform update", ex);
+                throw new ExceptionCollection(ex);
             } finally {
                 engine.close();
             }
@@ -980,11 +944,9 @@ public class DependencyCheckScanAgent {
         settings.setStringIfNotEmpty(Settings.KEYS.DB_USER, databaseUser);
         settings.setStringIfNotEmpty(Settings.KEYS.DB_PASSWORD, databasePassword);
         settings.setStringIfNotEmpty(Settings.KEYS.ADDITIONAL_ZIP_EXTENSIONS, zipExtensions);
-        settings.setStringIfNotEmpty(Settings.KEYS.CVE_MODIFIED_12_URL, cveUrl12Modified);
-        settings.setStringIfNotEmpty(Settings.KEYS.CVE_MODIFIED_20_URL, cveUrl20Modified);
-        settings.setStringIfNotEmpty(Settings.KEYS.CVE_SCHEMA_1_2, cveUrl12Base);
-        settings.setStringIfNotEmpty(Settings.KEYS.CVE_SCHEMA_2_0, cveUrl20Base);
-        settings.setStringIfNotEmpty(Settings.KEYS.ANALYZER_ASSEMBLY_MONO_PATH, pathToMono);
+        settings.setStringIfNotEmpty(Settings.KEYS.CVE_MODIFIED_JSON, cveUrlModified);
+        settings.setStringIfNotEmpty(Settings.KEYS.CVE_BASE_JSON, cveUrlBase);
+        settings.setStringIfNotEmpty(Settings.KEYS.ANALYZER_ASSEMBLY_DOTNET_PATH, pathToCore);
     }
 
     /**
@@ -1016,10 +978,10 @@ public class DependencyCheckScanAgent {
             }
             throw new ScanAgentException("One or more exceptions occurred during analysis; please see the debug log for more details.", ex);
         } finally {
-            settings.cleanup(true);
             if (engine != null) {
                 engine.close();
             }
+            settings.cleanup(true);
         }
         return engine;
     }
@@ -1037,7 +999,7 @@ public class DependencyCheckScanAgent {
         for (Dependency d : dependencies) {
             boolean addName = true;
             for (Vulnerability v : d.getVulnerabilities()) {
-                if (v.getCvssScore() >= failBuildOnCVSS) {
+                if (v.getCvssV2().getScore() >= failBuildOnCVSS) {
                     if (addName) {
                         addName = false;
                         ids.append(NEW_LINE).append(d.getFileName()).append(": ");
@@ -1069,37 +1031,54 @@ public class DependencyCheckScanAgent {
      *
      * @param dependencies a list of dependency objects
      */
-    private void showSummary(Dependency[] dependencies) {
+    public static void showSummary(Dependency[] dependencies) {
+        showSummary(null, dependencies);
+    }
+
+    /**
+     * Generates a warning message listing a summary of dependencies and their
+     * associated CPE and CVE entries.
+     *
+     * @param projectName the name of the project
+     * @param dependencies a list of dependency objects
+     */
+    public static void showSummary(String projectName, Dependency[] dependencies) {
         final StringBuilder summary = new StringBuilder();
         for (Dependency d : dependencies) {
-            boolean firstEntry = true;
-            final StringBuilder ids = new StringBuilder();
-            for (Vulnerability v : d.getVulnerabilities(true)) {
-                if (firstEntry) {
-                    firstEntry = false;
-                } else {
-                    ids.append(", ");
-                }
-                ids.append(v.getName());
-            }
+        	StringBuilder sb = new StringBuilder();
+        	for (Vulnerability v : d.getVulnerabilities(true)) {
+				if(sb.length()!=0) {
+					sb.append(", ");
+				}
+				sb.append(v.getName());
+			}
+            final String ids = sb.toString();
             if (ids.length() > 0) {
                 summary.append(d.getFileName()).append(" (");
-                firstEntry = true;
-                for (Identifier id : d.getIdentifiers()) {
-                    if (firstEntry) {
-                        firstEntry = false;
-                    } else {
-                        summary.append(", ");
-                    }
-                    summary.append(id.getValue());
-                }
+                List<Identifier> ides = new ArrayList<Identifier>(d.getSoftwareIdentifiers());
+                ides.addAll(d.getVulnerableSoftwareIdentifiers());
+                StringBuilder sb2 = new StringBuilder();
+                for (Identifier i : ides) {
+                	if(sb2.length()!=0) {
+    					sb2.append(", ");
+    				}
+    				sb2.append(i.getValue());
+				}
+                summary.append(sb2);
                 summary.append(") : ").append(ids).append(NEW_LINE);
             }
         }
         if (summary.length() > 0) {
-            LOGGER.warn("\n\nOne or more dependencies were identified with known vulnerabilities:\n\n{}\n\n"
-                    + "See the dependency-check report for more details.\n\n",
-                    summary.toString());
+            if (projectName == null || projectName.isEmpty()) {
+                LOGGER.warn("\n\nOne or more dependencies were identified with known vulnerabilities:\n\n{}\n\n"
+                        + "See the dependency-check report for more details.\n\n",
+                        summary.toString());
+            } else {
+                LOGGER.warn("\n\nOne or more dependencies were identified with known vulnerabilities in {}:\n\n{}\n\n"
+                        + "See the dependency-check report for more details.\n\n",
+                        projectName,
+                        summary.toString());
+            }
         }
     }
 }

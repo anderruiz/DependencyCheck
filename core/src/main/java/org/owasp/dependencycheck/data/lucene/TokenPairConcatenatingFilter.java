@@ -81,6 +81,9 @@ public final class TokenPairConcatenatingFilter extends TokenFilter {
 
         } else if (input.incrementToken()) {
             final String word = new String(termAtt.buffer(), 0, termAtt.length());
+            if (word.isEmpty()) {
+                return true;
+            }
             if (addSingleTerm) {
                 clearAttributes();
                 termAtt.append(word);
@@ -97,8 +100,31 @@ public final class TokenPairConcatenatingFilter extends TokenFilter {
         return false;
     }
 
+//    @Override
+//    public void reset() throws IOException {
+//        super.reset();
+//        previousWord = null;
+//        addSingleTerm = true;
+//    }
+
     /**
-     * {@inheritDoc}
+     * Resets the filter. This must be manually called between searching and
+     * indexing. Unable to rely on `reset` as it appears to be called between
+     * terms.
+     *
+     * @throws IOException thrown if there is an error reseting the tokenizer
+     */
+    public void clear() throws IOException {
+        previousWord = null;
+        addSingleTerm = true;
+    }
+    
+    /**
+     * Resets the filter. This must be manually called between searching and
+     * indexing. Unable to rely on `reset` as it appears to be called between
+     * terms.
+     *
+     * @throws IOException thrown if there is an error reseting the tokenizer
      */
     @Override
     public void end() throws IOException {
@@ -135,14 +161,11 @@ public final class TokenPairConcatenatingFilter extends TokenFilter {
      */
     @Override
     public boolean equals(Object obj) {
-        if (obj == null) {
+        if (obj == null || !(obj instanceof TokenPairConcatenatingFilter)) {
             return false;
         }
-        if (obj == this) {
+        if (this == obj) {
             return true;
-        }
-        if (obj.getClass() != getClass()) {
-            return false;
         }
         final TokenPairConcatenatingFilter rhs = (TokenPairConcatenatingFilter) obj;
         return new EqualsBuilder()

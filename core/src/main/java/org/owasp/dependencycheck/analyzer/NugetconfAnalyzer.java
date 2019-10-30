@@ -17,6 +17,9 @@
  */
 package org.owasp.dependencycheck.analyzer;
 
+import com.github.packageurl.MalformedPackageURLException;
+import com.github.packageurl.PackageURL;
+import com.github.packageurl.PackageURLBuilder;
 import org.owasp.dependencycheck.Engine;
 import org.owasp.dependencycheck.analyzer.exception.AnalysisException;
 import org.owasp.dependencycheck.data.nuget.NugetPackageReference;
@@ -38,15 +41,16 @@ import java.util.List;
 
 import javax.annotation.concurrent.ThreadSafe;
 import org.owasp.dependencycheck.dependency.EvidenceType;
+import org.owasp.dependencycheck.dependency.naming.GenericIdentifier;
+import org.owasp.dependencycheck.dependency.naming.PurlIdentifier;
 import org.owasp.dependencycheck.exception.InitializationException;
 
 /**
- * Analyzer which parses a Nuget packages.config file to gather module information.
+ * Analyzer which parses a Nuget packages.config file to gather module
+ * information.
  *
  * @author doshyt
  */
-
-@Experimental
 @ThreadSafe
 public class NugetconfAnalyzer extends AbstractFileTypeAnalyzer {
 
@@ -54,7 +58,7 @@ public class NugetconfAnalyzer extends AbstractFileTypeAnalyzer {
      * A descriptor for the type of dependencies processed or added by this
      * analyzer.
      */
-    public static final String DEPENDENCY_ECOSYSTEM = "NuGet";
+    public static final String DEPENDENCY_ECOSYSTEM = "nuget";
 
     /**
      * The logger.
@@ -141,11 +145,12 @@ public class NugetconfAnalyzer extends AbstractFileTypeAnalyzer {
      * @throws AnalysisException when there's an exception during analysis
      */
     @Override
+    @SuppressWarnings("StringSplitter")
     public void analyzeDependency(Dependency dependency, Engine engine) throws AnalysisException {
         LOGGER.debug("Checking packages.config file {}", dependency);
         try {
             final NugetconfParser parser = new XPathNugetconfParser();
-            List<NugetPackageReference> packages = null;
+            final List<NugetPackageReference> packages;
             try (FileInputStream fis = new FileInputStream(dependency.getActualFilePath())) {
                 packages = parser.parse(fis);
             } catch (NugetconfParseException | FileNotFoundException ex) {
@@ -161,6 +166,16 @@ public class NugetconfAnalyzer extends AbstractFileTypeAnalyzer {
                 child.setEcosystem(DEPENDENCY_ECOSYSTEM);
                 child.setName(id);
                 child.setVersion(version);
+
+                try {
+                    final PackageURL purl = PackageURLBuilder.aPackageURL().withType("nuget").withName(id).withVersion(version).build();
+                    child.addSoftwareIdentifier(new PurlIdentifier(purl, Confidence.HIGHEST));
+                } catch (MalformedPackageURLException ex) {
+                    LOGGER.debug("Unable to build package url for nuget package", ex);
+                    final GenericIdentifier gid = new GenericIdentifier("nuget:" + id + "@" + version, Confidence.HIGHEST);
+                    child.addSoftwareIdentifier(gid);
+                }
+
                 child.setPackagePath(String.format("%s:%s", id, version));
                 child.setSha1sum(Checksum.getSHA1Checksum(String.format("%s:%s", id, version)));
                 child.setSha256sum(Checksum.getSHA256Checksum(String.format("%s:%s", id, version)));
@@ -169,7 +184,7 @@ public class NugetconfAnalyzer extends AbstractFileTypeAnalyzer {
                 child.addEvidence(EvidenceType.PRODUCT, "packages.config", "id", np.getId(), Confidence.HIGHEST);
 
                 // handle package names the same way as the MSBuild analyzer
-                if (id.indexOf(".") > 0) {
+                if (id.indexOf('.') > 0) {
                     final String[] parts = id.split("\\.");
 
                     // example: Microsoft.EntityFrameworkCore
@@ -177,7 +192,7 @@ public class NugetconfAnalyzer extends AbstractFileTypeAnalyzer {
                     child.addEvidence(EvidenceType.PRODUCT, "packages.config", "id", parts[1], Confidence.MEDIUM);
 
                     if (parts.length > 2) {
-                        final String rest = id.substring(id.indexOf(".") + 1);
+                        final String rest = id.substring(id.indexOf('.') + 1);
                         child.addEvidence(EvidenceType.PRODUCT, "packages.config", "id", rest, Confidence.MEDIUM);
                     }
                 } else {

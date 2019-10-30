@@ -17,7 +17,15 @@
  */
 package org.owasp.dependencycheck.utils;
 
+import org.owasp.dependencycheck.exception.ParseException;
+
+import java.util.Calendar;
 import javax.annotation.concurrent.ThreadSafe;
+import javax.xml.datatype.DatatypeConfigurationException;
+import javax.xml.datatype.DatatypeFactory;
+import javax.xml.datatype.XMLGregorianCalendar;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -27,9 +35,32 @@ import javax.annotation.concurrent.ThreadSafe;
 public final class DateUtil {
 
     /**
+     * The logger.
+     */
+    private static final Logger LOGGER = LoggerFactory.getLogger(DateUtil.class);
+
+    /**
      * Private constructor for utility class.
      */
     private DateUtil() {
+    }
+
+    /**
+     * Parses an XML xs:date into a calendar object.
+     *
+     * @param xsDate an xs:date string
+     * @return a calendar object
+     * @throws ParseException thrown if the date cannot be converted to a
+     * calendar
+     */
+    public static Calendar parseXmlDate(String xsDate) throws ParseException {
+        try {
+            final DatatypeFactory df = DatatypeFactory.newInstance();
+            final XMLGregorianCalendar dateTime = df.newXMLGregorianCalendar(xsDate);
+            return dateTime.toGregorianCalendar();
+        } catch (DatatypeConfigurationException ex) {
+            throw new ParseException("Unable to parse " + xsDate, ex);
+        }
     }
 
     /**
@@ -45,7 +76,31 @@ public final class DateUtil {
      */
     public static boolean withinDateRange(long date, long compareTo, int dayRange) {
         // ms = dayRange x 24 hours/day x 60 min/hour x 60 sec/min x 1000 ms/sec
-        final long msRange = dayRange * 24L * 60L * 60L * 1000L;
+        final long msRange = dayRange * 24L * 60L * 60L;
         return (compareTo - date) < msRange;
+    }
+
+    /**
+     * Returns the string value converted to an epoch seconds. Note, in some
+     * cases the value provided may be in milliseconds.
+     *
+     * @param epoch the property value
+     * @return the value in seconds
+     */
+    public static long getEpochValueInSeconds(String epoch) {
+        final String seconds;
+        if (epoch.length() >= 13) {
+            //this is in milliseconds - reduce to seconds
+            seconds = epoch.substring(0, 10);
+        } else {
+            seconds = epoch;
+        }
+        long results = 0;
+        try {
+            results = Long.parseLong(seconds);
+        } catch (NumberFormatException ex) {
+            LOGGER.debug(String.format("Error parsing '%s' property from the database - using zero", epoch), ex);
+        }
+        return results;
     }
 }

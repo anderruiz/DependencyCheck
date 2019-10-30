@@ -17,6 +17,7 @@
  */
 package org.owasp.dependencycheck.xml.suppression;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -30,6 +31,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.parsers.SAXParser;
 
+import org.apache.commons.io.IOUtils;
 import org.owasp.dependencycheck.utils.FileUtils;
 import org.owasp.dependencycheck.utils.XmlUtils;
 
@@ -72,12 +74,17 @@ public class SuppressionParser {
      * @return a list of suppression rules
      * @throws SuppressionParseException thrown if the XML file cannot be parsed
      */
+    @SuppressFBWarnings(justification = "try with resource will clenaup the resources", value = {"OBL_UNSATISFIED_OBLIGATION"})
     public List<SuppressionRule> parseSuppressionRules(File file) throws SuppressionParseException {
-        try (FileInputStream fis = new FileInputStream(file)) {
+    	FileInputStream fis = null;
+        try {
+        	fis = new FileInputStream(file);
             return parseSuppressionRules(fis);
         } catch (SAXException | IOException ex) {
             LOGGER.debug("", ex);
             throw new SuppressionParseException(ex);
+        } finally {
+        	IOUtils.closeQuietly(fis);;
         }
     }
 
@@ -91,11 +98,11 @@ public class SuppressionParser {
      * @throws SAXException thrown if the XML cannot be parsed
      */
     public List<SuppressionRule> parseSuppressionRules(InputStream inputStream) throws SuppressionParseException, SAXException {
-        try (
-                InputStream schemaStream12 = FileUtils.getResourceAsStream(SUPPRESSION_SCHEMA_1_2);
-                InputStream schemaStream11 = FileUtils.getResourceAsStream(SUPPRESSION_SCHEMA_1_1);
-                InputStream schemaStream10 = FileUtils.getResourceAsStream(SUPPRESSION_SCHEMA_1_0);
-            ) {
+    	InputStream schemaStream12 = null, schemaStream11 = null, schemaStream10 = null;
+        try  {
+        	schemaStream12 = FileUtils.getResourceAsStream(SUPPRESSION_SCHEMA_1_2);
+            schemaStream11 = FileUtils.getResourceAsStream(SUPPRESSION_SCHEMA_1_1);
+            schemaStream10 = FileUtils.getResourceAsStream(SUPPRESSION_SCHEMA_1_0);
             final SuppressionHandler handler = new SuppressionHandler();
             final SAXParser saxParser = XmlUtils.buildSecureSaxParser(schemaStream12, schemaStream11, schemaStream10);
             final XMLReader xmlReader = saxParser.getXMLReader();
@@ -119,6 +126,10 @@ public class SuppressionParser {
         } catch (IOException ex) {
             LOGGER.debug("", ex);
             throw new SuppressionParseException(ex);
+        } finally {
+        	IOUtils.closeQuietly(schemaStream12);
+        	IOUtils.closeQuietly(schemaStream11);
+        	IOUtils.closeQuietly(schemaStream10);
         }
     }
 }

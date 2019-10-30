@@ -58,8 +58,8 @@ public class NugetconfAnalyzerTest extends BaseTest {
 
     @Test
     public void testNugetconfAnalysis() throws Exception {
-
-        try (Engine engine = new Engine(getSettings())) {
+    	Engine engine = new Engine(getSettings());
+        try {
             File file = BaseTest.getResourceAsFile(this, "nugetconf/packages.config");
             Dependency toScan = new Dependency(file);
             NugetconfAnalyzer analyzer = new NugetconfAnalyzer();
@@ -105,6 +105,8 @@ public class NugetconfAnalyzerTest extends BaseTest {
                     }
                 }
             assertEquals("4 dependencies should be found", 4, foundCount);
+        } finally {
+        	engine.close();
         }
     }
 }

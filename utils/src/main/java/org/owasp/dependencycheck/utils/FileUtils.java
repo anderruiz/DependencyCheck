@@ -25,11 +25,15 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileFilter;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.UUID;
+
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.SystemUtils;
 
 /**
@@ -69,7 +73,7 @@ public final class FileUtils {
      */
     public static String getFileExtension(String fileName) {
         final String fileExt = FilenameUtils.getExtension(fileName);
-        return null == fileExt || fileExt.isEmpty() ? null : fileExt.toLowerCase();
+        return StringUtils.isNoneEmpty(fileExt) ? StringUtils.lowerCase(fileExt) : null;
     }
 
     /**
@@ -80,6 +84,11 @@ public final class FileUtils {
      * @return true if the file was deleted successfully, otherwise false
      */
     public static boolean delete(File file) {
+        if (file == null) {
+            LOGGER.warn("cannot delete null File");
+            return false;
+        }
+
         final boolean success = org.apache.commons.io.FileUtils.deleteQuietly(file);
         if (!success) {
             LOGGER.debug("Failed to delete file: {}; attempting to delete on exit.", file.getPath());
@@ -93,10 +102,10 @@ public final class FileUtils {
      *
      * @param base the base directory to create a temporary directory within
      * @return the temporary directory
-     * @throws IOException thrown when a directory cannot be created within the
-     * base directory
+     * @throws java.io.IOException thrown when a directory cannot be created
+     * within the base directory
      */
-    public static File createTempDirectory(File base) throws IOException {
+    public static File createTempDirectory(final File base) throws IOException {
         final File tempDir = new File(base, "dctemp" + UUID.randomUUID().toString());
         if (tempDir.exists()) {
             return createTempDirectory(base);
@@ -115,20 +124,16 @@ public final class FileUtils {
      * @return a String containing the bit bucket
      */
     public static String getBitBucket() {
-        if (SystemUtils.IS_OS_WINDOWS) {
-            return BIT_BUCKET_WIN;
-        } else {
-            return BIT_BUCKET_UNIX;
-        }
+        return SystemUtils.IS_OS_WINDOWS ? BIT_BUCKET_WIN : BIT_BUCKET_UNIX;
     }
 
     /**
-     * Close the given {@link Closeable} instance, ignoring nulls, and logging
-     * any thrown {@link IOException}.
+     * Close the given {@link java.io.Closeable} instance, ignoring nulls, and
+     * logging any thrown {@link java.io.IOException}.
      *
      * @param closeable to be closed
      */
-    public static void close(Closeable closeable) {
+    public static void close(final Closeable closeable) {
         if (null != closeable) {
             try {
                 closeable.close();
@@ -139,15 +144,44 @@ public final class FileUtils {
     }
 
     /**
-     * Gets the {@link InputStream} for this resource.
+     * Gets the {@link java.io.InputStream} for this resource.
      *
      * @param resource path
      * @return the input stream for the given resource
      */
     public static InputStream getResourceAsStream(String resource) {
-        return FileUtils.class.getClassLoader() != null
-                ? FileUtils.class.getClassLoader().getResourceAsStream(resource)
+        final ClassLoader classLoader = FileUtils.class.getClassLoader();
+        final InputStream inputStream = classLoader != null
+                ? classLoader.getResourceAsStream(resource)
                 : ClassLoader.getSystemResourceAsStream(resource);
+
+        if (inputStream == null) {
+            try {
+                return new FileInputStream(resource);
+            } catch (final FileNotFoundException e) {
+                LOGGER.error("Unable to create an Input Stream for " + resource, e);
+            }
+        }
+        return inputStream;
+    }
+
+    /**
+     * Returns a File object for the given resource. The resource is attempted
+     * to be loaded from the class loader.
+     *
+     * @param resource path
+     * @return the file reference for the resource
+     */
+    public static File getResourceAsFile(final String resource) {
+        final ClassLoader classLoader = FileUtils.class.getClassLoader();
+        final String path = classLoader != null
+                ? classLoader.getResource(resource).getFile()
+                : ClassLoader.getSystemResource(resource).getFile();
+
+        if (path == null) {
+            return new File(resource);
+        }
+        return new File(path);
     }
 
 	public static void cleanOldTempFiles(final Settings settings) throws IOException {

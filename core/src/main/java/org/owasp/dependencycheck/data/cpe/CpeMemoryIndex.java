@@ -93,6 +93,14 @@ public final class CpeMemoryIndex {
      */
     private QueryParser queryParser;
     /**
+     * The product field analyzer.
+     */
+    private SearchFieldAnalyzer productFieldAnalyzer;
+    /**
+     * The vendor field analyzer.
+     */
+    private SearchFieldAnalyzer vendorFieldAnalyzer;
+    /**
      * Track the number of current users of the Lucene index; used to track it
      * it is okay to actually close the index.
      */
@@ -151,8 +159,8 @@ public final class CpeMemoryIndex {
     private Analyzer createSearchingAnalyzer() {
         final Map<String, Analyzer> fieldAnalyzers = new HashMap<>();
         fieldAnalyzers.put(Fields.DOCUMENT_KEY, new KeywordAnalyzer());
-        final SearchFieldAnalyzer productFieldAnalyzer = new SearchFieldAnalyzer();
-        final SearchFieldAnalyzer vendorFieldAnalyzer = new SearchFieldAnalyzer();
+        productFieldAnalyzer = new SearchFieldAnalyzer();
+        vendorFieldAnalyzer = new SearchFieldAnalyzer();
         fieldAnalyzers.put(Fields.PRODUCT, productFieldAnalyzer);
         fieldAnalyzers.put(Fields.VENDOR, vendorFieldAnalyzer);
 
@@ -194,8 +202,10 @@ public final class CpeMemoryIndex {
      * @throws IndexException thrown if there is an issue creating the index
      */
     private void buildIndex(CveDB cve) throws IndexException {
-        try (Analyzer analyzer = createSearchingAnalyzer();
-                IndexWriter indexWriter = new IndexWriter(index, new IndexWriterConfig(LuceneUtils.CURRENT_VERSION, analyzer))) {
+    	Analyzer analyzer = createSearchingAnalyzer();
+    	IndexWriter indexWriter = null;
+        try {
+        	indexWriter = new IndexWriter(index, new IndexWriterConfig(LuceneUtils.CURRENT_VERSION, analyzer));
             // Tip: reuse the Document and Fields for performance...
             // See "Re-use Document and Field instances" from
             // http://wiki.apache.org/lucene-java/ImproveIndexingSpeed
@@ -211,6 +221,7 @@ public final class CpeMemoryIndex {
                     v.setStringValue(pair.getLeft());
                     p.setStringValue(pair.getRight());
                     indexWriter.addDocument(doc);
+                    resetAnalyzers();
                 }
             }
             indexWriter.commit();
@@ -220,6 +231,17 @@ public final class CpeMemoryIndex {
             throw new IndexException("Error reading CPE data", ex);
         } catch (IOException ex) {
             throw new IndexException("Unable to close an in-memory index", ex);
+        } finally {
+        	analyzer.close();
+        	if(indexWriter!=null) {
+        		try {
+					indexWriter.close();
+				}
+				catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+        	}
         }
     }
 
@@ -241,6 +263,31 @@ public final class CpeMemoryIndex {
         final Query query = queryParser.parse(searchString);
         return search(query, maxQueryResults);
     }
+    
+    /**
+     * Parses the given string into a Lucene Query.
+     *
+     * @param searchString the search text
+     * @return the Query object
+     * @throws ParseException thrown if the search text cannot be parsed
+     * @throws IndexException thrown if there is an error resetting the
+     * analyzers
+     */
+    public synchronized Query parseQuery(String searchString) throws ParseException, IndexException {
+        if (searchString == null || searchString.trim().isEmpty()) {
+            throw new ParseException("Query is null or empty");
+        }
+        LOGGER.debug(searchString);
+
+        final Query query = queryParser.parse(searchString);
+        try {
+            resetAnalyzers();
+        } catch (IOException ex) {
+            throw new IndexException("Unable to reset the analyzer after parsing", ex);
+        }
+        return query;
+    }
+
 
     /**
      * Searches the index using the given query.
@@ -276,5 +323,15 @@ public final class CpeMemoryIndex {
             return -1;
         }
         return indexReader.numDocs();
+    }
+    
+    /**
+     * Common method to reset the searching analyzers.
+     *
+     * @throws IOException thrown if there is an index error
+     */
+    protected synchronized void resetAnalyzers() throws IOException {
+        productFieldAnalyzer.reset();
+        vendorFieldAnalyzer.reset();
     }
 }

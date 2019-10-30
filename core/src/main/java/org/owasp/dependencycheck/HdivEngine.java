@@ -26,6 +26,7 @@ import org.owasp.dependencycheck.dependency.Evidence;
 import org.owasp.dependencycheck.dependency.EvidenceType;
 import org.owasp.dependencycheck.dependency.Vulnerability;
 import org.owasp.dependencycheck.dependency.VulnerableSoftware;
+import org.owasp.dependencycheck.dependency.naming.PurlIdentifier;
 import org.owasp.dependencycheck.exception.NoDataException;
 import org.owasp.dependencycheck.exception.ReportException;
 import org.owasp.dependencycheck.reporting.ReportGenerator;
@@ -136,7 +137,7 @@ public class HdivEngine extends Engine {
     	d2.addEvidence(EvidenceType.VENDOR, new Evidence("rt", "oracle", "oracle", Confidence.HIGHEST));
     	d2.addEvidence(EvidenceType.PRODUCT, new Evidence("rt", "jdk", "jdk", Confidence.HIGHEST));
     	d2.addEvidence(EvidenceType.VERSION, new Evidence("rt", "version", "1.6.0:update_34", Confidence.HIGHEST ));
-    	d2.addIdentifier("maven", "oracle:jdk:1.6.0:update_34", "http://hdiv.com");
+    	d2.addSoftwareIdentifier(new PurlIdentifier("maven", "oracle:jdk:1.6.0:update_34", "http://hdiv.com", Confidence.HIGHEST));
     	d2.setFileName("rt.jar");
     	d2.setActualFilePath("/dummy/rt.jar");
     	d2.setFilePath("rt.jar");
@@ -146,7 +147,7 @@ public class HdivEngine extends Engine {
     	d2.addEvidence(EvidenceType.VENDOR, new Evidence("rt", "oracle", "oracle", Confidence.HIGHEST));
     	d2.addEvidence(EvidenceType.PRODUCT, new Evidence("rt", "jrockit", "jrockit", Confidence.HIGHEST));
     	d2.addEvidence(EvidenceType.VERSION, new Evidence("rt", "version", "r28.3.13", Confidence.HIGHEST ));
-    	d2.addIdentifier("maven", "com.oracle:jrockit:r28.3.13", "http://hdiv.com");
+    	d2.addSoftwareIdentifier(new PurlIdentifier("maven", "com.oracle:jrockit:r28.3.13", "http://hdiv.com", Confidence.HIGHEST));
     	d2.setFileName("rt.jar");
     	d2.setActualFilePath("/dummy/rt.jar");
     	d2.setFilePath("rt.jar");
@@ -156,7 +157,7 @@ public class HdivEngine extends Engine {
     	d2.addEvidence(EvidenceType.VENDOR, new Evidence("rt", "ibm", "ibm", Confidence.HIGHEST));
     	d2.addEvidence(EvidenceType.PRODUCT, new Evidence("rt", "websphere_application_server", "websphere_application_server", Confidence.HIGHEST));
     	d2.addEvidence(EvidenceType.VERSION, new Evidence("rt", "version", "7.0.0.25", Confidence.HIGHEST ));
-    	d2.addIdentifier("maven", "ibm:websphere_application_server:7.0.0.25", "http://hdiv.com");
+    	d2.addSoftwareIdentifier(new PurlIdentifier("maven", "ibm:websphere_application_server:7.0.0.25", "http://hdiv.com", Confidence.HIGHEST));
     	d2.setFileName("rt.jar");
     	d2.setActualFilePath("/dummy/rt.jar");
     	d2.setFilePath("rt.jar");
@@ -166,7 +167,7 @@ public class HdivEngine extends Engine {
     	d2.addEvidence(EvidenceType.VENDOR, new Evidence("rt", "redhat", "redhat", Confidence.HIGHEST));
     	d2.addEvidence(EvidenceType.PRODUCT, new Evidence("rt", "jboss_enterprise_application_platform", "jboss_enterprise_application_platform", Confidence.HIGHEST));
     	d2.addEvidence(EvidenceType.VERSION, new Evidence("rt", "version", "4.2.2", Confidence.HIGHEST ));
-    	d2.addIdentifier("maven", "ibm:websphere_application_server:7.0.0.25", "http://hdiv.com");
+    	d2.addSoftwareIdentifier(new PurlIdentifier("maven", "ibm:websphere_application_server:7.0.0.25", "http://hdiv.com", Confidence.HIGHEST));
     	d2.setFileName("rt.jar");
     	d2.setActualFilePath("/dummy/rt.jar");
     	d2.setFilePath("rt.jar");
@@ -176,7 +177,7 @@ public class HdivEngine extends Engine {
     	d2.addEvidence(EvidenceType.VENDOR, new Evidence("rt", "oracle", "oracle", Confidence.HIGHEST));
     	d2.addEvidence(EvidenceType.PRODUCT, new Evidence("rt", "jdk", "jdk", Confidence.HIGHEST));
     	d2.addEvidence(EvidenceType.VERSION, new Evidence("rt", "version", "1.7.0:update_40", Confidence.HIGHEST ));
-    	d2.addIdentifier("maven", "oracle:jdk:1.7.0:update_40", "http://hdiv.com");
+    	d2.addSoftwareIdentifier(new PurlIdentifier("maven", "oracle:jdk:1.7.0:update_40", "http://hdiv.com", Confidence.HIGHEST));
     	d2.setFileName("rt.jar");
     	d2.setActualFilePath("/dummy/rt.jar");
     	d2.setFilePath("rt.jar");

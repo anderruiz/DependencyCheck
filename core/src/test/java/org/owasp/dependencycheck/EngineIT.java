@@ -49,18 +49,19 @@ public class EngineIT extends BaseDBTestCase {
     public void testEngine() throws IOException, InvalidSettingException, DatabaseException, ReportException, ExceptionCollection {
         String testClasses = "target/test-classes";
         getSettings().setBoolean(Settings.KEYS.AUTO_UPDATE, false);
-        Engine instance = null;
+        getSettings().setBoolean(Settings.KEYS.ANALYZER_NODE_PACKAGE_ENABLED, false);
+        getSettings().setBoolean(Settings.KEYS.ANALYZER_NODE_AUDIT_ENABLED, false);
+        Engine engine = new Engine(getSettings());
         try {
-            instance = new Engine(getSettings());
-            instance.scan(testClasses);
-            assertTrue(instance.getDependencies().length > 0);
+        	engine.scan(testClasses);
+            assertTrue(engine.getDependencies().length > 0);
             try {
-                instance.analyzeDependencies();
+            	engine.analyzeDependencies();
             } catch (ExceptionCollection ex) {
                 Set<String> allowedMessages = new HashSet<>();
                 allowedMessages.add("bundle-audit");
                 allowedMessages.add("AssemblyAnalyzer");
-                //allowedMessages.add("Unable to connect to");
+                allowedMessages.add("ailed to read results from the NPM Audit API");
                 for (Throwable t : ex.getExceptions()) {
                     boolean isOk = false;
                     if (t.getMessage() != null) {
@@ -76,11 +77,11 @@ public class EngineIT extends BaseDBTestCase {
                     }
                 }
             }
-            instance.writeReports("dependency-check sample", new File("./target/"), "ALL");
+            engine.writeReports("dependency-check sample", new File("./target/"), "ALL");
         }
         finally {
-            if (instance != null) {
-                instance.close();
+            if (engine != null) {
+            	engine.close();
             }
         }
     }

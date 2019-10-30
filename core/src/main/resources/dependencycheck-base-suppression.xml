@@ -99,6 +99,19 @@
             23. interact is a php project (#1609)
             24. finder is drupal plugin (#1626)
             25. archiver project is a golang module (#1627)
+            26. r_project is the r programming language
+            27. r_project is the r programming language
+            28. cpe:/a:jwt_project:jwt is a php library (#1697)
+            29. remove FP on git
+            30. remove FP on git
+            31. remove FP on git
+            32. Suppresses false positives on .NET mono
+            33. Suppresses false positives on .NET mono
+            34. Suppresses false positives on .NET mono
+            35. app_project is an electron project. #1549
+            36. <cpe>cpe:/a:json-jwt_project:json-jwt</cpe> is a ruby lib #1791
+            37. <cpe>cpe:/a:zip_project:zip</cpe> is an etherium related project #1788
+            38. <cpe>cpe:/a:echo_project:echo</cpe> is a php media wiki project #1786
         ]]></notes>
         <filePath regex="true">.*(\.(dll|jar|ear|war|pom|nupkg|nuspec|aar)|pom\.xml|package.json|packages.config)$</filePath>
         <cpe>cpe:/a:sandbox:sandbox</cpe>
@@ -130,6 +143,18 @@
         <cpe>cpe:/a:interact:interact</cpe>
         <cpe>cpe:/a:finder_project:finder</cpe>
         <cpe>cpe:/a:archiver_project:archiver</cpe>
+        <cpe>cpe:/a:r_project:r</cpe>
+        <cpe>cpe:/a:jwt_project:jwt</cpe>
+        <cpe>cpe:/a:git_project:git</cpe>
+        <cpe>cpe:/a:git:git</cpe>
+        <cpe>cpe:/a:git_for_windows_project:git_for_windows</cpe>
+        <cpe>cpe:/a:mono-project:mono</cpe>
+        <cpe>cpe:/a:mono:mono</cpe>
+        <cpe>cpe:/a:mono_project:mono</cpe>
+        <cpe>cpe:/a:app_project:app</cpe>
+        <cpe>cpe:/a:json-jwt_project:json-jwt</cpe>
+        <cpe>cpe:/a:zip_project:zip</cpe>
+        <cpe>cpe:/a:echo_project:echo</cpe>
     </suppress>
     <suppress base="true">
         <notes><![CDATA[
@@ -145,6 +170,7 @@
             7. python (#1055)
             8. CVE-2017-16046 is for the node.js npm mariadb client (#1364)
             9. sqlserver_project is a node js module (#1388)
+            10. auth0 is a javascript library (#1925)
         ]]></notes>
         <filePath regex="true">.*(\.(jar|ear|war|pom)|pom\.xml)$</filePath>
         <cpe>cpe:/a:dash:dash</cpe>
@@ -158,6 +184,43 @@
         <cpe>cpe:/a:python_software_foundation:python</cpe>
         <cve>CVE-2017-16046</cve>
         <cpe>cpe:/a:sqlserver_project:sqlserver</cpe>
+        <cpe>cpe:/a:auth0:auth0</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        Suppresses false positives per #1396.
+        ]]></notes>
+        <gav regex="true">^org\.mitre:openid-connect-client:.*$</gav>
+        <cpe>cpe:/a:openid:openid_connect</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        Suppresses false positives per #1563.
+        ]]></notes>
+        <gav regex="true">^de\.siegmar:logback-gelf:.*$</gav>
+        <cpe>cpe:/a:logback:logback</cpe>
+     </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        Suppresses false positives per #1566.
+        ]]></notes>
+        <gav regex="true">^org\.springframework\.boot:spring-boot:.*$</gav>
+        <cpe>cpe:/a:springsource:spring_framework</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+            Suppresses false positives per #1566.
+            ]]></notes>
+        <gav regex="true">^org\.springframework\.security\.oauth\.boot:spring-security-oauth2-autoconfigure:.*$</gav>
+        <cpe>cpe:/a:pivotal_software:spring_boot</cpe>
+        <cpe>cpe:/a:pivotal_software:spring_security</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        Suppresses false positives per #1573.
+        ]]></notes>
+        <gav regex="true">^io\.netty:netty-tcnative-boringssl-static:.*$</gav>
+        <cpe>cpe:/a:netty_project:netty</cpe>
     </suppress>
     <suppress base="true">
         <notes><![CDATA[
@@ -173,6 +236,21 @@
         ]]></notes>
         <gav regex="true">^eu\.bitwalker:UserAgentUtils:.*$</gav>
         <cpe>cpe:/a:useragent_project:useragent</cpe>
+    </suppress>
+    <suppress base="true">
+       <notes><![CDATA[
+       Supress false positives per issue #1872
+       ]]></notes>
+       <gav regex="true">^org\.springframework\.security\.oauth:spring-security-oauth2:.*$</gav>
+       <cpe>cpe:/a:pivotal_software:spring_security</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        Suppresses false positives per issue #1694.
+        ]]></notes>
+        <gav regex="true">^org\.springframework\.security\.extensions:spring-security-saml.*$</gav>
+        <cpe>cpe:/a:pivotal_software:spring_security</cpe>
+        <cpe>cpe:/a:vmware:springsource_spring_security</cpe>
     </suppress>
     <suppress base="true">
         <notes><![CDATA[
@@ -250,14 +328,6 @@
     </suppress>
     <suppress base="true">
         <notes><![CDATA[
-        Suppresses false positives per issue #1613
-        ]]></notes>
-        <gav regex="true">^com\.github\.jai-imageio.*$</gav>
-        <cpe>cpe:/a:git:git</cpe>
-        <cpe>cpe:/a:git_project:git</cpe>
-    </suppress>
-    <suppress base="true">
-        <notes><![CDATA[
         Suppresses false positives per issue 1581
         ]]></notes>
         <gav regex="true">^org\.apache\.activemq:artemis.*$</gav>
@@ -310,6 +380,13 @@
     </suppress>
     <suppress base="true">
         <notes><![CDATA[
+        FP per #1229
+        ]]></notes>
+        <gav regex="true">^org\.slf4j:((?!slf4j-ext).)*:.*$</gav>
+        <cve>CVE-2018-8088</cve>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
         FP per #1027
         ]]></notes>
         <gav regex="true">^com\.github\.danielwegener:logback-kafka-appender:.*$</gav>
@@ -337,7 +414,15 @@
         <cpe>cpe:/a:apache:http_server</cpe>
         <cpe>cpe:/a:apache:apache_http_server</cpe>
         <cpe>cpe:/a:free_java_web_server:free_java_web_server</cpe>
-     </suppress>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        FP on jetty-proxy
+        ]]></notes>
+        <gav regex="true">^org\.eclipse\.jetty:jetty-proxy:.*$</gav>
+        <cpe>cpe:/a:eclipse:jetty</cpe>
+        <cpe>cpe:/a:jetty:jetty</cpe>
+    </suppress>
     <suppress base="true">
         <notes><![CDATA[
         False positives found while investigating https://github.com/jeremylong/dependency-check-gradle/issues/103
@@ -716,6 +801,144 @@
     </suppress>
     <suppress base="true">
         <notes><![CDATA[
+        JRK False Positives
+        ]]></notes>
+        <filePath regex="true">.*(\.(jar|ear|war|pom)|pom\.xml)</filePath>
+        <cpe>cpe:/a:sun:java</cpe>
+        <cpe>cpe:/a:sun:jdk</cpe>
+        <cpe>cpe:/a:sun:j2se</cpe>
+        <cpe>cpe:/a:sun:j_se</cpe>
+        <cpe>cpe:/a:sun:j_se</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+       fontbox is a sub project of pdfbox.  CPE vulns don't apply.
+       ]]></notes>
+        <gav regex="true">^org\.apache\.pdfbox:fontbox:.*$</gav>
+        <cpe>cpe:/a:apache:pdfbox</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        https://tukaani.org/xz/java.html
+        ]]></notes>
+        <gav regex="true">^org\.tukaani:xz:.*$</gav>
+        <cve>CVE-2015-4035</cve>
+    </suppress>
+    <suppress base="true">
+       <notes><![CDATA[
+       https://github.com/processing/processing is not javax
+       ]]></notes>
+       <gav regex="true">^(javax\.json|org\.glassfish):javax\.json(-api)?:.*$</gav>
+       <cpe>cpe:/a:processing:processing</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        https://github.com/ojai/ojai is not mapr
+        ]]></notes>
+        <gav regex="true">^org\.ojai:ojai:.*$</gav>
+        <cpe>cpe:/a:mapr:mapr</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        dependency-track is not track+
+        ]]></notes>
+        <gav regex="true">^org\.jenkins-ci\.plugins:dependency-track:.*$</gav>
+        <cpe>cpe:/a:track%2b:track%2b</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        Jenkins plugins are should not be flagged as Jenkins.
+        ]]></notes>
+        <gav regex="true">^org\.jenkins-ci\.plugins:.*$</gav>
+        <cpe>cpe:/a:jenkins:jenkins</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        Maven plugin for developing Jenkins plugins.
+        ]]></notes>
+        <gav regex="true">^org\.jenkins-ci\.tools:maven-hpi-plugin:.*$</gav>
+        <cpe>cpe:/a:jenkins:jenkins</cpe>
+        <cpe>cpe:/a:jenkins:maven</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        FP on dependency-check-gradle
+        ]]></notes>
+        <gav regex="true">^org\.owasp:dependency-check-gradle:.*$</gav>
+        <cpe>cpe:/a:gradle:gradle</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        False positive: see https://github.com/jeremylong/DependencyCheck/issues/1949
+        ]]></notes>
+        <gav regex="true">^io\.springfox:springfox-.+:.*$</gav>
+        <cpe>cpe:/a:gradle:gradle</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        see https://github.com/jeremylong/DependencyCheck/issues/1927
+        ]]></notes>
+        <gav regex="true">^io\.micrometer:micrometer-registry-prometheus:.*$</gav>
+        <cve>CVE-2019-3826</cve>
+     </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        see https://github.com/jeremylong/DependencyCheck/issues/1927
+        ]]></notes>
+        <gav regex="true">^io\.prometheus:simpleclient_common:.*$</gav>
+        <cve>CVE-2019-3826</cve>
+    </suppress>
+    <suppress>
+        <notes><![CDATA[
+        see https://github.com/jeremylong/DependencyCheck/issues/1927
+        ]]></notes>
+        <gav regex="true">^io\.prometheus:simpleclient:.*$</gav>
+        <cve>CVE-2019-3826</cve>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        remove FP on Jenkins.
+        ]]></notes>
+        <gav regex="true">^(?!org\.jenkins-ci\.main:jenkins-war).*$</gav>
+        <cpe>cpe:/a:jenkins:jenkins</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        filter out non-glassfish core
+        ]]></notes>
+        <gav regex="true">^(?!org\.glassfish\.main\.core:glassfish).*$</gav>
+        <cpe>cpe:/a:oracle:glassfish</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        Grizzly is not Async Http Client
+        ]]></notes>
+        <gav regex="true">^org\.glassfish\.grizzly:grizzly-http-client:.*$</gav>
+        <cpe>cpe:/a:async-http-client_project:async-http-client</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        don't flag scala modules as scala
+        ]]></notes>
+        <gav regex="true">^org\.scala-lang\.modules:.*$</gav>
+        <cpe>cpe:/a:scala-lang:scala</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        don't flag maven plugin components as the jenkins maven plugin itself
+        ]]></notes>
+        <gav regex="true">^(?!org\.jenkins-ci\.main:maven-plugin):.*$</gav>
+        <cpe>cpe:/a:jenkins:maven</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        don't flag jruby extensions as jruby
+        ]]></notes>
+        <gav regex="true">^org\.jruby\.ext.*$</gav>
+        <cpe>cpe:/a:jruby:jruby</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
         elastic search false postivies
         ]]></notes>
         <gav regex="true">org\.elasticsearch:securesm:.*</gav>
@@ -779,6 +1002,16 @@
     </suppress>
     <suppress base="true">
         <notes><![CDATA[
+        Spring false positives; see https://github.com/jeremylong/DependencyCheck/issues/1921.
+        ]]></notes>
+        <gav regex="true">org\.springframework\.[^:]+:.*</gav>
+        <cpe>cpe:/a:springsource:spring_framework</cpe>
+        <cpe>cpe:/a:vmware:springsource_spring_framework</cpe>
+        <cpe>cpe:/a:pivotal:spring_framework</cpe>
+        <cpe>cpe:/a:pivotal_software:spring_framework</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
         Spring data neo4j false positives.
         ]]></notes>
         <gav regex="true">org\.springframework\.data:spring-data-neo4j:.*</gav>
@@ -816,10 +1049,19 @@
     </suppress>
     <suppress base="true">
         <notes><![CDATA[
+        FP per #1673
+        ]]></notes>
+        <gav regex="true">^org\.glassfish\.jersey\.media:jersey-media-moxy:.*$</gav>
+        <cpe>cpe:/a:eclipse:eclipse_ide</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
         Drupal services false positive.
+        Pyro is a python project.
         ]]></notes>
         <filePath regex="true">.*(\.(jar|ear|war|pom)|pom\.xml)</filePath>
         <cpe>cpe:/a:services_project:services</cpe>
+        <cpe>cpe:/a:pyro_project:pyro</cpe>
     </suppress>
     <suppress base="true">
         <notes><![CDATA[
@@ -1149,6 +1391,20 @@
     </suppress>
     <suppress base="true">
         <notes><![CDATA[
+        spring-boot-starter-security is not the same as spring-security, See #1975
+        ]]></notes>
+        <gav regex="true">^org\.springframework\.boot:spring-boot-starter-security:.*$</gav>
+        <cpe>cpe:/a:pivotal_software:spring_security</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        Suppresses false positives per #1880.
+        ]]></notes>
+        <gav regex="true">^com\.hazelcast:hazelcast-kubernetes:.*$</gav>
+        <cpe>cpe:/a:kubernetes:kubernetes</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
         FP per #1398
         ]]></notes>
         <gav regex="true">^net\.lingala\.zip4j:zip4j:.*$</gav>
@@ -1194,8 +1450,6 @@
         false positive per issue #859
         ]]></notes>
         <gav regex="true">^org\.kohsuke:github-api:.*$</gav>
-        <cpe>cpe:/a:git:git</cpe>
-        <cpe>cpe:/a:git_project:git</cpe>
         <cpe>cpe:/a:hub_project:hub</cpe>
     </suppress>
     <suppress base="true">
@@ -1350,14 +1604,6 @@
     </suppress>
     <suppress base="true">
         <notes><![CDATA[
-        False positive per issue #964
-        ]]></notes>
-        <gav regex="true">^org\.mongodb\.morphia:.*$</gav>
-        <cpe>cpe:/a:git:git</cpe>
-        <cpe>cpe:/a:git_project:git</cpe>
-    </suppress>
-    <suppress base="true">
-        <notes><![CDATA[
         FP per issue #942
         ]]></notes>
         <gav regex="true">^org\.apache\.chemistry\.opencmis:chemistry-opencmis.*$</gav>
@@ -1370,13 +1616,6 @@
         ]]></notes>
         <gav regex="true">^org\.alfresco\.cmis\.client:alfresco-opencmis-extension:.*$</gav>
         <cpe>cpe:/a:alfresco:alfresco</cpe>
-    </suppress>
-    <suppress base="true">
-        <notes><![CDATA[
-        FP per issue #949
-        ]]></notes>
-        <gav regex="true">^com\.github\.waffle:waffle-jna:.*$</gav>
-        <cpe>cpe:/a:git_for_windows_project:git_for_windows</cpe>
     </suppress>
     <suppress base="true">
         <notes><![CDATA[
@@ -1436,16 +1675,7 @@
         <cpe>cpe:/a:apache:tomcat</cpe>
         <cpe>cpe:/a:apache_tomcat:apache_tomcat</cpe>
         <cpe>cpe:/a:apache_software_foundation:tomcat</cpe>
-    </suppress>
-    <suppress base="true">
-        <notes><![CDATA[
-        FP per issue #1022
-        ]]></notes>
-        <gav regex="true">^org\.eclipse\.persistence:org\.eclipse\.persistence.*$</gav>
-        <cpe>cpe:/a:git:git</cpe>
-        <cpe>cpe:/a:git_project:git</cpe>
-    </suppress>
-    
+    </suppress>    
     <suppress base="true">
         <notes><![CDATA[
         general FP cleanup
@@ -2385,6 +2615,13 @@
         <cve>CVE-2002-0729</cve>
         <cve>CVE-2007-5348</cve>
         <cve>CVE-2008-4110</cve>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        FP per issue #1662
+        ]]></notes>
+        <gav regex="true">^net\.sourceforge\.jtds:jtds:.*$</gav>
+        <cpe>cpe:/a:microsoft:sql_server</cpe>
     </suppress>
     <suppress base="true">
         <notes><![CDATA[

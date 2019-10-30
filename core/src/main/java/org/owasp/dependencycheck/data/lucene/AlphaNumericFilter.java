@@ -18,7 +18,7 @@
 package org.owasp.dependencycheck.data.lucene;
 
 import java.io.IOException;
-import java.util.LinkedList;
+import java.util.ArrayDeque;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.lucene.analysis.TokenStream;
@@ -44,7 +44,7 @@ public final class AlphaNumericFilter extends AbstractTokenizingFilter {
     /**
      * The position increment attribute.
      */
-    private final PositionIncrementAttribute posIncrAttribute = addAttribute(PositionIncrementAttribute.class);
+    private final PositionIncrementAttribute posIncrementAttribute = addAttribute(PositionIncrementAttribute.class);
     /**
      * Used to count the number of terms skipped as they were only made up of
      * special characters.
@@ -65,7 +65,7 @@ public final class AlphaNumericFilter extends AbstractTokenizingFilter {
      */
     @Override
     public boolean incrementToken() throws IOException {
-        final LinkedList<String> tokens = getTokens();
+        final ArrayDeque<String> tokens = getTokens();
         final CharTermAttribute termAtt = getTermAtt();
         if (tokens.isEmpty()) {
             String[] parts;
@@ -77,10 +77,10 @@ public final class AlphaNumericFilter extends AbstractTokenizingFilter {
                 }
                 parts = text.split("[^a-zA-Z0-9]");
                 if (parts.length == 0) {
-                    skipCounter += posIncrAttribute.getPositionIncrement();
+                    skipCounter += posIncrementAttribute.getPositionIncrement();
                 } else {
                     if (skipCounter != 0) {
-                        posIncrAttribute.setPositionIncrement(posIncrAttribute.getPositionIncrement() + skipCounter);
+                        posIncrementAttribute.setPositionIncrement(posIncrementAttribute.getPositionIncrement() + skipCounter);
                     }
                     for (String part : parts) {
                         if (!part.isEmpty()) {
@@ -109,7 +109,7 @@ public final class AlphaNumericFilter extends AbstractTokenizingFilter {
     @Override
     public void end() throws IOException {
         super.end();
-        posIncrAttribute.setPositionIncrement(posIncrAttribute.getPositionIncrement() + skipCounter);
+        posIncrementAttribute.setPositionIncrement(posIncrementAttribute.getPositionIncrement() + skipCounter);
     }
 
     /**
@@ -117,9 +117,9 @@ public final class AlphaNumericFilter extends AbstractTokenizingFilter {
      */
     @Override
     public int hashCode() {
-        return new HashCodeBuilder(13, 27)
+        return new HashCodeBuilder(13, 103)
                 .appendSuper(super.hashCode())
-                .append(posIncrAttribute)
+                .append(posIncrementAttribute)
                 .append(skipCounter)
                 .build();
     }
@@ -129,20 +129,17 @@ public final class AlphaNumericFilter extends AbstractTokenizingFilter {
      */
     @Override
     public boolean equals(Object obj) {
-        if (obj == null) {
+        if (obj == null || !(obj instanceof AlphaNumericFilter)) {
             return false;
         }
-        if (obj == this) {
+        if (this == obj) {
             return true;
-        }
-        if (obj.getClass() != getClass()) {
-            return false;
         }
         final AlphaNumericFilter rhs = (AlphaNumericFilter) obj;
         return new EqualsBuilder()
                 .appendSuper(super.equals(obj))
                 .append(skipCounter, rhs.skipCounter)
-                .append(posIncrAttribute, rhs.posIncrAttribute)
+                .append(posIncrementAttribute, rhs.posIncrementAttribute)
                 .isEquals();
     }
 }

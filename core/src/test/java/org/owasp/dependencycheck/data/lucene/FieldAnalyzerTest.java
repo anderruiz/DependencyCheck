@@ -77,16 +77,17 @@ public class FieldAnalyzerTest extends BaseTest {
         map.put(field1, searchAnalyzerProduct);
         map.put(field2, searchAnalyzerVendor);
         // TODO fix test
-        PerFieldAnalyzerWrapper wrapper = new PerFieldAnalyzerWrapper(null /*new StandardAnalyzer()*/, map);
-        QueryParser parser = null; //new QueryParser(field1, wrapper);
+        PerFieldAnalyzerWrapper wrapper = new PerFieldAnalyzerWrapper(new StandardAnalyzer(null), map);
+        QueryParser parser = new QueryParser(null, field1, wrapper);
 
         Query q = parser.parse(querystr);
 
         int hitsPerPage = 10;
+        int hitsThreshold = 100;
 
         IndexReader reader = DirectoryReader.open(index);
         IndexSearcher searcher = new IndexSearcher(reader);
-        TopScoreDocCollector collector = TopScoreDocCollector.create(-1, false /*hitsPerPage*/);
+        TopScoreDocCollector collector = TopScoreDocCollector.create(hitsPerPage, true);
         searcher.search(q, collector);
         ScoreDoc[] hits = collector.topDocs().scoreDocs;
 
@@ -103,7 +104,7 @@ public class FieldAnalyzerTest extends BaseTest {
         querystr = "product:(  x-stream^5 )  AND  vendor:(  thoughtworks.xstream )";
         reset(searchAnalyzerProduct, searchAnalyzerVendor);
         Query q3 = parser.parse(querystr);
-        collector = TopScoreDocCollector.create(-1, false /*hitsPerPage*/);
+        collector = TopScoreDocCollector.create(hitsPerPage, true);
         searcher.search(q3, collector);
         hits = collector.topDocs().scoreDocs;
         assertEquals("x-stream", searcher.doc(hits[0].doc).get(field1));
@@ -112,7 +113,7 @@ public class FieldAnalyzerTest extends BaseTest {
 
     private IndexWriter createIndex(Analyzer analyzer, Directory index) throws IOException {
         // TODO fix test
-        IndexWriterConfig config = new IndexWriterConfig(null, analyzer);
+    	IndexWriterConfig config = new IndexWriterConfig(null, analyzer);
         return new IndexWriter(index, config);
     }
 
@@ -124,8 +125,7 @@ public class FieldAnalyzerTest extends BaseTest {
     }
 
     private void reset(SearchFieldAnalyzer searchAnalyzerProduct, SearchFieldAnalyzer searchAnalyzerVendor) throws IOException {
-        // TODO fix test
-        // searchAnalyzerProduct.reset();
-        // searchAnalyzerVendor.reset();
+        searchAnalyzerProduct.reset();
+        searchAnalyzerVendor.reset();
     }
 }

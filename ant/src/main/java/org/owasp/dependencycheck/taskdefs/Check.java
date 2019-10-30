@@ -31,10 +31,9 @@ import org.apache.tools.ant.types.ResourceCollection;
 import org.apache.tools.ant.types.resources.FileProvider;
 import org.apache.tools.ant.types.resources.Resources;
 import org.owasp.dependencycheck.Engine;
+import org.owasp.dependencycheck.agent.DependencyCheckScanAgent;
 import org.owasp.dependencycheck.data.nvdcve.DatabaseException;
-import org.owasp.dependencycheck.data.update.exception.UpdateException;
 import org.owasp.dependencycheck.dependency.Dependency;
-import org.owasp.dependencycheck.dependency.Identifier;
 import org.owasp.dependencycheck.dependency.Vulnerability;
 import org.owasp.dependencycheck.exception.ExceptionCollection;
 import org.owasp.dependencycheck.exception.ReportException;
@@ -51,10 +50,6 @@ import org.slf4j.impl.StaticLoggerBinder;
 public class Check extends Update {
 
     /**
-     * System specific new line character.
-     */
-    private static final String NEW_LINE = System.getProperty("line.separator", "\n").intern();
-    /**
      * Whether the ruby gemspec analyzer should be enabled.
      */
     private Boolean rubygemsAnalyzerEnabled;
@@ -67,9 +62,17 @@ public class Check extends Update {
      */
     private Boolean nodeAuditAnalyzerEnabled;
     /**
+     * Sets whether or not the Node Audit Analyzer should use a local cache.
+     */
+    private Boolean nodeAuditAnalyzerUseCache;
+    /**
      * Whether or not the RetireJS Analyzer is enabled.
      */
     private Boolean retireJsAnalyzerEnabled;
+    /**
+     * The URL to the RetireJS JSON data.
+     */
+    private String retireJsUrl;
     /**
      * The list of filters (regular expressions) used by the RetireJS Analyzer
      * to exclude files that contain matching content..
@@ -106,6 +109,10 @@ public class Check extends Update {
      */
     private Boolean centralAnalyzerEnabled;
     /**
+     * Whether or not the Central Analyzer should use a local cache.
+     */
+    private Boolean centralAnalyzerUseCache;
+    /**
      * Whether or not the nexus analyzer is enabled.
      */
     private Boolean nexusAnalyzerEnabled;
@@ -132,17 +139,9 @@ public class Check extends Update {
      */
     private String zipExtensions;
     /**
-     * The path to Mono for .NET assembly analysis on non-windows systems.
+     * The path to dotnet core for .NET assembly analysis.
      */
-    private String pathToMono;
-
-    /**
-     * The application name for the report.
-     *
-     * @deprecated use projectName instead.
-     */
-    @Deprecated
-    private String applicationName = null;
+    private String pathToCore;
     /**
      * The name of the project being analyzed.
      */
@@ -152,6 +151,11 @@ public class Check extends Update {
      * report.
      */
     private String reportOutputDirectory = ".";
+    /**
+     * If using the JUNIT report format the junitFailOnCVSS sets the CVSS score
+     * threshold that is considered a failure. The default is 0.
+     */
+    private float junitFailOnCVSS = 0;
     /**
      * Specifies if the build should be failed if a CVSS score above a specified
      * level is identified. The default is 11 which means since the CVSS scores
@@ -166,18 +170,21 @@ public class Check extends Update {
      */
     private Boolean autoUpdate;
     /**
-     * Whether only the update phase should be executed.
-     *
-     * @deprecated Use the update task instead
-     */
-    @Deprecated
-    private boolean updateOnly = false;
-
-    /**
-     * The report format to be generated (HTML, XML, VULN, CSV, JSON, ALL).
+     * The report format to be generated (HTML, XML, JUNIT, CSV, JSON, ALL).
      * Default is HTML.
      */
     private String reportFormat = "HTML";
+    /**
+     * The report format to be generated (HTML, XML, JUNIT, CSV, JSON, ALL).
+     * Default is HTML.
+     */
+    private final List<String> reportFormats = new ArrayList<>();
+    /**
+     * Whether the JSON and XML reports should be pretty printed; the default is
+     * false.
+     */
+    private Boolean prettyPrint = null;
+
     /**
      * Suppression file path.
      */
@@ -248,6 +255,19 @@ public class Check extends Update {
     private Boolean swiftPackageManagerAnalyzerEnabled;
 
     /**
+     * Whether or not the Sonatype OSS Index analyzer is enabled.
+     */
+    private Boolean ossindexAnalyzerEnabled;
+    /**
+     * Whether or not the Sonatype OSS Index analyzer should cache results.
+     */
+    private Boolean ossindexAnalyzerUseCache;
+    /**
+     * URL of the Sonatype OSS Index service.
+     */
+    private String ossindexAnalyzerUrl;
+
+    /**
      * Whether or not the Artifactory Analyzer is enabled.
      */
     private Boolean artifactoryAnalyzerEnabled;
@@ -302,7 +322,7 @@ public class Check extends Update {
 
     /**
      * Add a suppression file.
-     *
+     * <p>
      * This is called by Ant with the configured {@link SuppressionFile}.
      *
      * @param suppressionFile the suppression file to add.
@@ -376,39 +396,13 @@ public class Check extends Update {
     }
 
     /**
-     * Get the value of applicationName.
-     *
-     * @return the value of applicationName
-     *
-     * @deprecated use projectName instead.
-     */
-    @Deprecated
-    public String getApplicationName() {
-        return applicationName;
-    }
-
-    /**
-     * Set the value of applicationName.
-     *
-     * @param applicationName new value of applicationName
-     * @deprecated use projectName instead.
-     */
-    @Deprecated
-    public void setApplicationName(String applicationName) {
-        this.applicationName = applicationName;
-    }
-
-    /**
      * Get the value of projectName.
      *
      * @return the value of projectName
      */
     public String getProjectName() {
-        if (applicationName != null) {
-            log("Configuration 'applicationName' has been deprecated, please use 'projectName' instead", Project.MSG_WARN);
-            if ("dependency-check".equals(projectName)) {
-                projectName = applicationName;
-            }
+        if (projectName == null) {
+            projectName = "";
         }
         return projectName;
     }
@@ -459,6 +453,24 @@ public class Check extends Update {
     }
 
     /**
+     * Get the value of junitFailOnCVSS.
+     *
+     * @return the value of junitFailOnCVSS
+     */
+    public float getJunitFailOnCVSS() {
+        return junitFailOnCVSS;
+    }
+
+    /**
+     * Set the value of junitFailOnCVSS.
+     *
+     * @param junitFailOnCVSS new value of junitFailOnCVSS
+     */
+    public void setJunitFailOnCVSS(float junitFailOnCVSS) {
+        this.junitFailOnCVSS = junitFailOnCVSS;
+    }
+
+    /**
      * Get the value of autoUpdate.
      *
      * @return the value of autoUpdate
@@ -477,34 +489,21 @@ public class Check extends Update {
     }
 
     /**
-     * Get the value of updateOnly.
+     * Get the value of prettyPrint.
      *
-     * @return the value of updateOnly
-     * @deprecated Use the update task instead
+     * @return the value of prettyPrint
      */
-    @Deprecated
-    public boolean isUpdateOnly() {
-        return updateOnly;
+    public Boolean isPrettyPrint() {
+        return prettyPrint;
     }
 
     /**
-     * Set the value of updateOnly.
+     * Set the value of prettyPrint.
      *
-     * @param updateOnly new value of updateOnly
-     * @deprecated Use the update task instead
+     * @param prettyPrint new value of prettyPrint
      */
-    @Deprecated
-    public void setUpdateOnly(boolean updateOnly) {
-        this.updateOnly = updateOnly;
-    }
-
-    /**
-     * Get the value of reportFormat.
-     *
-     * @return the value of reportFormat
-     */
-    public String getReportFormat() {
-        return reportFormat;
+    public void setPrettyPrint(boolean prettyPrint) {
+        this.prettyPrint = prettyPrint;
     }
 
     /**
@@ -514,6 +513,19 @@ public class Check extends Update {
      */
     public void setReportFormat(ReportFormats reportFormat) {
         this.reportFormat = reportFormat.getValue();
+        this.reportFormats.add(this.reportFormat);
+    }
+
+    /**
+     * Get the value of reportFormats.
+     *
+     * @return the value of reportFormats
+     */
+    public List<String> getReportFormats() {
+        if (reportFormats.isEmpty()) {
+            this.reportFormats.add(this.reportFormat);
+        }
+        return this.reportFormats;
     }
 
     /**
@@ -865,7 +877,6 @@ public class Check extends Update {
      * Get the value of nodeAnalyzerEnabled.
      *
      * @return the value of nodeAnalyzerEnabled
-     *
      * @deprecated As of release 3.3.3, replaced by
      * {@link #isNodeAuditAnalyzerEnabled()}
      */
@@ -909,6 +920,24 @@ public class Check extends Update {
     }
 
     /**
+     * Get the value of nodeAuditAnalyzerUseCache.
+     *
+     * @return the value of nodeAuditAnalyzerUseCache
+     */
+    public Boolean isNodeAuditAnalyzerUseCache() {
+        return nodeAuditAnalyzerUseCache;
+    }
+
+    /**
+     * Set the value of nodeAuditAnalyzerUseCache.
+     *
+     * @param nodeAuditAnalyzerUseCache new value of nodeAuditAnalyzerUseCache
+     */
+    public void setNodeAuditAnalyzerUseCache(Boolean nodeAuditAnalyzerUseCache) {
+        this.nodeAuditAnalyzerUseCache = nodeAuditAnalyzerUseCache;
+    }
+
+    /**
      * Get the value of retireJsAnalyzerEnabled.
      *
      * @return the value of retireJsAnalyzerEnabled
@@ -924,6 +953,24 @@ public class Check extends Update {
      */
     public void setRetireJsAnalyzerEnabled(Boolean retireJsAnalyzerEnabled) {
         this.retireJsAnalyzerEnabled = retireJsAnalyzerEnabled;
+    }
+
+    /**
+     * Get the value of Retire JS repository URL.
+     *
+     * @return the value of retireJsUrl
+     */
+    public String getRetireJsUrl() {
+        return retireJsUrl;
+    }
+
+    /**
+     * Set the value of the Retire JS repository URL.
+     *
+     * @param retireJsUrl new value of retireJsUrl
+     */
+    public void setRetireJsUrl(String retireJsUrl) {
+        this.retireJsUrl = retireJsUrl;
     }
 
     /**
@@ -956,7 +1003,7 @@ public class Check extends Update {
 
     /**
      * Add a regular expression to the set of retire JS content filters.
-     *
+     * <p>
      * This is called by Ant.
      *
      * @param retirejsFilter the regular expression used to filter based on file
@@ -1037,6 +1084,24 @@ public class Check extends Update {
      */
     public void setCentralAnalyzerEnabled(Boolean centralAnalyzerEnabled) {
         this.centralAnalyzerEnabled = centralAnalyzerEnabled;
+    }
+
+    /**
+     * Get the value of centralAnalyzerUseCache.
+     *
+     * @return the value of centralAnalyzerUseCache
+     */
+    public Boolean isCentralAnalyzerUseCache() {
+        return centralAnalyzerUseCache;
+    }
+
+    /**
+     * Set the value of centralAnalyzerUseCache.
+     *
+     * @param centralAnalyzerUseCache new value of centralAnalyzerUseCache
+     */
+    public void setCentralAnalyzerUseCache(Boolean centralAnalyzerUseCache) {
+        this.centralAnalyzerUseCache = centralAnalyzerUseCache;
     }
 
     /**
@@ -1148,21 +1213,75 @@ public class Check extends Update {
     }
 
     /**
-     * Get the value of pathToMono.
+     * Get the value of pathToCore.
      *
-     * @return the value of pathToMono
+     * @return the value of pathToCore
      */
-    public String getPathToMono() {
-        return pathToMono;
+    public String getPathToDotnetCore() {
+        return pathToCore;
     }
 
     /**
-     * Set the value of pathToMono.
+     * Set the value of pathToCore.
      *
-     * @param pathToMono new value of pathToMono
+     * @param pathToCore new value of pathToCore
      */
-    public void setPathToMono(String pathToMono) {
-        this.pathToMono = pathToMono;
+    public void setPathToDotnetCore(String pathToCore) {
+        this.pathToCore = pathToCore;
+    }
+
+    /**
+     * Get value of {@link #ossindexAnalyzerEnabled}.
+     *
+     * @return the value of ossindexAnalyzerEnabled
+     */
+    public Boolean isOssindexAnalyzerEnabled() {
+        return ossindexAnalyzerEnabled;
+    }
+
+    /**
+     * Set value of {@link #ossindexAnalyzerEnabled}.
+     *
+     * @param ossindexAnalyzerEnabled new value of ossindexAnalyzerEnabled
+     */
+    public void setOssindexAnalyzerEnabled(Boolean ossindexAnalyzerEnabled) {
+        this.ossindexAnalyzerEnabled = ossindexAnalyzerEnabled;
+    }
+
+    /**
+     * Get value of {@link #ossindexAnalyzerUseCache}.
+     *
+     * @return the value of ossindexAnalyzerUseCache
+     */
+    public Boolean isOssindexAnalyzerUseCache() {
+        return ossindexAnalyzerUseCache;
+    }
+
+    /**
+     * Set value of {@link #ossindexAnalyzerUseCache}.
+     *
+     * @param ossindexAnalyzerUseCache new value of ossindexAnalyzerUseCache
+     */
+    public void setOssindexAnalyzerUseCache(Boolean ossindexAnalyzerUseCache) {
+        this.ossindexAnalyzerUseCache = ossindexAnalyzerUseCache;
+    }
+
+    /**
+     * Get value of {@link #ossindexAnalyzerUrl}.
+     *
+     * @return the value of ossindexAnalyzerUrl
+     */
+    public String getOssindexAnalyzerUrl() {
+        return ossindexAnalyzerUrl;
+    }
+
+    /**
+     * Set value of {@link #ossindexAnalyzerUrl}.
+     *
+     * @param ossindexAnalyzerUrl new value of ossindexAnalyzerUrl
+     */
+    public void setOssindexAnalyzerUrl(String ossindexAnalyzerUrl) {
+        this.ossindexAnalyzerUrl = ossindexAnalyzerUrl;
     }
 
     /**
@@ -1320,42 +1439,32 @@ public class Check extends Update {
         validateConfiguration();
         populateSettings();
         try (Engine engine = new Engine(Check.class.getClassLoader(), getSettings())) {
-            if (isUpdateOnly()) {
-                log("Deprecated 'UpdateOnly' property set; please use the UpdateTask instead", Project.MSG_WARN);
-                try {
-                    engine.doUpdates();
-                } catch (UpdateException ex) {
-                    if (this.isFailOnError()) {
-                        throw new BuildException(ex);
-                    }
-                    log(ex.getMessage(), Project.MSG_ERR);
-                }
-            } else {
-                for (Resource resource : getPath()) {
-                    final FileProvider provider = resource.as(FileProvider.class);
-                    if (provider != null) {
-                        final File file = provider.getFile();
-                        if (file != null && file.exists()) {
-                            engine.scan(file);
-                        }
+            for (Resource resource : getPath()) {
+                final FileProvider provider = resource.as(FileProvider.class);
+                if (provider != null) {
+                    final File file = provider.getFile();
+                    if (file != null && file.exists()) {
+                        engine.scan(file);
                     }
                 }
+            }
 
-                try {
-                    engine.analyzeDependencies();
-                } catch (ExceptionCollection ex) {
-                    if (this.isFailOnError()) {
-                        throw new BuildException(ex);
-                    }
+            try {
+                engine.analyzeDependencies();
+            } catch (ExceptionCollection ex) {
+                if (this.isFailOnError()) {
+                    throw new BuildException(ex);
                 }
-                engine.writeReports(getProjectName(), new File(reportOutputDirectory), reportFormat);
+            }
+            for (String format : getReportFormats()) {
+                engine.writeReports(getProjectName(), new File(reportOutputDirectory), format);
+            }
 
-                if (this.failBuildOnCVSS <= 10) {
-                    checkForFailure(engine.getDependencies());
-                }
-                if (this.showSummary) {
-                    showSummary(engine.getDependencies());
-                }
+            if (this.failBuildOnCVSS <= 10) {
+                checkForFailure(engine.getDependencies());
+            }
+            if (this.showSummary) {
+                DependencyCheckScanAgent.showSummary(engine.getDependencies());
             }
         } catch (DatabaseException ex) {
             final String msg = "Unable to connect to the dependency-check database; analysis has stopped";
@@ -1403,6 +1512,7 @@ public class Check extends Update {
         getSettings().setArrayIfNotEmpty(Settings.KEYS.SUPPRESSION_FILE, suppressionFiles);
         getSettings().setStringIfNotEmpty(Settings.KEYS.HINTS_FILE, hintsFile);
         getSettings().setBooleanIfNotNull(Settings.KEYS.ANALYZER_EXPERIMENTAL_ENABLED, enableExperimental);
+        getSettings().setBooleanIfNotNull(Settings.KEYS.PRETTY_PRINT, prettyPrint);
         getSettings().setBooleanIfNotNull(Settings.KEYS.ANALYZER_RETIRED_ENABLED, enableRetired);
         getSettings().setBooleanIfNotNull(Settings.KEYS.ANALYZER_JAR_ENABLED, jarAnalyzerEnabled);
         getSettings().setBooleanIfNotNull(Settings.KEYS.ANALYZER_PYTHON_DISTRIBUTION_ENABLED, pyDistributionAnalyzerEnabled);
@@ -1427,13 +1537,16 @@ public class Check extends Update {
         getSettings().setBooleanIfNotNull(Settings.KEYS.ANALYZER_COMPOSER_LOCK_ENABLED, composerAnalyzerEnabled);
         getSettings().setBooleanIfNotNull(Settings.KEYS.ANALYZER_NODE_PACKAGE_ENABLED, nodeAnalyzerEnabled);
         getSettings().setBooleanIfNotNull(Settings.KEYS.ANALYZER_NODE_AUDIT_ENABLED, nodeAuditAnalyzerEnabled);
+        getSettings().setBooleanIfNotNull(Settings.KEYS.ANALYZER_NODE_AUDIT_USE_CACHE, nodeAuditAnalyzerUseCache);
         getSettings().setBooleanIfNotNull(Settings.KEYS.ANALYZER_RETIREJS_ENABLED, retireJsAnalyzerEnabled);
+        getSettings().setStringIfNotNull(Settings.KEYS.ANALYZER_RETIREJS_REPO_JS_URL, retireJsUrl);
         getSettings().setBooleanIfNotNull(Settings.KEYS.ANALYZER_RETIREJS_FILTER_NON_VULNERABLE, retirejsFilterNonVulnerable);
         getSettings().setArrayIfNotEmpty(Settings.KEYS.ANALYZER_RETIREJS_FILTERS, retirejsFilters);
 
         getSettings().setBooleanIfNotNull(Settings.KEYS.ANALYZER_NUSPEC_ENABLED, nuspecAnalyzerEnabled);
         getSettings().setBooleanIfNotNull(Settings.KEYS.ANALYZER_NUGETCONF_ENABLED, nugetconfAnalyzerEnabled);
         getSettings().setBooleanIfNotNull(Settings.KEYS.ANALYZER_CENTRAL_ENABLED, centralAnalyzerEnabled);
+        getSettings().setBooleanIfNotNull(Settings.KEYS.ANALYZER_CENTRAL_USE_CACHE, centralAnalyzerUseCache);
         getSettings().setBooleanIfNotNull(Settings.KEYS.ANALYZER_NEXUS_ENABLED, nexusAnalyzerEnabled);
         getSettings().setBooleanIfNotNull(Settings.KEYS.ANALYZER_ARCHIVE_ENABLED, archiveAnalyzerEnabled);
         getSettings().setBooleanIfNotNull(Settings.KEYS.ANALYZER_ASSEMBLY_ENABLED, assemblyAnalyzerEnabled);
@@ -1442,7 +1555,11 @@ public class Check extends Update {
         getSettings().setStringIfNotEmpty(Settings.KEYS.ANALYZER_NEXUS_PASSWORD, nexusPassword);
         getSettings().setBooleanIfNotNull(Settings.KEYS.ANALYZER_NEXUS_USES_PROXY, nexusUsesProxy);
         getSettings().setStringIfNotEmpty(Settings.KEYS.ADDITIONAL_ZIP_EXTENSIONS, zipExtensions);
-        getSettings().setStringIfNotEmpty(Settings.KEYS.ANALYZER_ASSEMBLY_MONO_PATH, pathToMono);
+        getSettings().setStringIfNotEmpty(Settings.KEYS.ANALYZER_ASSEMBLY_DOTNET_PATH, pathToCore);
+        getSettings().setBooleanIfNotNull(Settings.KEYS.ANALYZER_OSSINDEX_ENABLED, ossindexAnalyzerEnabled);
+        getSettings().setStringIfNotEmpty(Settings.KEYS.ANALYZER_OSSINDEX_URL, ossindexAnalyzerUrl);
+        getSettings().setBooleanIfNotNull(Settings.KEYS.ANALYZER_OSSINDEX_USE_CACHE, ossindexAnalyzerUseCache);
+        getSettings().setFloat(Settings.KEYS.JUNIT_FAIL_ON_CVSS, junitFailOnCVSS);
     }
 
     /**
@@ -1457,7 +1574,8 @@ public class Check extends Update {
         final StringBuilder ids = new StringBuilder();
         for (Dependency d : dependencies) {
             for (Vulnerability v : d.getVulnerabilities()) {
-                if (v.getCvssScore() >= failBuildOnCVSS) {
+                if ((v.getCvssV2() != null && v.getCvssV2().getScore() >= failBuildOnCVSS)
+                        || (v.getCvssV3() != null && v.getCvssV3().getBaseScore() >= failBuildOnCVSS)) {
                     if (ids.length() == 0) {
                         ids.append(v.getName());
                     } else {
@@ -1482,49 +1600,8 @@ public class Check extends Update {
     }
 
     /**
-     * Generates a warning message listing a summary of dependencies and their
-     * associated CPE and CVE entries.
-     *
-     * @param dependencies a list of dependency objects
-     */
-    private void showSummary(Dependency[] dependencies) {
-        final StringBuilder summary = new StringBuilder();
-        for (Dependency d : dependencies) {
-            boolean firstEntry = true;
-            final StringBuilder ids = new StringBuilder();
-            for (Vulnerability v : d.getVulnerabilities(true)) {
-                if (firstEntry) {
-                    firstEntry = false;
-                } else {
-                    ids.append(", ");
-                }
-                ids.append(v.getName());
-            }
-            if (ids.length() > 0) {
-                summary.append(d.getFileName()).append(" (");
-                firstEntry = true;
-                for (Identifier id : d.getIdentifiers()) {
-                    if (firstEntry) {
-                        firstEntry = false;
-                    } else {
-                        summary.append(", ");
-                    }
-                    summary.append(id.getValue());
-                }
-                summary.append(") : ").append(ids).append(NEW_LINE);
-            }
-        }
-        if (summary.length() > 0) {
-            final String msg = String.format("%n%n"
-                    + "One or more dependencies were identified with known vulnerabilities:%n%n%s"
-                    + "%n%nSee the dependency-check report for more details.%n%n", summary.toString());
-            log(msg, Project.MSG_WARN);
-        }
-    }
-
-    /**
      * An enumeration of supported report formats: "ALL", "HTML", "XML", "CSV",
-     * "JSON", "VULN", etc..
+     * "JSON", "JUNIT", etc..
      */
     public static class ReportFormats extends EnumeratedAttribute {
 

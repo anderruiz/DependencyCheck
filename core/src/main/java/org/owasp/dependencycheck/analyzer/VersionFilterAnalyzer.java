@@ -26,6 +26,7 @@ import org.owasp.dependencycheck.dependency.Dependency;
 import org.owasp.dependencycheck.dependency.Evidence;
 import org.owasp.dependencycheck.dependency.EvidenceType;
 import org.owasp.dependencycheck.utils.DependencyVersion;
+import org.owasp.dependencycheck.utils.DependencyVersionUtil;
 import org.owasp.dependencycheck.utils.Settings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -129,40 +130,69 @@ public class VersionFilterAnalyzer extends AbstractAnalyzer {
      */
     @Override
     protected void analyzeDependency(Dependency dependency, Engine engine) throws AnalysisException {
-        String fileVersion = null;
-        String pomVersion = null;
-        String manifestVersion = null;
-        for (Evidence e : dependency.getEvidence(EvidenceType.VERSION)) {
-            if (FILE.equals(e.getSource()) && VERSION.equals(e.getName())) {
-                fileVersion = e.getValue();
-            } else if ((NEXUS.equals(e.getSource()) || CENTRAL.equals(e.getSource())
-                    || POM.equals(e.getSource())) && VERSION.equals(e.getName())) {
-                pomVersion = e.getValue();
-            } else if (MANIFEST.equals(e.getSource()) && IMPLEMENTATION_VERSION.equals(e.getName())) {
-                manifestVersion = e.getValue();
+
+        final Set<Evidence> remove = new HashSet<>();
+        if (dependency.getVersion() != null) {
+        	for (Evidence e : dependency.getEvidence(EvidenceType.VERSION)) {
+				if(!dependency.getVersion().equals(e.getValue())) {
+					remove.add(e);
+				}
+			}
+        } else {
+            String fileVersion = null;
+            String pomVersion = null;
+            String manifestVersion = null;
+            for (Evidence e : dependency.getEvidence(EvidenceType.VERSION)) {
+                if (FILE.equals(e.getSource()) && VERSION.equals(e.getName())) {
+                    fileVersion = e.getValue();
+                } else if ((NEXUS.equals(e.getSource()) || CENTRAL.equals(e.getSource())
+                        || POM.equals(e.getSource())) && VERSION.equals(e.getName())) {
+                    pomVersion = e.getValue();
+                } else if (MANIFEST.equals(e.getSource()) && IMPLEMENTATION_VERSION.equals(e.getName())) {
+                    manifestVersion = e.getValue();
+                }
             }
-        }
-        //ensure we have at least two not null
-        if (((fileVersion == null ? 0 : 1) + (pomVersion == null ? 0 : 1) + (manifestVersion == null ? 0 : 1)) > 1) {
-            final DependencyVersion dvFile = new DependencyVersion(fileVersion);
-            final DependencyVersion dvPom = new DependencyVersion(pomVersion);
-            final DependencyVersion dvManifest = new DependencyVersion(manifestVersion);
-            final boolean fileMatch = equals(dvFile, dvPom) || equals(dvFile, dvManifest);
-            final boolean manifestMatch = equals(dvManifest, dvPom) || equals(dvManifest, dvFile);
-            final boolean pomMatch = equals(dvPom, dvFile) || equals(dvPom, dvManifest);
-            if (fileMatch || manifestMatch || pomMatch) {
-                final Set<Evidence> remove = new HashSet<>();
-                for (Evidence e : dependency.getEvidence(EvidenceType.VERSION)) {
-                    if (!(pomMatch && VERSION.equals(e.getName())
-                            && (NEXUS.equals(e.getSource()) || CENTRAL.equals(e.getSource()) || POM.equals(e.getSource())))
-                            && !(fileMatch && VERSION.equals(e.getName()) && FILE.equals(e.getSource()))
-                            && !(manifestMatch && MANIFEST.equals(e.getSource()) && IMPLEMENTATION_VERSION.equals(e.getName()))) {
-                        LOGGER.debug("filtering evidence from {}", dependency.getFileName());
-                        remove.add(e);
+            //ensure we have at least two not null
+            if (((fileVersion == null ? 0 : 1) + (pomVersion == null ? 0 : 1) + (manifestVersion == null ? 0 : 1)) > 1) {
+                final DependencyVersion dvFile = new DependencyVersion(fileVersion);
+                final DependencyVersion dvPom = new DependencyVersion(pomVersion);
+                final DependencyVersion dvManifest = new DependencyVersion(manifestVersion);
+                final boolean fileMatch = equals(dvFile, dvPom) || equals(dvFile, dvManifest);
+                final boolean manifestMatch = equals(dvManifest, dvPom) || equals(dvManifest, dvFile);
+                final boolean pomMatch = equals(dvPom, dvFile) || equals(dvPom, dvManifest);
+                if (fileMatch || manifestMatch || pomMatch) {
+                    LOGGER.debug("filtering evidence from {}", dependency.getFileName());
+
+                    for (Evidence e : dependency.getEvidence(EvidenceType.VERSION)) {
+                        if (!(pomMatch && VERSION.equals(e.getName())
+                                && (NEXUS.equals(e.getSource()) || CENTRAL.equals(e.getSource()) || POM.equals(e.getSource())))
+                                && !(fileMatch && VERSION.equals(e.getName()) && FILE.equals(e.getSource()))
+                                && !(manifestMatch && MANIFEST.equals(e.getSource()) && IMPLEMENTATION_VERSION.equals(e.getName()))) {
+                            remove.add(e);
+                        }
                     }
                 }
-                for (Evidence e : remove) {
-                    dependency.removeEvidence(EvidenceType.VERSION, e);
+            }
+        }
+        for (Evidence e : remove) {
+        	dependency.removeEvidence(EvidenceType.VERSION, e);
+		}
+
+        if (dependency.getVersion() == null) {
+            final Set<Evidence> evidence = dependency.getEvidence(EvidenceType.VERSION);
+            final DependencyVersion version;
+            if(!evidence.isEmpty()) {
+            	Evidence e = evidence.iterator().next();
+                version = DependencyVersionUtil.parseVersion(e.getValue(), true);
+                if(version!=null) {
+                	boolean all = true;
+                	for (Evidence ev : evidence) {
+						DependencyVersion v = DependencyVersionUtil.parseVersion(ev.getValue(), true);
+						all &= version.equals(v);
+					}
+                	if(all) {
+                		dependency.setVersion(version.toString());
+                	}
                 }
             }
         }

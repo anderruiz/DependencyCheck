@@ -100,6 +100,7 @@ import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugin.testing.stubs.ArtifactStub;
 import org.apache.maven.project.MavenProject;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import org.junit.Assume;
 import org.junit.Test;
@@ -170,11 +171,13 @@ public class BaseDependencyCheckMojoTest extends BaseTest {
 
                 assertTrue(engine.getDependencies().length == 0);
                 BaseDependencyCheckMojoImpl instance = new BaseDependencyCheckMojoImpl();
+                ExceptionCollection exCol = null;
                 try { //the mock above fails under some JDKs
-                    instance.scanArtifacts(project, engine);
+                    exCol = instance.scanArtifacts(project, engine);
                 } catch (NullPointerException ex) {
                     Assume.assumeNoException(ex);
                 }
+                assertNull(exCol);
                 assertFalse(engine.getDependencies().length == 0);
             }
         }
@@ -183,7 +186,7 @@ public class BaseDependencyCheckMojoTest extends BaseTest {
     /**
      * Implementation of ODC Mojo for testing.
      */
-    public class BaseDependencyCheckMojoImpl extends BaseDependencyCheckMojo {
+    public static class BaseDependencyCheckMojoImpl extends BaseDependencyCheckMojo {
 
         @Override
         protected void runCheck() throws MojoExecutionException, MojoFailureException {

@@ -22,6 +22,7 @@ import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import org.junit.Assume;
+import org.owasp.dependencycheck.analyzer.exception.UnexpectedAnalysisException;
 import org.owasp.dependencycheck.dependency.EvidenceType;
 import org.owasp.dependencycheck.utils.FileUtils;
 
@@ -57,7 +58,7 @@ public class EngineModeIT extends BaseTest {
             System.setProperty(Settings.KEYS.DATA_DIRECTORY, originalDataDir);
             System.clearProperty(Settings.KEYS.H2_DATA_DIRECTORY);
         } catch (IOException ex) {
-            throw new RuntimeException(ex);
+            throw new UnexpectedAnalysisException(ex);
         } finally {
             super.tearDown();
         }
@@ -66,17 +67,16 @@ public class EngineModeIT extends BaseTest {
     @Test
     public void testEvidenceCollectionAndEvidenceProcessingModes() throws Exception {
         Dependency[] dependencies;
-        Engine engine = null;
+        final Engine engine = new Engine(Engine.Mode.EVIDENCE_COLLECTION, getSettings());
         try {
-            engine = new Engine(Engine.Mode.EVIDENCE_COLLECTION, getSettings());
             engine.openDatabase(); //does nothing in the current mode
             assertDatabase(false);
             for (AnalysisPhase phase : Engine.Mode.EVIDENCE_COLLECTION.getPhases()) {
-                assertThat(engine.getAnalyzers(phase), is(notNullValue()));
-            }
+            	assertTrue(engine.getAnalyzers(phase)!=null);
+			}
             for (AnalysisPhase phase : Engine.Mode.EVIDENCE_PROCESSING.getPhases()) {
-                assertThat(engine.getAnalyzers(phase), is(nullValue()));
-            }
+            	assertTrue(engine.getAnalyzers(phase)==null);
+			}
             File file = BaseTest.getResourceAsFile(this, "struts2-core-2.1.2.jar");
             engine.scan(file);
             engine.analyzeDependencies();
@@ -92,23 +92,23 @@ public class EngineModeIT extends BaseTest {
             }
         }
 
+        final Engine engine2 = new Engine(Engine.Mode.EVIDENCE_PROCESSING, getSettings());;
         try {
-            engine = new Engine(Engine.Mode.EVIDENCE_PROCESSING, getSettings());
-            engine.openDatabase();
+            engine2.openDatabase();
             assertDatabase(true);
-            for (AnalysisPhase phase : Engine.Mode.EVIDENCE_PROCESSING.getPhases()) {
-                assertThat(engine.getAnalyzers(phase), is(notNullValue()));
-            }
             for (AnalysisPhase phase : Engine.Mode.EVIDENCE_COLLECTION.getPhases()) {
-                assertThat(engine.getAnalyzers(phase), is(nullValue()));
-            }
-            engine.addDependency(dependencies[0]);
-            engine.analyzeDependencies();
+            	assertTrue(engine.getAnalyzers(phase)==null);
+			}
+            for (AnalysisPhase phase : Engine.Mode.EVIDENCE_PROCESSING.getPhases()) {
+            	assertTrue(engine.getAnalyzers(phase)!=null);
+			}
+            engine2.addDependency(dependencies[0]);
+            engine2.analyzeDependencies();
             Dependency dependency = dependencies[0];
             assertFalse(dependency.getVulnerabilities().isEmpty());
         } finally {
-            if (engine != null) {
-                engine.close();
+            if (engine2 != null) {
+                engine2.close();
             }
         }
     }
@@ -127,7 +127,8 @@ public class EngineModeIT extends BaseTest {
             engine.scan(file);
             engine.analyzeDependencies();
             Dependency[] dependencies = engine.getDependencies();
-            assertThat(dependencies.length, is(1));
+            //8 because there is JS being caught by the retireJS analyzer
+            assertThat(dependencies.length, is(8));
             Dependency dependency = dependencies[0];
             assertTrue(dependency.getEvidence(EvidenceType.VENDOR).toString().toLowerCase().contains("apache"));
             assertTrue(dependency.getVendorWeightings().contains("apache"));

@@ -24,7 +24,9 @@ import java.io.ObjectOutputStream;
 import java.util.Map;
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.parsers.SAXParser;
-import javax.xml.parsers.SAXParserFactory;
+
+import org.apache.commons.io.IOUtils;
+import org.owasp.dependencycheck.utils.XmlUtils;
 import org.xml.sax.SAXException;
 
 /**
@@ -74,8 +76,7 @@ public final class App {
      */
     private static Map<String, String> readCweData(String[] files) {
         try {
-            final SAXParserFactory factory = SAXParserFactory.newInstance();
-            final SAXParser saxParser = factory.newSAXParser();
+            final SAXParser saxParser = XmlUtils.buildSecureSaxParser();
             final CweHandler handler = new CweHandler();
             for (String f : files) {
                 final File in = new File(f);
@@ -99,14 +100,20 @@ public final class App {
      * @param out the file output location
      */
     private static void serializeCweData(Map<String, String> cwe, File out) {
-        try (FileOutputStream fout = new FileOutputStream(out);
-                ObjectOutputStream objOut = new ObjectOutputStream(fout);) {
+    	FileOutputStream fout = null;
+    	ObjectOutputStream objOut = null;
+        try {
+        	fout = new FileOutputStream(out);
+            objOut = new ObjectOutputStream(fout);
             System.out.println("Writing " + cwe.size() + " cwe entries.");
             objOut.writeObject(cwe);
             System.out.println(String.format("Serialized CWE data written to %s", out.getCanonicalPath()));
             System.out.println("To update the ODC CWE data copy the serialized file to 'src/main/resources/data/cwe.hashmap.serialized'");
         } catch (IOException ex) {
             System.err.println(String.format("Error generating serialized data: %s", ex.getMessage()));
+        } finally {
+        	IOUtils.closeQuietly(objOut);
+        	IOUtils.closeQuietly(fout);
         }
     }
 }

@@ -45,6 +45,28 @@ public final class LuceneUtils {
     }
 
     /**
+     * Determines if the given term is a Lucene keyword (e.g. AND, OR, NOT).
+     *
+     * @param term the term to test
+     * @return <code>true</code>if the term is a keyword; otherwise
+     * <code>false</code>
+     */
+    public static boolean isKeyword(String term) {
+        switch (term.toUpperCase()) {
+            case "AND":
+            case "OR":
+            case "NOT":
+            //the following are likely not needed, but may cause a rare issue so we'll consider them keywords
+            case "TO":
+            case "-":
+            case "+":
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    /**
      * Appends the text to the supplied StringBuilder escaping Lucene control
      * characters in the process.
      *
@@ -52,9 +74,7 @@ public final class LuceneUtils {
      * @param text the data to be escaped
      */
     @SuppressWarnings("fallthrough")
-    @SuppressFBWarnings(
-            value = "SF_SWITCH_NO_DEFAULT",
-            justification = "The switch below does have a default.")
+    @SuppressFBWarnings(justification = "As this is an encoding method the fallthrough is intentional", value = {"SF_SWITCH_NO_DEFAULT"})
     public static void appendEscapedLuceneQuery(StringBuilder buf,
             final CharSequence text) {
 

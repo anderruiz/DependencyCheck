@@ -17,6 +17,9 @@
  */
 package org.owasp.dependencycheck.utils;
 
+import org.apache.commons.lang3.builder.EqualsBuilder;
+import org.apache.commons.lang3.builder.HashCodeBuilder;
+
 import javax.annotation.concurrent.ThreadSafe;
 
 /**
@@ -29,6 +32,7 @@ import javax.annotation.concurrent.ThreadSafe;
  */
 @ThreadSafe
 public class Pair<L, R> {
+
     /**
      * The left element of the pair.
      */
@@ -98,30 +102,31 @@ public class Pair<L, R> {
      */
     @Override
     public int hashCode() {
-        int hash = 3;
-        hash = 53 * hash + (this.left != null ? this.left.hashCode() : 0);
-        hash = 53 * hash + (this.right != null ? this.right.hashCode() : 0);
-        return hash;
+        return new HashCodeBuilder(19, 53)
+                .append(left)
+                .append(right)
+                .toHashCode();
     }
 
     /**
      * Determines the equality of this and the provided object.
      *
      * @param obj the {@link Object} to check for equality to this
-     * @return true if this and the provided {@link Object} are equal; otherwise false
+     * @return true if this and the provided {@link Object} are equal; otherwise
+     * false
      */
     @Override
     public boolean equals(Object obj) {
-        if (obj == null) {
+        if (obj == null || !(obj instanceof Pair)) {
             return false;
         }
-        if (getClass() != obj.getClass()) {
-            return false;
+        if (this == obj) {
+            return true;
         }
-        final Pair<?, ?> other = (Pair<?, ?>) obj;
-        if (this.left != other.left && (this.left == null || !this.left.equals(other.left))) {
-            return false;
-        }
-        return !(this.right != other.right && (this.right == null || !this.right.equals(other.right)));
+        final Pair<?, ?> rhs = (Pair) obj;
+        return new EqualsBuilder()
+                .append(left, rhs.left)
+                .append(right, rhs.right)
+                .isEquals();
     }
 }

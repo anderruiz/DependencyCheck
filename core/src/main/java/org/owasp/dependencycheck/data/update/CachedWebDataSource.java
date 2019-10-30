@@ -34,8 +34,18 @@ public interface CachedWebDataSource {
      * cached data store.
      *
      * @param engine a reference to the dependency-check engine
+     * @return whether or not an update was made to the CveDB
      * @throws UpdateException is thrown if there is an exception downloading
      * the data or updating the data store.
      */
-    void update(Engine engine) throws UpdateException;
+    boolean update(Engine engine) throws UpdateException;
+
+    /**
+     * Deletes any locally cached data.
+     *
+     * @param engine a reference to the dependency-check engine
+     * @return <code>true</code> if the purge was successful; otherwise
+     * <code>false</code>
+     */
+    boolean purge(Engine engine);
 }

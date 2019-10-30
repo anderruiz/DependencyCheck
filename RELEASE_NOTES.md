@@ -2,6 +2,87 @@
 
 Please see the [dependency-check google group](https://groups.google.com/forum/#!forum/dependency-check) for the release notes on versions not listed below.
 
+## [Version 5.0.0](https://github.com/jeremylong/DependencyCheck/releases/tag/v5.0.0) (2019-06-09)
+
+### Changes
+
+- Add caching of OSS-Index, Central Analyzer, and Node Audit analysis results.
+- General bug fixes identified in the previous milestone releases; see [5.0.0 resolved issues](https://github.com/jeremylong/DependencyCheck/issues?utf8=%E2%9C%93&q=is%3Aissue+is%3Aopen+milestone%3A5.0.0+) and [pull requests](https://github.com/jeremylong/DependencyCheck/pulls?utf8=%E2%9C%93&q=is%3Apr+milestone%3A5.0.0).
+
+## [Version 5.0.0-M3](https://github.com/jeremylong/DependencyCheck/releases/tag/v5.0.0-M3) (2019-05-06)
+
+### Breaking Changes
+
+- OWASP dependency-check now uses the [NVD Meta files](https://nvd.nist.gov/vuln/data-feeds#JSON_FEED) in addition to the `*.json.gz` files. If you have a local mirror of the NVD you must now mirror the meta data files. The [nist-data-mirror](https://github.com/stevespringett/nist-data-mirror) has been updated to include these files.
+
+### Changes
+
+- Several bug fixes and minor enhancements have been made; see the related [issues](https://github.com/jeremylong/DependencyCheck/issues?utf8=%E2%9C%93&q=+milestone%3A5.0.0-M3+) and [pull requests](https://github.com/jeremylong/DependencyCheck/pulls?utf8=%E2%9C%93&q=+milestone%3A5.0.0-M3+).
+- Multiple report formats can be specified; if you wanted just two of the reports you no longer need to use ALL.
+- A new JUNIT formatted report has been added; this provides a different way to integrate with Jenkins builds; the following example creates a JUNIT report with failures for any CVE with a CVSS score greater than or equal to 7.0 the Jenkins pipeline script shows how to publish the report:
+  **`pom.xml`**
+  ```xml
+  <plugin>
+    <groupId>org.owasp</groupId>
+    <artifactId>dependency-check-maven</artifactId>
+    <version>5.0.0-M3</version>
+    <configuration>
+      <formats>
+          <format>HTML</format>
+          <format>JUNIT</format>
+      </formats>
+      <junitFailOnCVSS>7.0</junitFailOnCVSS>
+    </configuration>
+    <executions>
+      <execution>
+        <goals>
+          <goal>verify</goal>
+        </goals>
+      </execution>
+    </executions>
+  </plugin>
+  ```
+  **`Jenkinsfile`**
+  ```groovy
+  stage ('Build') {
+    steps {
+      sh 'mvn verify'
+    }
+    post {
+      success {
+        junit 'target/dependency-check-junit.xml'
+      }
+    }
+  }
+  ```
+
+## [Version 5.0.0-M2](https://github.com/jeremylong/DependencyCheck/releases/tag/v5.0.0-M2) (2019-03-11)
+
+### Breaking Changes
+
+- [dotnet core](https://dotnet.microsoft.com/download/dotnet-core/2.2) must be installed to analyze .NET assemblies.
+- The retire.js analyzer is no longer considered experimental and is enabled by default.
+
+## [Version 5.0.0-M1](https://github.com/jeremylong/DependencyCheck/releases/tag/v5.0.0-M1) (2019-02-17)
+
+### Breaking Changes
+
+- All previously deprecated arguments to the plugins and CLI have been removed.
+- The NVD CVE data import now uses the JSON data feeds instead of the XML data feeds.
+  - The parameter names have changed if you are mirroring the data feeds locally.
+- For developers using the core engine the identifiers have been drastically changed;
+  ODC now uses [Package URL](https://github.com/package-url/packageurl-java) for software
+  identifiers and CPE objects from [CPE-Parser](https://github.com/stevespringett/CPE-Parser)
+  for vulnerable library identifiers.
+- All of the report formats have been updated to include the additional data from the NVD CVE JSON data feeds.
+
+### Changes
+
+- Major re-working of the dependency to CPE matching algorithm.
+- Introduced ecosystem filtering - this is an internal process that tries to ensure vulnerabilities
+  from one technology stack do not appear on a dependency built using a completely different stack (e.g.
+  NodeJS vulnerabilities should not show up on a .NET DLL).
+
 ## [Version 4.0.2](https://github.com/jeremylong/DependencyCheck/releases/tag/v4.0.2) (2019-01-01)
 
 ### Enhancements

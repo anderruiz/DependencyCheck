@@ -19,6 +19,7 @@ package org.owasp.dependencycheck;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.owasp.dependencycheck.analyzer.AnalysisPhase;
 import org.owasp.dependencycheck.analyzer.Analyzer;
 import org.owasp.dependencycheck.analyzer.AnalyzerService;
@@ -36,7 +37,6 @@ import org.owasp.dependencycheck.exception.InitializationException;
 import org.owasp.dependencycheck.exception.NoDataException;
 import org.owasp.dependencycheck.exception.ReportException;
 import org.owasp.dependencycheck.reporting.ReportGenerator;
-import org.owasp.dependencycheck.utils.InvalidSettingException;
 import org.owasp.dependencycheck.utils.Settings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,6 +46,7 @@ import java.io.FileFilter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumMap;
@@ -60,7 +61,11 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+
 import javax.annotation.concurrent.NotThreadSafe;
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.jcs.JCS;
+import org.apache.lucene.queryparser.flexible.standard.processors.AnalyzerQueryNodeProcessor;
 import org.owasp.dependencycheck.exception.H2DBLockException;
 import org.owasp.dependencycheck.utils.H2DBLock;
 
@@ -123,7 +128,7 @@ public class Engine implements FileFilter {
         /**
          * The analysis phases included in the mode.
          */
-        private final AnalysisPhase[] phases;
+        private final List<AnalysisPhase> phases;
 
         /**
          * Returns true if the database is required; otherwise false.
@@ -139,7 +144,7 @@ public class Engine implements FileFilter {
          *
          * @return the phases for this mode
          */
-        public AnalysisPhase[] getPhases() {
+        public List<AnalysisPhase> getPhases() {
             return phases;
         }
 
@@ -151,7 +156,9 @@ public class Engine implements FileFilter {
          */
         Mode(boolean databaseRequired, AnalysisPhase... phases) {
             this.databaseRequired = databaseRequired;
-            this.phases = phases;
+            //must use Guava 11.0.1 API as of 3/30/2019 due to Jenkins compatability issues
+            //this.phases = Arrays.stream(phases).collect(ImmutableList.toImmutableList());
+            this.phases = new ArrayList<>(Arrays.asList(phases));
         }
     }
 
@@ -159,6 +166,7 @@ public class Engine implements FileFilter {
      * The list of dependencies.
      */
     protected final List<Dependency> dependencies = Collections.synchronizedList(new ArrayList<Dependency>());
+
     /**
      * The external view of the dependency list.
      */
@@ -202,7 +210,7 @@ public class Engine implements FileFilter {
      *
      * @param settings reference to the configured settings
      */
-    public Engine(Settings settings) {
+    public Engine(final Settings settings) {
         this(Mode.STANDALONE, settings);
     }
 
@@ -212,7 +220,7 @@ public class Engine implements FileFilter {
      * @param mode the mode of operation
      * @param settings reference to the configured settings
      */
-    public Engine(Mode mode, Settings settings) {
+    public Engine(final Mode mode, final Settings settings) {
         this(Thread.currentThread().getContextClassLoader(), mode, settings);
     }
 
@@ -222,7 +230,7 @@ public class Engine implements FileFilter {
      * @param serviceClassLoader a reference the class loader being used
      * @param settings reference to the configured settings
      */
-    public Engine(ClassLoader serviceClassLoader, Settings settings) {
+    public Engine(final ClassLoader serviceClassLoader, final Settings settings) {
         this(serviceClassLoader, Mode.STANDALONE, settings);
     }
 
@@ -233,7 +241,7 @@ public class Engine implements FileFilter {
      * @param mode the mode of the engine
      * @param settings reference to the configured settings
      */
-    public Engine(ClassLoader serviceClassLoader, Mode mode, Settings settings) {
+    public Engine(final ClassLoader serviceClassLoader, final Mode mode, final Settings settings) {
         this.settings = settings;
         this.serviceClassLoader = serviceClassLoader;
         this.mode = mode;
@@ -261,6 +269,7 @@ public class Engine implements FileFilter {
                 database = null;
             }
         }
+        JCS.shutdown();
     }
 
     /**
@@ -272,17 +281,16 @@ public class Engine implements FileFilter {
             return;
         }
         for (AnalysisPhase phase : mode.getPhases()) {
-            analyzers.put(phase, new ArrayList<Analyzer>());
-        }
+        	analyzers.put(phase, new ArrayList<Analyzer>());
+		}
         final AnalyzerService service = new AnalyzerService(serviceClassLoader, settings);
-        final List<Analyzer> iterator = service.getAnalyzers(mode.getPhases());
-        for (Analyzer a : iterator) {
-            a.initialize(this.settings);
+        for (Analyzer a : service.getAnalyzers(mode.getPhases())) {
+        	a.initialize(this.settings);
             analyzers.get(a.getAnalysisPhase()).add(a);
             if (a instanceof FileTypeAnalyzer) {
                 this.fileTypeAnalyzers.add((FileTypeAnalyzer) a);
             }
-        }
+		}
     }
 
     /**
@@ -319,7 +327,7 @@ public class Engine implements FileFilter {
      *
      * @param dependency the dependency to remove.
      */
-    public synchronized void removeDependency(Dependency dependency) {
+    public synchronized void removeDependency(final Dependency dependency) {
         dependencies.remove(dependency);
         dependenciesExternalView = null;
     }
@@ -329,9 +337,10 @@ public class Engine implements FileFilter {
      *
      * @return the dependencies identified
      */
+    @SuppressFBWarnings(justification = "This is the intended external view of the dependencies", value = {"EI_EXPOSE_REP"})
     public synchronized Dependency[] getDependencies() {
         if (dependenciesExternalView == null) {
-            dependenciesExternalView = dependencies.toArray(new Dependency[dependencies.size()]);
+            dependenciesExternalView = dependencies.toArray(new Dependency[0]);
         }
         return dependenciesExternalView;
     }
@@ -341,7 +350,7 @@ public class Engine implements FileFilter {
      *
      * @param dependencies the dependencies
      */
-    public synchronized void setDependencies(List<Dependency> dependencies) {
+    public synchronized void setDependencies(final List<Dependency> dependencies) {
         this.dependencies.clear();
         this.dependencies.addAll(dependencies);
         dependenciesExternalView = null;
@@ -356,7 +365,7 @@ public class Engine implements FileFilter {
      * @return the list of dependencies scanned
      * @since v0.3.2.5
      */
-    public List<Dependency> scan(String[] paths) {
+    public List<Dependency> scan(final String[] paths) {
         return scan(paths, null);
     }
 
@@ -371,7 +380,7 @@ public class Engine implements FileFilter {
      * @return the list of dependencies scanned
      * @since v1.4.4
      */
-    public List<Dependency> scan(String[] paths, String projectReference) {
+    public List<Dependency> scan(final String[] paths, final String projectReference) {
         final List<Dependency> deps = new ArrayList<>();
         for (String path : paths) {
             final List<Dependency> d = scan(path, projectReference);
@@ -390,7 +399,7 @@ public class Engine implements FileFilter {
      * @param path the path to a file or directory to be analyzed
      * @return the list of dependencies scanned
      */
-    public List<Dependency> scan(String path) {
+    public List<Dependency> scan(final String path) {
         return scan(path, null);
     }
 
@@ -405,7 +414,7 @@ public class Engine implements FileFilter {
      * @return the list of dependencies scanned
      * @since v1.4.4
      */
-    public List<Dependency> scan(String path, String projectReference) {
+    public List<Dependency> scan(final String path, String projectReference) {
         final File file = new File(path);
         return scan(file, projectReference);
     }
@@ -472,11 +481,11 @@ public class Engine implements FileFilter {
     public List<Dependency> scan(Collection<File> files, String projectReference) {
         final List<Dependency> deps = new ArrayList<>();
         for (File file : files) {
-            final List<Dependency> d = scan(file, projectReference);
-            if (d != null) {
-                deps.addAll(d);
-            }
-        }
+        	List<Dependency> d = scan(file, projectReference);
+        	if(d!=null) {
+        		deps.addAll(d);
+        	}
+		}
         return deps;
     }
 
@@ -504,7 +513,8 @@ public class Engine implements FileFilter {
      * @return the list of dependencies scanned
      * @since v1.4.4
      */
-    public List<Dependency> scan(File file, String projectReference) {
+    
+    public List<Dependency> scan(final File file, String projectReference) {
         if (file.exists()) {
             if (file.isDirectory()) {
                 return scanDirectory(file, projectReference);
@@ -541,7 +551,7 @@ public class Engine implements FileFilter {
      * @return the list of Dependency objects scanned
      * @since v1.4.4
      */
-    protected List<Dependency> scanDirectory(File dir, String projectReference) {
+    protected List<Dependency> scanDirectory(final File dir, final String projectReference) {
         final File[] files = dir.listFiles();
         final List<Dependency> deps = new ArrayList<>();
         if (files != null) {
@@ -569,7 +579,7 @@ public class Engine implements FileFilter {
      * @param file The file to scan
      * @return the scanned dependency
      */
-    protected Dependency scanFile(File file) {
+    protected Dependency scanFile(final File file) {
         return scanFile(file, null);
     }
 
@@ -583,7 +593,7 @@ public class Engine implements FileFilter {
      * @return the scanned dependency
      * @since v1.4.4
      */
-    protected synchronized Dependency scanFile(File file, String projectReference) {
+    protected synchronized Dependency scanFile(final File file, final String projectReference) {
         Dependency dependency = null;
         if (file.isFile()) {
             if (accept(file)) {
@@ -687,21 +697,16 @@ public class Engine implements FileFilter {
             }
         }
         for (AnalysisPhase phase : mode.getPhases()) {
-            final List<Analyzer> analyzerList = analyzers.get(phase);
-
-            for (Analyzer a : analyzerList) {
-                closeAnalyzer(a);
-            }
-        }
+			for (Analyzer a : analyzers.get(phase)) {
+				closeAnalyzer(a);
+			}
+		}
 
         LOGGER.debug("\n----------------------------------------------------\nEND ANALYSIS\n----------------------------------------------------");
         final long analysisDurationSeconds = TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - analysisStart);
         LOGGER.info("Analysis Complete ({} seconds)", analysisDurationSeconds);
         if (exceptions.size() > 0) {
-        	for (Throwable throwable : exceptions) {
-				throwable.printStackTrace();
-			}
-            throw new ExceptionCollection("One or more exceptions occurred during dependency-check analysis", exceptions);
+            throw new ExceptionCollection(exceptions);
         }
     }
 
@@ -715,30 +720,18 @@ public class Engine implements FileFilter {
         if (!mode.isDatabaseRequired()) {
             return;
         }
-        boolean autoUpdate = true;
-        try {
-            autoUpdate = settings.getBoolean(Settings.KEYS.AUTO_UPDATE);
-        } catch (InvalidSettingException ex) {
-            LOGGER.debug("Invalid setting for auto-update; using true.");
-            exceptions.add(ex);
-        }
+        final boolean autoUpdate;
+        autoUpdate = settings.getBoolean(Settings.KEYS.AUTO_UPDATE, true);
         if (autoUpdate) {
             try {
                 doUpdates(true);
             } catch (UpdateException ex) {
                 exceptions.add(ex);
-                LOGGER.warn("Unable to update Cached Web DataSource, using local "
+                LOGGER.warn("Unable to update 1 or more Cached Web DataSource, using local "
                         + "data instead. Results may not include recent vulnerabilities.");
                 LOGGER.debug("Update Error", ex);
             } catch (DatabaseException ex) {
-                final String msg;
-                if (ex.getMessage().contains("Unable to connect") && ConnectionFactory.isH2Connection(settings)) {
-                    msg = "Unable to update connect to the database - if this error persists it may be "
-                            + "due to a corrupt database. Consider running `purge` to delete the existing database";
-                } else {
-                    msg = "Unable to connect to the database";
-                }
-                throw new ExceptionCollection("Unable to connect to the database", ex);
+                throwFatalDatabaseException(ex, exceptions);
             }
         } else {
             try {
@@ -750,9 +743,29 @@ public class Engine implements FileFilter {
             } catch (IOException ex) {
                 throw new ExceptionCollection(new DatabaseException("Autoupdate is disabled and unable to connect to the database"), true);
             } catch (DatabaseException ex) {
-                throwFatalExceptionCollection("Unable to connect to the dependency-check database.", ex, exceptions);
+                throwFatalDatabaseException(ex, exceptions);
             }
         }
+    }
+
+    /**
+     * Utility method to throw a fatal database exception.
+     *
+     * @param ex the exception that was caught
+     * @param exceptions the exception collection
+     * @throws ExceptionCollection the collection of exceptions is always thrown
+     * as a fatal exception
+     */
+    private void throwFatalDatabaseException(DatabaseException ex, final List<Throwable> exceptions) throws ExceptionCollection {
+        final String msg;
+        if (ex.getMessage().contains("Unable to connect") && ConnectionFactory.isH2Connection(settings)) {
+            msg = "Unable to connect to the database - if this error persists it may be "
+                    + "due to a corrupt database. Consider running `purge` to delete the existing database";
+        } else {
+            msg = "Unable to connect to the dependency-check database";
+        }
+        exceptions.add(new DatabaseException(msg, ex));
+        throw new ExceptionCollection(exceptions, true);
     }
 
     /**
@@ -763,7 +776,7 @@ public class Engine implements FileFilter {
      * @param analyzer the analyzer to execute
      * @throws ExceptionCollection thrown if exceptions occurred during analysis
      */
-    protected void executeAnalysisTasks(Analyzer analyzer, List<Throwable> exceptions) throws ExceptionCollection {
+    protected void executeAnalysisTasks(final Analyzer analyzer, List<Throwable> exceptions) throws ExceptionCollection {
         LOGGER.debug("Starting {}", analyzer.getName());
         final List<AnalysisTask> analysisTasks = getAnalysisTasks(analyzer, exceptions);
         final ExecutorService executorService = getExecutorService(analyzer);
@@ -799,10 +812,9 @@ public class Engine implements FileFilter {
      */
     protected synchronized List<AnalysisTask> getAnalysisTasks(Analyzer analyzer, List<Throwable> exceptions) {
         final List<AnalysisTask> result = new ArrayList<>();
-        for (final Dependency dependency : dependencies) {
-            final AnalysisTask task = new AnalysisTask(analyzer, dependency, this, exceptions);
-            result.add(task);
-        }
+        for (Dependency dependency : dependencies) {
+			result.add(new AnalysisTask(analyzer, dependency, this, exceptions));
+		}
         return result;
     }
 
@@ -830,7 +842,7 @@ public class Engine implements FileFilter {
      * @throws InitializationException thrown when there is a problem
      * initializing the analyzer
      */
-    protected void initializeAnalyzer(Analyzer analyzer) throws InitializationException {
+    protected void initializeAnalyzer(final Analyzer analyzer) throws InitializationException {
         try {
             LOGGER.debug("Initializing {}", analyzer.getName());
             analyzer.prepare(this);
@@ -862,7 +874,7 @@ public class Engine implements FileFilter {
      *
      * @param analyzer the analyzer to close
      */
-    protected void closeAnalyzer(Analyzer analyzer) {
+    protected void closeAnalyzer(final Analyzer analyzer) {
         LOGGER.debug("Closing Analyzer '{}'", analyzer.getName());
         try {
             analyzer.close();
@@ -876,7 +888,8 @@ public class Engine implements FileFilter {
      * them.
      *
      * @throws UpdateException thrown if the operation fails
-     * @throws DatabaseException if the operation fails due to a local database failure
+     * @throws DatabaseException if the operation fails due to a local database
+     * failure
      */
     public void doUpdates() throws UpdateException {
         doUpdates(false);
@@ -889,7 +902,8 @@ public class Engine implements FileFilter {
      * @param remainOpen whether or not the database connection should remain
      * open
      * @throws UpdateException thrown if the operation fails
-     * @throws DatabaseException if the operation fails due to a local database failure
+     * @throws DatabaseException if the operation fails due to a local database
+     * failure
      */
     public void doUpdates(boolean remainOpen) throws UpdateException {
         if (mode.isDatabaseRequired()) {
@@ -905,12 +919,25 @@ public class Engine implements FileFilter {
                 final long updateStart = System.currentTimeMillis();
                 final UpdateService service = new UpdateService(serviceClassLoader);
                 final Iterator<CachedWebDataSource> iterator = service.getDataSources();
+                boolean dbUpdatesMade = false;
+                UpdateException updateException = null;
                 while (iterator.hasNext()) {
-                    final CachedWebDataSource source = iterator.next();
-                    source.update(this);
+                    try {
+                        final CachedWebDataSource source = iterator.next();
+                        dbUpdatesMade |= source.update(this);
+                    } catch (UpdateException ex) {
+                        updateException = ex;
+                        LOGGER.error(ex.getMessage());
+                    }
+                }
+                if (dbUpdatesMade) {
+                    database.defrag();
                 }
                 database.close();
                 database = null;
+                if (updateException != null) {
+                    throw updateException;
+                }
                 LOGGER.info("Check for updates complete ({} ms)", System.currentTimeMillis() - updateStart);
                 if (remainOpen) {
                     openDatabase(true, false);
@@ -927,6 +954,43 @@ public class Engine implements FileFilter {
         } else {
             LOGGER.info("Skipping update check in evidence collection mode.");
         }
+    }
+
+    /**
+     * Purges the cached web data sources.
+     *
+     * @return <code>true</code> if the purge was successful; otherwise
+     * <code>false</code>
+     */
+    public boolean purge() {
+        boolean result = true;
+        final UpdateService service = new UpdateService(serviceClassLoader);
+        final Iterator<CachedWebDataSource> iterator = service.getDataSources();
+        while (iterator.hasNext()) {
+            result &= iterator.next().purge(this);
+        }
+        try {
+            final File cache = new File(settings.getDataDirectory(), "cache");
+            if (cache.exists()) {
+                if (FileUtils.deleteQuietly(cache)) {
+                    LOGGER.info("Cache directory purged");
+                }
+            }
+        } catch (IOException ex) {
+            throw new RuntimeException(ex);
+        }
+        try {
+            final File cache = new File(settings.getDataDirectory(), "oss_cache");
+            if (cache.exists()) {
+                if (FileUtils.deleteQuietly(cache)) {
+                    LOGGER.info("OSS Cache directory purged");
+                }
+            }
+        } catch (IOException ex) {
+            throw new RuntimeException(ex);
+        }
+
+        return result;
     }
 
     /**
@@ -1017,10 +1081,10 @@ public class Engine implements FileFilter {
      */
     public List<Analyzer> getAnalyzers() {
         final List<Analyzer> ret = new ArrayList<>();
+        //insteae of forEach - we can just do a collect
         for (AnalysisPhase phase : mode.getPhases()) {
-            final List<Analyzer> analyzerList = analyzers.get(phase);
-            ret.addAll(analyzerList);
-        }
+        	ret.addAll(analyzers.get(phase));
+		}
         return ret;
     }
 
@@ -1032,17 +1096,18 @@ public class Engine implements FileFilter {
      * supported
      */
     @Override
-    public boolean accept(File file) {
+    public boolean accept(final File file) {
         if (file == null) {
             return false;
         }
-        boolean scan = false;
+        /* note, we can't break early on this loop as the analyzers need to know if
+        they have files to work on prior to initialization */
         for (FileTypeAnalyzer a : this.fileTypeAnalyzers) {
-            /* note, we can't break early on this loop as the analyzers need to know if
-             they have files to work on prior to initialization */
-            scan |= a.accept(file);
-        }
-        return scan;
+			if(a.accept(file)) {
+				return true;
+			}
+		}
+        return false;
     }
 
     /**
@@ -1078,7 +1143,7 @@ public class Engine implements FileFilter {
      *
      * @param fta the file type analyzer to add
      */
-    protected void addFileTypeAnalyzer(FileTypeAnalyzer fta) {
+    protected void addFileTypeAnalyzer(final FileTypeAnalyzer fta) {
         this.fileTypeAnalyzers.add(fta);
     }
 
@@ -1103,11 +1168,12 @@ public class Engine implements FileFilter {
      * @throws ExceptionCollection a collection of exceptions that occurred
      * during analysis
      */
-    private void throwFatalExceptionCollection(String message, Throwable throwable, List<Throwable> exceptions) throws ExceptionCollection {
-        LOGGER.error("{}\n\n{}", throwable.getMessage(), message);
+    private void throwFatalExceptionCollection(String message, final Throwable throwable,
+            final List<Throwable> exceptions) throws ExceptionCollection {
+        LOGGER.error(message);
         LOGGER.debug("", throwable);
         exceptions.add(throwable);
-        throw new ExceptionCollection(message, exceptions, true);
+        throw new ExceptionCollection(exceptions, true);
     }
 
     /**
@@ -1122,8 +1188,9 @@ public class Engine implements FileFilter {
      * @param format the report format (ALL, HTML, CSV, JSON, etc.)
      * @throws ReportException thrown if there is an error generating the report
      */
-    public synchronized void writeReports(String applicationName, String groupId, String artifactId,
-            String version, File outputDir, String format) throws ReportException {
+    public synchronized void writeReports(String applicationName, final String groupId,
+            final String artifactId, final String version,
+            final File outputDir, String format) throws ReportException {
         if (mode == Mode.EVIDENCE_COLLECTION) {
             throw new UnsupportedOperationException("Cannot generate report in evidence collection mode.");
         }

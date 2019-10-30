@@ -106,7 +106,7 @@ public class H2DBLock {
     public void lock() throws H2DBLockException {
         try {
             final File dir = settings.getDataDirectory();
-            lockFile = new File(dir, "dc.update.lock");
+            lockFile = new File(dir, "odc.update.lock");
             checkState();
             int ctr = 0;
             do {

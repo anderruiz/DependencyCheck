@@ -21,9 +21,10 @@ import org.owasp.dependencycheck.Engine;
 import org.owasp.dependencycheck.analyzer.exception.AnalysisException;
 import org.owasp.dependencycheck.dependency.Dependency;
 import org.owasp.dependencycheck.exception.InitializationException;
-import org.owasp.dependencycheck.utils.InvalidSettingException;
 import org.owasp.dependencycheck.utils.Settings;
+
 import javax.annotation.concurrent.ThreadSafe;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -86,13 +87,7 @@ public abstract class AbstractAnalyzer implements Analyzer {
     public void initialize(Settings settings) {
         this.settings = settings;
         final String key = getAnalyzerEnabledSettingKey();
-        try {
-            this.setEnabled(settings.getBoolean(key, true));
-        } catch (InvalidSettingException ex) {
-            final String msg = String.format("Invalid setting for property '%s'", key);
-            LOGGER.warn(msg);
-            LOGGER.debug(msg, ex);
-        }
+        this.setEnabled(settings.getBoolean(key, true));
     }
 
     /**
@@ -127,7 +122,7 @@ public abstract class AbstractAnalyzer implements Analyzer {
      * dependencies within the engine.
      *
      * @param dependency the dependency to analyze
-     * @param engine the engine scanning
+     * @param engine     the engine scanning
      * @throws AnalysisException thrown if there is an analysis exception
      */
     @Override
@@ -143,7 +138,7 @@ public abstract class AbstractAnalyzer implements Analyzer {
      * dependencies within the engine.
      *
      * @param dependency the dependency to analyze
-     * @param engine the engine scanning
+     * @param engine     the engine scanning
      * @throws AnalysisException thrown if there is an analysis exception
      */
     protected abstract void analyzeDependency(Dependency dependency, Engine engine) throws AnalysisException;
