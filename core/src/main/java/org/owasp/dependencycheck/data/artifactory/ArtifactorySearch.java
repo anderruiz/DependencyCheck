@@ -54,6 +54,7 @@ import java.util.regex.Pattern;
  * @author nhenneaux
  */
 @ThreadSafe
+@SuppressWarnings("squid:S2647")
 public class ArtifactorySearch {
 
     /**

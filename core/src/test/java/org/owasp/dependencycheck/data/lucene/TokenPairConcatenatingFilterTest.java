@@ -27,7 +27,8 @@ import org.apache.lucene.analysis.MockTokenizer;
 import org.apache.lucene.analysis.Tokenizer;
 import org.apache.lucene.analysis.core.KeywordTokenizer;
 import static org.junit.Assert.fail;
-
+import org.junit.Before;
+import org.junit.Test;
 
 /**
  *
@@ -35,9 +36,12 @@ import static org.junit.Assert.fail;
  */
 public class TokenPairConcatenatingFilterTest extends BaseTokenStreamTestCase {
 
-    private final Analyzer analyzer;
+    private Analyzer analyzer;
 
-    public TokenPairConcatenatingFilterTest() {
+    @Before
+    @Override
+    public void setUp() throws Exception {
+        super.setUp();
         analyzer = new Analyzer() {
 
             @Override
@@ -61,7 +65,6 @@ public class TokenPairConcatenatingFilterTest extends BaseTokenStreamTestCase {
 //        expected[4] = "green";
 //        assertAnalyzesTo(analyzer, "red blue green", expected);
 //    }
-
 //    /**
 //     * copied from
 //     * http://svn.apache.org/repos/asf/lucene/dev/trunk/lucene/analysis/common/src/test/org/apache/lucene/analysis/en/TestEnglishMinimalStemFilter.java
@@ -80,6 +83,7 @@ public class TokenPairConcatenatingFilterTest extends BaseTokenStreamTestCase {
      *
      * @throws IOException
      */
+    @Test
     public void testEmptyTerm() {
         Analyzer a = new Analyzer() {
             @Override

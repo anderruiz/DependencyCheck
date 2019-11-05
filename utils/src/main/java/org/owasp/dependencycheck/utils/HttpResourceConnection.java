@@ -1,5 +1,5 @@
 /*
- * This file is part of dependency-check-core.
+ * This file is part of dependency-check-utils.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -99,7 +99,7 @@ public class HttpResourceConnection implements AutoCloseable {
         this.usesProxy = usesProxy;
     }
     
-    public InputStream fetch(URL url) throws DownloadFailedException {
+    public InputStream fetch(URL url) throws DownloadFailedException, TooManyRequestsException, ResourceNotFoundException {
     	return HdivResourceConnectionUtils.fetch(url, this);
     }
 
@@ -111,8 +111,10 @@ public class HttpResourceConnection implements AutoCloseable {
      * @return the stream to read the retrieved content from
      * @throws org.owasp.dependencycheck.utils.DownloadFailedException is thrown
      * if there is an error downloading the resource
+     * @throws TooManyRequestsException thrown when a 429 is received
+     * @throws ResourceNotFoundException thrown when a 404 is received
      */
-    InputStream doFetch(URL url) throws DownloadFailedException {
+    InputStream doFetch(URL url) throws DownloadFailedException, TooManyRequestsException, ResourceNotFoundException {
         if ("file".equalsIgnoreCase(url.getProtocol())) {
             final File file;
             try {
@@ -169,8 +171,10 @@ public class HttpResourceConnection implements AutoCloseable {
      * @return the HTTP URL Connection
      * @throws DownloadFailedException thrown if there is an error creating the
      * HTTP URL Connection
+     * @throws TooManyRequestsException thrown when a 429 is received
+     * @throws ResourceNotFoundException thrown when a 404 is received
      */
-    private HdivHttpConnection obtainConnection(URL url) throws DownloadFailedException {
+    private HdivHttpConnection obtainConnection(URL url) throws DownloadFailedException, TooManyRequestsException, ResourceNotFoundException {
         HdivHttpConnection conn = null;
         try {
             LOGGER.debug("Attempting retrieval of {}", url.toString());
@@ -196,7 +200,21 @@ public class HttpResourceConnection implements AutoCloseable {
                 conn.connect();
                 status = conn.getResponseCode();
             }
-            if (status != 200) {
+            if (status == 404) {
+                try {
+                    conn.disconnect();
+                } finally {
+                    conn = null;
+                }
+                throw new ResourceNotFoundException("Requested resource does not exists - received a 404");
+            } else if (status == 429) {
+                try {
+                    conn.disconnect();
+                } finally {
+                    conn = null;
+                }
+                throw new TooManyRequestsException("Download fialed - too many connection requests");
+            } else if (status != 200) {
                 try {
                     conn.disconnect();
                 } finally {

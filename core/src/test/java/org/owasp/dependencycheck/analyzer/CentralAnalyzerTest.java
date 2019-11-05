@@ -25,7 +25,7 @@ import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.owasp.dependencycheck.data.central.CentralSearch;
-import org.owasp.dependencycheck.data.central.TooManyRequestsException;
+import org.owasp.dependencycheck.utils.TooManyRequestsException;
 import org.owasp.dependencycheck.data.nexus.MavenArtifact;
 import org.owasp.dependencycheck.dependency.Dependency;
 import org.owasp.dependencycheck.utils.Settings;
@@ -35,165 +35,64 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.util.Collections;
 import java.util.List;
+import org.apache.commons.lang3.StringUtils;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import org.junit.Assume;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import org.owasp.dependencycheck.BaseTest;
+import org.owasp.dependencycheck.utils.Settings;
 
 /**
  * Tests for the CentralAnalyzer.
  */
-public class CentralAnalyzerTest {
+public class CentralAnalyzerTest extends BaseTest {
 
     private static final String SHA1_SUM = "my-sha1-sum";
-
-    @BeforeClass
-    public static void beforeClass() {
-        doNotSleepBetweenRetries();
-    }
+    CentralSearch centralSearch = mock(CentralSearch.class);
+    Dependency dependency = mock(Dependency.class);
 
     @Test
     @SuppressWarnings("PMD.NonStaticInitializer")
-    public void testFetchMavenArtifactsWithoutException(@Mocked final CentralSearch centralSearch,
-            @Mocked final Dependency dependency)
-            throws IOException, TooManyRequestsException {
+    public void testFetchMavenArtifactsWithoutException() throws IOException, TooManyRequestsException {
+            CentralAnalyzer instance = new CentralAnalyzer();
+            instance.setCentralSearch(centralSearch);
+            when(dependency.getSha1sum()).thenReturn(SHA1_SUM);
+            when(centralSearch.searchSha1(SHA1_SUM)).thenReturn(Collections.emptyList());
 
-        CentralAnalyzer instance = new CentralAnalyzer();
-        instance.setCentralSearch(centralSearch);
-        specifySha1SumFor(dependency);
+            final List<MavenArtifact> actualMavenArtifacts = instance.fetchMavenArtifacts(dependency);
 
-        final List<MavenArtifact> expectedMavenArtifacts = Collections.emptyList();
-        new Expectations() {
-            {
-                centralSearch.searchSha1(SHA1_SUM);
-                returns(expectedMavenArtifacts, expectedMavenArtifacts);
-            }
-        };
-
-        final List<MavenArtifact> actualMavenArtifacts = instance.fetchMavenArtifacts(dependency);
-
-        assertEquals(expectedMavenArtifacts, actualMavenArtifacts);
-    }
-
-    @Test
-    @SuppressWarnings("PMD.NonStaticInitializer")
-    public void testFetchMavenArtifactsWithSporadicIOException(@Mocked final CentralSearch centralSearch,
-            @Mocked final Dependency dependency)
-            throws IOException, TooManyRequestsException {
-
-        CentralAnalyzer instance = new CentralAnalyzer();
-        instance.setCentralSearch(centralSearch);
-        specifySha1SumFor(dependency);
-
-        final List<MavenArtifact> expectedMavenArtifacts = Collections.emptyList();
-        new Expectations() {
-            {
-                centralSearch.searchSha1(SHA1_SUM);
-                //result = new IOException("Could not connect to MavenCentral (500): Internal Server Error");
-                result = expectedMavenArtifacts;
-            }
-        };
-
-        final List<MavenArtifact> actualMavenArtifacts = instance.fetchMavenArtifacts(dependency);
-
-        assertEquals(expectedMavenArtifacts, actualMavenArtifacts);
+            assertTrue(actualMavenArtifacts.isEmpty());
     }
 
     @Test(expected = FileNotFoundException.class)
     @SuppressWarnings("PMD.NonStaticInitializer")
-    public void testFetchMavenArtifactsRethrowsFileNotFoundException(@Mocked final CentralSearch centralSearch,
-            @Mocked final Dependency dependency)
+    public void testFetchMavenArtifactsRethrowsFileNotFoundException()
             throws IOException, TooManyRequestsException {
-
         CentralAnalyzer instance = new CentralAnalyzer();
         instance.setCentralSearch(centralSearch);
-        specifySha1SumFor(dependency);
-
-        new Expectations() {
-            {
-                centralSearch.searchSha1(SHA1_SUM);
-                result = new FileNotFoundException("Artifact not found in Central");
-            }
-        };
-
+        when(dependency.getSha1sum()).thenReturn(SHA1_SUM);
+        when(centralSearch.searchSha1(SHA1_SUM)).thenThrow(FileNotFoundException.class);
         instance.fetchMavenArtifacts(dependency);
     }
 
     @Ignore
     @Test(expected = IOException.class)
     @SuppressWarnings("PMD.NonStaticInitializer")
-    public void testFetchMavenArtifactsAlwaysThrowsIOException(@Mocked final CentralSearch centralSearch,
-            @Mocked final Dependency dependency)
+    public void testFetchMavenArtifactsAlwaysThrowsIOException()
             throws IOException, TooManyRequestsException {
-
+        getSettings().setInt(Settings.KEYS.ANALYZER_CENTRAL_RETRY_COUNT, 1);
+        getSettings().setBoolean(Settings.KEYS.ANALYZER_CENTRAL_USE_CACHE, false);
         CentralAnalyzer instance = new CentralAnalyzer();
+        instance.initialize(getSettings());
+        
         instance.setCentralSearch(centralSearch);
-        specifySha1SumFor(dependency);
-
-        new Expectations() {
-            {
-                centralSearch.searchSha1(SHA1_SUM);
-                result = new IOException("no internet connection");
-            }
-        };
+        when(dependency.getSha1sum()).thenReturn(SHA1_SUM);
+        when(centralSearch.searchSha1(SHA1_SUM)).thenThrow(IOException.class);
 
         instance.fetchMavenArtifacts(dependency);
     }
 
-    /*
-    @Test
-    public void testFetchMavenArtifactsThroughConsole() throws IOException {
-        // setup
-        String sha1 = "a5ef8806b6d79fb2969e5d2b1c68c597b24e9923";
-        String consoleURL = "https://localhost:8443/hdiv-console-services";
-
-        // when
-        List<MavenArtifact> artifacts = searchThroughConsole(consoleURL, sha1);
-
-        // then
-        assertTrue(artifacts != null);
-    }
-
-    private static List<MavenArtifact> searchThroughConsole(final String consoleURL, final String sha1) throws IOException {
-        Settings settings = new Settings();
-        settings.setString(Settings.KEYS.ANALYZER_CENTRAL_URL,
-                consoleURL + "/uritemplate/select?_url=https://search.maven.org/solrsearch");
-        settings.setString(Settings.KEYS.ANALYZER_CENTRAL_QUERY, "%s&q=1:%%22%s%%22&wt=xml");
-        settings.setString(Settings.KEYS.ANALYZER_CENTRAL_SECURE_CONTENT_URL,
-                consoleURL + "/uritemplate/remotecontent?_url=https://search.maven.org&filepath=");
-        settings.setString(Settings.KEYS.ANALYZER_CENTRAL_INSECURE_CONTENT_URL,
-                consoleURL + "/uritemplate/remotecontent?_url=http://search.maven.org&filepath=");
-        settings.setArrayIfNotEmpty(Settings.KEYS.SSL_TRUSTED_HOSTS, new String[] { consoleURL });
-
-        // when
-        CentralSearch centralSearch = new CentralSearch(settings);
-        return centralSearch.searchSha1(sha1);
-    }
-    */
-
-    /**
-     * We do not want to waste time in unit tests.
-     */
-    private static void doNotSleepBetweenRetries() {
-        new MockUp<Thread>() {
-            @Mock
-            void sleep(long millis) {
-                // do not sleep
-            }
-        };
-    }
-
-    /**
-     * Specifies the mock dependency's SHA1 sum.
-     *
-     * @param dependency then dependency
-     */
-    @SuppressWarnings("PMD.NonStaticInitializer")
-    private void specifySha1SumFor(final Dependency dependency) {
-        new Expectations() {
-            {
-                dependency.getSha1sum();
-                returns(SHA1_SUM, SHA1_SUM);
-            }
-        };
-    }
 }

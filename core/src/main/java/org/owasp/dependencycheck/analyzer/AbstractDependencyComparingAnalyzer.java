@@ -23,8 +23,6 @@ import javax.annotation.concurrent.ThreadSafe;
 import org.owasp.dependencycheck.Engine;
 import org.owasp.dependencycheck.analyzer.exception.AnalysisException;
 import org.owasp.dependencycheck.dependency.Dependency;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * <p>
@@ -41,11 +39,6 @@ import org.slf4j.LoggerFactory;
  */
 @ThreadSafe
 public abstract class AbstractDependencyComparingAnalyzer extends AbstractAnalyzer {
-
-    /**
-     * The Logger.
-     */
-    private static final Logger LOGGER = LoggerFactory.getLogger(AbstractDependencyComparingAnalyzer.class);
 
     /**
      * a flag indicating if this analyzer has run. This analyzer only runs once.

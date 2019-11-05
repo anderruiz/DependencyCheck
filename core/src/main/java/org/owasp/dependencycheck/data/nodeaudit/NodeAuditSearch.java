@@ -102,7 +102,7 @@ public class NodeAuditSearch {
         }
         if (settings.getBoolean(Settings.KEYS.ANALYZER_NODE_AUDIT_USE_CACHE, true)) {
             final DataCacheFactory factory = new DataCacheFactory(settings);
-            cache = factory.getCache(DataCacheFactory.CacheType.NODEAUDIT);
+            cache = factory.getNodeAuditCache();
         }
     }
 
@@ -194,8 +194,9 @@ public class NodeAuditSearch {
                     if (count < 5) {
                         final int next = count + 1;
                         try {
-                            Thread.sleep(1500 * next);
+                            Thread.sleep(1500L * next);
                         } catch (InterruptedException ex) {
+                            Thread.currentThread().interrupt();
                             throw new UnexpectedAnalysisException(ex);
                         }
                         return submitPackage(packageJson, key, next);

@@ -19,7 +19,7 @@ Copyright (c) 2018 Jeremy Long. All Rights Reserved.
 @version 2.0
 
 *#<?xml version="1.0"?>
-<analysis xmlns="https://jeremylong.github.io/DependencyCheck/dependency-check.2.1.xsd">
+<analysis xmlns="https://jeremylong.github.io/DependencyCheck/dependency-check.2.2.xsd">
     <scanInfo>
         <engineVersion>$version</engineVersion>
 #foreach($prop in $properties.getMetaData().entrySet())
@@ -27,6 +27,31 @@ Copyright (c) 2018 Jeremy Long. All Rights Reserved.
             <name>$enc.xml($prop.key)</name>
             <timestamp>$enc.xml($prop.value)</timestamp>
         </dataSource>
+#end
+#if($exceptions)
+    #macro( writeException $type $ex $depth)
+        <$type><message>$enc.xml($ex.toString())</message>
+        #if($ex.getStackTrace())
+            <stackTrace>
+            #foreach($t in $ex.getStackTrace())
+                <trace>$enc.xml($t.toString())</trace>
+            #end
+            </stackTrace>
+        #end
+        #if($ex.getCause() && $depth<20)
+            #set($cause="cause")
+            #set($currentDepth=$depth+1)
+            #writeException($cause $ex.getCause() $currentDepth)
+        #end
+        </$type>
+    #end
+        <analysisExceptions>
+            #foreach($ex in $exceptions)
+                #set($type="exception")
+                #set($d=0)
+                #writeException($type $ex $d)
+            #end
+        </analysisExceptions>
 #end
     </scanInfo>
     <projectInfo>
@@ -136,7 +161,8 @@ Copyright (c) 2018 Jeremy Long. All Rights Reserved.
 #foreach($id in $dependency.getSoftwareIdentifiers())
                 <vulnerabilityIds #if($id.confidence)confidence="$id.confidence"#end>
                     <id>$enc.xml($id.value)</id>
-#if( $id.url )      <url>$enc.xml($id.url)</url>
+#if( $id.url )
+                    <url>$enc.xml($id.url)</url>
 #end
 #if($id.description)<description>$enc.xml($id.description)</description>
 #end
@@ -198,10 +224,10 @@ Copyright (c) 2018 Jeremy Long. All Rights Reserved.
                         <baseSeverity>#if($vuln.cvssV3.baseSeverity)$enc.xml($vuln.cvssV3.baseSeverity)#end</baseSeverity>
                     </cvssV3>
 #end
-#if (!$vuln.cwe.cwes.isEmpty())
+#if (!$vuln.cwes.isEmpty())
                     <cwes>
 #foreach($cweEntry in $vuln.cwes.entries)
-                    <cwe>$enc.xml($cweEntry)</cwe>
+                    #if($cweEntry)<cwe>$enc.xml($cweEntry)</cwe>#end
 #end
                     </cwes>
 #end
@@ -260,10 +286,10 @@ Copyright (c) 2018 Jeremy Long. All Rights Reserved.
                         <baseSeverity>#if($vuln.cvssV3.baseSeverity)$enc.xml($vuln.cvssV3.baseSeverity)#end</baseSeverity>
                     </cvssV3>
 #end
-#if (!$vuln.cwe.cwes.isEmpty())
+#if (!$vuln.cwes.isEmpty())
                     <cwes>
 #foreach($cweEntry in $vuln.cwes.entries)
-                    <cwe>$enc.xml($cweEntry)</cwe>
+                    #if($cweEntry)<cwe>$enc.xml($cweEntry)</cwe>#end
 #end
                     </cwes>
 #end

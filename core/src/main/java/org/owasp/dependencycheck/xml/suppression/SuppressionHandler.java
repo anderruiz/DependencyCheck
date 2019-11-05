@@ -58,6 +58,10 @@ public class SuppressionHandler extends DefaultHandler {
      * The CVE element name.
      */
     public static final String CVE = "cve";
+    /**
+     * The vulnerabilityName element name.
+     */
+    public static final String VULNERABILITY_NAME = "vulnerabilityName";
 
     /**
      * The CVE element name.
@@ -76,6 +80,10 @@ public class SuppressionHandler extends DefaultHandler {
      * The GAV element name.
      */
     public static final String GAV = "gav";
+        /**
+     * The Package URL element name.
+     */
+    public static final String PACKAGE_URL = "packageUrl";
     /**
      * The cvssBelow element name.
      */
@@ -162,25 +170,31 @@ public class SuppressionHandler extends DefaultHandler {
                     rule.setFilePath(processPropertyType());
                     break;
                 case SHA1:
-                    rule.setSha1(currentText.toString());
+                    rule.setSha1(currentText.toString().trim());
                     break;
                 case GAV:
                     rule.setGav(processPropertyType());
+                    break;
+                case PACKAGE_URL:
+                    rule.setPackageUrl(processPropertyType());
                     break;
                 case CPE:
                     rule.addCpe(processPropertyType());
                     break;
                 case CWE:
-                    rule.addCwe(currentText.toString());
+                    rule.addCwe(currentText.toString().trim());
                     break;
                 case CVE:
-                    rule.addCve(currentText.toString());
+                    rule.addCve(currentText.toString().trim());
+                    break;
+                case VULNERABILITY_NAME:
+                    rule.addVulnerabilityName(processPropertyType());
                     break;
                 case NOTES:
-                    rule.addNotes(currentText.toString());
+                    rule.addNotes(currentText.toString().trim());
                     break;
                 case CVSS_BELOW:
-                    final float cvss = Float.parseFloat(currentText.toString());
+                    final float cvss = Float.parseFloat(currentText.toString().trim());
                     rule.addCvssBelow(cvss);
                     break;
                 default:
@@ -210,7 +224,7 @@ public class SuppressionHandler extends DefaultHandler {
      */
     private PropertyType processPropertyType() {
         final PropertyType pt = new PropertyType();
-        pt.setValue(currentText.toString());
+        pt.setValue(currentText.toString().trim());
         if (currentAttributes != null && currentAttributes.getLength() > 0) {
             final String regex = currentAttributes.getValue("regex");
             if (regex != null) {

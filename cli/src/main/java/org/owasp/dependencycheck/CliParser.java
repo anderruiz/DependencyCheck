@@ -41,6 +41,8 @@ import org.slf4j.LoggerFactory;
  *
  * @author Jeremy Long
  */
+//suppress hard-coded password rule
+@SuppressWarnings("squid:S2068")
 public final class CliParser {
 
     /**
@@ -208,7 +210,7 @@ public final class CliParser {
                     }
                 }
             } else if ("o".equalsIgnoreCase(argumentName.substring(0, 1)) && !f.isDirectory()) {
-                if (f.getParentFile().isDirectory() && !f.mkdir()) {
+                if (f.getParentFile() != null && f.getParentFile().isDirectory() && !f.mkdir()) {
                     isValid = false;
                     final String msg = String.format("Invalid '%s' argument: '%s' - unable to create the output directory", argumentName, path);
                     throw new FileNotFoundException(msg);
@@ -1613,7 +1615,8 @@ public final class CliParser {
 
         final Option path = Option.builder(ARGUMENT.SCAN_SHORT).argName("path").hasArg().longOpt(ARGUMENT.SCAN)
                 .desc("The path to scan - this option can be specified multiple times. Ant style"
-                        + " paths are supported (e.g. path/**/*.jar).")
+                        + " paths are supported (e.g. 'path/**/*.jar'); if using Ant style paths it is highly recommended"
+                        + " to quote the argument value.")
                 .build();
 
         final Option excludes = Option.builder().argName("pattern").hasArg().longOpt(ARGUMENT.EXCLUDE)
@@ -1741,6 +1744,9 @@ public final class CliParser {
         final Option pathToBundleAudit = Option.builder().argName("path").hasArg()
                 .longOpt(ARGUMENT.PATH_TO_BUNDLE_AUDIT)
                 .desc("The path to bundle-audit for Gem bundle analysis.").build();
+        final Option pathToBundleAuditWorkingDirectory = Option.builder().argName("path").hasArg()
+                .longOpt(ARGUMENT.PATH_TO_BUNDLE_AUDIT_WORKING_DIRECTORY)
+                .desc("The path to working directory that the bundle-audit command should be executed from when doing Gem bundle analysis.").build();
         final Option connectionTimeout = Option.builder(ARGUMENT.CONNECTION_TIMEOUT_SHORT).argName("timeout").hasArg()
                 .longOpt(ARGUMENT.CONNECTION_TIMEOUT).desc("The connection timeout (in milliseconds) to use when downloading resources.")
                 .build();
@@ -1779,6 +1785,8 @@ public final class CliParser {
                 .desc("Disable the Python Package Analyzer.").build();
         final Option disableComposerAnalyzer = Option.builder().longOpt(ARGUMENT.DISABLE_COMPOSER)
                 .desc("Disable the PHP Composer Analyzer.").build();
+        final Option disableGolangModAnalyzer = Option.builder().longOpt(ARGUMENT.DISABLE_GOLANG_MOD)
+                .desc("Disable the Golang Mod Analyzer.").build();
         final Option disableAutoconfAnalyzer = Option.builder()
                 .longOpt(ARGUMENT.DISABLE_AUTOCONF).desc("Disable the Autoconf Analyzer.").build();
         final Option disableOpenSSLAnalyzer = Option.builder().longOpt(ARGUMENT.DISABLE_OPENSSL)
@@ -1792,10 +1800,13 @@ public final class CliParser {
         final Option disableCentralAnalyzer = Option.builder().longOpt(ARGUMENT.DISABLE_CENTRAL)
                 .desc("Disable the Central Analyzer. If this analyzer is disabled it is likely you also want to disable "
                         + "the Nexus Analyzer.").build();
-        final Option disableNexusAnalyzer = Option.builder().longOpt(ARGUMENT.DISABLE_NEXUS)
+        final Option enableNexusAnalyzer = Option.builder().longOpt(ARGUMENT.ENABLE_NEXUS)
                 .desc("Disable the Nexus Analyzer.").build();
         final Option disableOssIndexAnalyzer = Option.builder().longOpt(ARGUMENT.DISABLE_OSSINDEX)
                 .desc("Disable the Sonatype OSS Index Analyzer.").build();
+        final Option disableGolangPackageAnalyzer = Option.builder().longOpt(ARGUMENT.DISABLE_GO_DEP)
+                .desc("Disable the Golang Package Analyzer.")
+                .build();
         final Option purge = Option.builder().longOpt(ARGUMENT.PURGE_NVD)
                 .desc("Purges the local NVD data cache").build();
         final Option retireJsFilters = Option.builder().argName("pattern").hasArg().longOpt(ARGUMENT.RETIREJS_FILTERS)
@@ -1820,6 +1831,7 @@ public final class CliParser {
                 .addOption(disableArchiveAnalyzer)
                 .addOption(disableAssemblyAnalyzer)
                 .addOption(pathToBundleAudit)
+                .addOption(pathToBundleAuditWorkingDirectory)
                 .addOption(disablePythonDistributionAnalyzer)
                 .addOption(disableCmakeAnalyzer)
                 .addOption(disablePythonPackageAnalyzer)
@@ -1829,18 +1841,20 @@ public final class CliParser {
                         .desc("Disable the Ruby Bundler-Audit Analyzer.").build())
                 .addOption(disableAutoconfAnalyzer)
                 .addOption(disableComposerAnalyzer)
+                .addOption(disableGolangModAnalyzer)
                 .addOption(disableOpenSSLAnalyzer)
                 .addOption(disableNuspecAnalyzer)
                 .addOption(disableNugetconfAnalyzer)
                 .addOption(disableCentralAnalyzer)
                 .addOption(Option.builder().longOpt(ARGUMENT.DISABLE_CENTRAL_CACHE)
                         .desc("Disallow the Central Analyzer from caching results").build())
-                .addOption(disableNexusAnalyzer)
+                .addOption(enableNexusAnalyzer)
                 .addOption(disableOssIndexAnalyzer)
                 .addOption(Option.builder().longOpt(ARGUMENT.DISABLE_OSSINDEX_CACHE)
                         .desc("Disallow the OSS Index Analyzer from caching results").build())
                 .addOption(cocoapodsAnalyzerEnabled)
                 .addOption(swiftPackageManagerAnalyzerEnabled)
+                .addOption(disableGolangPackageAnalyzer)
                 .addOption(Option.builder().longOpt(ARGUMENT.DISABLE_NODE_JS)
                         .desc("Disable the Node.js Package Analyzer.").build())
                 .addOption(Option.builder().longOpt(ARGUMENT.DISABLE_NODE_AUDIT)
@@ -1874,6 +1888,9 @@ public final class CliParser {
                 .addOption(Option.builder().longOpt(ARGUMENT.ARTIFACTORY_URL)
                         .desc("The Artifactory URL.")
                         .argName("url").hasArg(true).build())
+                .addOption(Option.builder().longOpt(ARGUMENT.PATH_TO_GO)
+                        .desc("The path to the `go` executable.")
+                        .argName("path").hasArg(true).build())
                 .addOption(retireJsFilters)
                 .addOption(nexusUrl)
                 .addOption(nexusUsername)
@@ -1881,7 +1898,6 @@ public final class CliParser {
                 .addOption(nexusUsesProxy)
                 .addOption(additionalZipExtensions)
                 .addOption(pathToCore)
-                .addOption(pathToBundleAudit)
                 .addOption(purge);
     }
 
@@ -2082,6 +2098,29 @@ public final class CliParser {
     }
 
     /**
+     * Returns true if the disableGolangMod command line argument was specified.
+     *
+     * @return true if the disableGolangMod command line argument was specified;
+     * otherwise false
+     */
+    public boolean isGolangModDisabled() {
+        return hasDisableOption(ARGUMENT.DISABLE_GOLANG_MOD, Settings.KEYS.ANALYZER_GOLANG_MOD_ENABLED);
+    }
+
+    /**
+     * Returns the path to `go` if configured.
+     *
+     * @return the path to `go` if configured
+     */
+    public String getPathToGo() {
+        if (line == null || !line.hasOption(ARGUMENT.PATH_TO_GO)) {
+            return null;
+        } else {
+            return line.getOptionValue(ARGUMENT.PATH_TO_GO);
+        }
+    }
+
+    /**
      * Returns true if the disableComposer command line argument was specified.
      *
      * @return true if the disableComposer command line argument was specified;
@@ -2097,8 +2136,8 @@ public final class CliParser {
      * @return true if the disableNexus command line argument was specified;
      * otherwise false
      */
-    public boolean isNexusDisabled() {
-        return hasDisableOption(ARGUMENT.DISABLE_NEXUS, Settings.KEYS.ANALYZER_NEXUS_ENABLED);
+    public Boolean isNexusEnabled() {
+        return (line != null && line.hasOption(ARGUMENT.ENABLE_NEXUS)) ? true : null;
     }
 
     /**
@@ -2198,6 +2237,16 @@ public final class CliParser {
      */
     public boolean isSwiftPackageAnalyzerDisabled() {
         return hasDisableOption(ARGUMENT.DISABLE_SWIFT, Settings.KEYS.ANALYZER_SWIFT_PACKAGE_MANAGER_ENABLED);
+    }
+
+    /**
+     * Returns true if the disableGolangDep command line argument was specified.
+     *
+     * @return true if the disableGolangDep command line argument was specified;
+     * otherwise false
+     */
+    public boolean isGolangDepAnalyzerDisabled() {
+        return hasDisableOption(ARGUMENT.DISABLE_GO_DEP, Settings.KEYS.ANALYZER_GOLANG_DEP_ENABLED);
     }
 
     /**
@@ -2332,10 +2381,10 @@ public final class CliParser {
         final String helpMsg = String.format("%n%s"
                 + " can be used to identify if there are any known CVE vulnerabilities in libraries utilized by an application. "
                 + "%s will automatically update required data from the Internet, such as the CVE and CPE data files from nvd.nist.gov.%n%n",
-                settings.getString("application.name", "DependencyCheck"),
-                settings.getString("application.name", "DependencyCheck"));
+                settings.getString(Settings.KEYS.APPLICATION_NAME, "DependencyCheck"),
+                settings.getString(Settings.KEYS.APPLICATION_NAME, "DependencyCheck"));
 
-        formatter.printHelp(settings.getString("application.name", "DependencyCheck"),
+        formatter.printHelp(settings.getString(Settings.KEYS.APPLICATION_NAME, "DependencyCheck"),
                 helpMsg,
                 options,
                 "",
@@ -2420,6 +2469,17 @@ public final class CliParser {
      */
     public String getPathToBundleAudit() {
         return line.getOptionValue(ARGUMENT.PATH_TO_BUNDLE_AUDIT);
+    }
+
+    /**
+     * Returns the path to the working directory that should be used when the
+     * bundle-audit command is used for Ruby bundle analysis.
+     *
+     * @return the path to the working directory that should be used when the
+     * bundle-audit command is used for Ruby bundle analysis.
+     */
+    public String getPathToBundleAuditWorkingDirectory() {
+        return line.getOptionValue(ARGUMENT.PATH_TO_BUNDLE_AUDIT_WORKING_DIRECTORY);
     }
 
     /**
@@ -2928,9 +2988,21 @@ public final class CliParser {
          */
         public static final String DISABLE_PY_PKG = "disablePyPkg";
         /**
+         * Disables the Golang Dependency Analyzer.
+         */
+        public static final String DISABLE_GO_DEP = "disableGolangDep";
+        /**
          * Disables the Python Package Analyzer.
          */
         public static final String DISABLE_COMPOSER = "disableComposer";
+        /**
+         * Disables the Golang Mod Analyzer.
+         */
+        public static final String DISABLE_GOLANG_MOD = "disableGolangMod";
+        /**
+         * The CLI argument name for setting the path to `go`.
+         */
+        public static final String PATH_TO_GO = "go";
         /**
          * Disables the Ruby Gemspec Analyzer.
          */
@@ -2978,7 +3050,7 @@ public final class CliParser {
         /**
          * Disables the Nexus Analyzer.
          */
-        public static final String DISABLE_NEXUS = "disableNexus";
+        public static final String ENABLE_NEXUS = "enableNexus";
         /**
          * Disables the Sonatype OSS Index Analyzer.
          */
@@ -3067,6 +3139,13 @@ public final class CliParser {
          * bundle analysis.
          */
         public static final String PATH_TO_BUNDLE_AUDIT = "bundleAudit";
+        /**
+         * The CLI argument name for setting the path that should be used as the
+         * working directory that the bundle-audit command used for Ruby bundle
+         * analysis should be executed from. This will allow for the usage of
+         * rbenv
+         */
+        public static final String PATH_TO_BUNDLE_AUDIT_WORKING_DIRECTORY = "bundleAuditWorkingDirectory";
         /**
          * The CLI argument to enable the experimental analyzers.
          */

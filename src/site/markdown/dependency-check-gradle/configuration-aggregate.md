@@ -81,16 +81,16 @@ The following properties can be configured in the dependencyCheck task. However,
 may be the cvedUrl properties, which can be used to host a mirror of the NVD within an enterprise environment.
 Note, if ANY of the cve configuration group are set - they should all be set to ensure things work as expected.
 
-Config Group | Property          | Description                                                                                 | Default Value                                                       |
--------------|-------------------|---------------------------------------------------------------------------------------------|---------------------------------------------------------------------|
-cve          | urlModified    | URL for the modified CVE JSON data feed.                                                       | https://nvd.nist.gov/feeds/json/cve/1.0/nvdcve-1.0-modified.json.gz |
-cve          | urlBase        | Base URL for each year's CVE JSON data feed, the %d will be replaced with the year.            | https://nvd.nist.gov/feeds/json/cve/1.0/nvdcve-1.0-%d.json.gz       |
-data         | directory         | Sets the data directory to hold SQL CVEs contents. This should generally not be changed.    | &nbsp;                                                              |
-data         | driver            | The name of the database driver. Example: org.h2.Driver.                                    | &nbsp;                                                              |
-data         | driverPath        | The path to the database driver JAR file; only used if the driver is not in the class path. | &nbsp;                                                              |
-data         | connectionString  | The connection string used to connect to the database.                                      | &nbsp;                                                              |
-data         | username          | The username used when connecting to the database.                                          | &nbsp;                                                              |
-data         | password          | The password used when connecting to the database.                                          | &nbsp;                                                              |
+Config Group | Property          | Description                                                                                                  | Default Value                                                       |
+-------------|-------------------|--------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------|
+cve          | urlModified    | URL for the modified CVE JSON data feed.                                                                        | https://nvd.nist.gov/feeds/json/cve/1.0/nvdcve-1.0-modified.json.gz |
+cve          | urlBase        | Base URL for each year's CVE JSON data feed, the %d will be replaced with the year.                             | https://nvd.nist.gov/feeds/json/cve/1.0/nvdcve-1.0-%d.json.gz       |
+data         | directory         | Sets the data directory to hold SQL CVEs contents. This should generally not be changed.                     | &nbsp;                                                              |
+data         | driver            | The name of the database driver. Example: org.h2.Driver.                                                     | &nbsp;                                                              |
+data         | driverPath        | The path to the database driver JAR file; only used if the driver is not in the class path.                  | &nbsp;                                                              |
+data         | connectionString  | The connection string used to connect to the database. See using a [database server](../data/database.html). | &nbsp;                                                              |
+data         | username          | The username used when connecting to the database.                                                           | &nbsp;                                                              |
+data         | password          | The password used when connecting to the database.                                                           | &nbsp;                                                              |
 
 #### Example
 ```groovy
@@ -136,22 +136,28 @@ analyzers    | cocoapodsEnabled      | Sets whether or not the [experimental](..
 analyzers    | swiftEnabled          | Sets whether or not the [experimental](../analyzers/index.html) Swift Package Manager Analyzer should be used.    | true
 analyzers    | bundleAuditEnabled    | Sets whether or not the [experimental](../analyzers/index.html) Ruby Bundle Audit Analyzer should be used.        | true
 analyzers    | pathToBundleAudit     | The path to bundle audit.                                                                                         | &nbsp;
+analyzers    | golangDepEnabled      | Sets whether or not the [experimental](../analyzers/index.html) Golang Dependency Analyzer should be used.        | true
+analyzers    | golangModEnabled      | Sets whether or not the [experimental](../analyzers/index.html) Goland Module Analyzer should be used; requies `go` to be installed. | true
+analyzers    | pathToGo              | The path to `go`.                                                                                                 | &nbsp;
 
 #### Additional Analyzer Configuration
 
 Config Group | Property              | Description                                                                                                       | Default Value
 -------------|-----------------------|-------------------------------------------------------------------------------------------------------------------|------------------
-artifactory  | enabled               | Sets whether Artifactory analyzer will be used                                                                    | false
+artifactory  | enabled               | Sets whether Artifactory analyzer will be used.                                                                   | false
 artifactory  | url                   | The Artifactory server URL.                                                                                       | &nbsp;
 artifactory  | usesProxy             | Whether Artifactory should be accessed through a proxy or not.                                                    | false
 artifactory  | parallelAnalysis      | Whether the Artifactory analyzer should be run in parallel or not.                                                | true
 artifactory  | username              | The user name (only used with API token) to connect to Artifactory instance.                                      | &nbsp;
 artifactory  | apiToken              | The API token to connect to Artifactory instance, only used if the username or the API key are not defined by artifactoryAnalyzerServerId,artifactoryAnalyzerUsername or artifactoryAnalyzerApiToken | &nbsp;
-artifactory  | bearerToken           | The bearer token to connect to Artifactory instance                                                               | &nbsp;
-retirejs     | enabled               | Sets whether the [experimental](../analyzers/index.html) RetireJS Analyzer should be used.                        | true
-retirejs     | retireJsUrl           | The URL to the Retire JS repository.                                                                              | https://raw.githubusercontent.com/Retirejs/retire.js/master/repository/jsrepository.json
+artifactory  | bearerToken           | The bearer token to connect to Artifactory instance.                                                              | &nbsp;
+retirejs     | enabled               | Sets whether the RetireJS Analyzer should be used.                        | true
+retirejs     | retireJsUrl           | The URL to the Retire JS repository. **Note** the file name must be `jsrepository.json`.                          | https://raw.githubusercontent.com/Retirejs/retire.js/master/repository/jsrepository.json
 retirejs     | filterNonVulnerable   | Configures the RetireJS Analyzer to remove non-vulnerable JS dependencies from the report.                        | false
 retirejs     | filters               | Configures the list of regular expessions used to filter JS files based on content.                               | &nbsp;
+ossIndex     | enabled               | Sets whether OSS Index analyzer will be used.                                                                     | true
+ossIndex     | username              | The optional user name to connect to Sonatype's OSS Index.                                                        | &nbsp;
+ossIndex     | password              | The password or API token to connect to Sonatype's OSS Index.                                                     | &nbsp;
 
 
 #### Example

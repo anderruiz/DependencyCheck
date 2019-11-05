@@ -36,6 +36,7 @@ import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
+import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.TopDocs;
@@ -274,12 +275,19 @@ public final class CpeMemoryIndex {
      * analyzers
      */
     public synchronized Query parseQuery(String searchString) throws ParseException, IndexException {
-        if (searchString == null || searchString.trim().isEmpty()) {
+        if (searchString == null || searchString.trim().isEmpty()
+                || "product:() AND vendor:()".equals(searchString)) {
             throw new ParseException("Query is null or empty");
         }
         LOGGER.debug(searchString);
 
-        final Query query = queryParser.parse(searchString);
+        Query query;
+        try {
+            query = queryParser.parse(searchString);
+        } catch (BooleanQuery.TooManyClauses ex) {
+            BooleanQuery.setMaxClauseCount(Integer.MAX_VALUE);
+            query = queryParser.parse(searchString);
+        }
         try {
             resetAnalyzers();
         } catch (IOException ex) {

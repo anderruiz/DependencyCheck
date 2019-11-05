@@ -113,6 +113,7 @@ public class Engine implements FileFilter {
                 PRE_FINDING_ANALYSIS,
                 FINDING_ANALYSIS,
                 POST_FINDING_ANALYSIS,
+                FINDING_ANALYSIS_PHASE2,
                 FINAL
         ),
         /**
@@ -662,7 +663,12 @@ public class Engine implements FileFilter {
         } catch (NoDataException ex) {
             throwFatalExceptionCollection("Unable to continue dependency-check analysis.", ex, exceptions);
         }
-
+        LOGGER.info("\n\nDependency-Check is an open source tool performing a best effort analysis of 3rd party dependencies; false positives and "
+                + "false negatives may exist in the analysis performed by the tool. Use of the tool and the reporting provided constitutes "
+                + "acceptance for use in an AS IS condition, and there are NO warranties, implied or otherwise, with regard to the analysis "
+                + "or its use. Any use of the tool and the reporting provided is at the user’s risk. In no event shall the copyright holder "
+                + "or OWASP be held liable for any damages whatsoever arising out of or in connection with the use of this tool, the analysis "
+                + "performed, or the resulting report.\n\n");
         LOGGER.debug("\n----------------------------------------------------\nBEGIN ANALYSIS\n----------------------------------------------------");
         LOGGER.info("Analysis Started");
         final long analysisStart = System.currentTimeMillis();
@@ -914,6 +920,7 @@ public class Engine implements FileFilter {
                     LOGGER.debug("locking for update");
                     dblock.lock();
                 }
+                //lock is not needed as we already have the lock held
                 openDatabase(false, false);
                 LOGGER.info("Checking for updates");
                 final long updateStart = System.currentTimeMillis();
@@ -927,7 +934,7 @@ public class Engine implements FileFilter {
                         dbUpdatesMade |= source.update(this);
                     } catch (UpdateException ex) {
                         updateException = ex;
-                        LOGGER.error(ex.getMessage());
+                        LOGGER.error(ex.getMessage(), ex);
                     }
                 }
                 if (dbUpdatesMade) {
@@ -940,6 +947,7 @@ public class Engine implements FileFilter {
                 }
                 LOGGER.info("Check for updates complete ({} ms)", System.currentTimeMillis() - updateStart);
                 if (remainOpen) {
+                    //lock is not needed as we already have the lock held
                     openDatabase(true, false);
                 }
             } catch (DatabaseException ex) {
@@ -1023,21 +1031,17 @@ public class Engine implements FileFilter {
      */
     public void openDatabase(boolean readOnly, boolean lockRequired) throws DatabaseException {
         if (mode.isDatabaseRequired() && database == null) {
-            //needed to update schema any required schema changes
-            database = new CveDB(settings);
-            if (readOnly
-                    && ConnectionFactory.isH2Connection(settings)
-                    && settings.getString(Settings.KEYS.DB_CONNECTION_STRING).contains("file:%s")) {
-                H2DBLock lock = null;
-                try {
+            H2DBLock lock = null;
+            try {
+                if (lockRequired && ConnectionFactory.isH2Connection(settings)) {
+                    lock = new H2DBLock(settings);
+                    lock.lock();
+                }
+                if (readOnly
+                        && ConnectionFactory.isH2Connection(settings)
+                        && settings.getString(Settings.KEYS.DB_CONNECTION_STRING).contains("file:%s")) {
                     final File db = ConnectionFactory.getH2DataFile(settings);
                     if (db.isFile()) {
-                        database.close();
-                        if (lockRequired) {
-                            lock = new H2DBLock(settings);
-                            lock.lock();
-                        }
-                        LOGGER.debug("copying database");
                         final File temp = settings.getTempDirectory();
                         final File tempDB = new File(temp, db.getName());
                         if(!tempDB.equals(db)) {
@@ -1050,15 +1054,23 @@ public class Engine implements FileFilter {
                             settings.setString(Settings.KEYS.DB_CONNECTION_STRING, connStr + "ACCESS_MODE_DATA=r");
                         }
                         database = new CveDB(settings);
+                    } else {
+                        throw new DatabaseException("Unable to open database - configured database file does not exist: " + db.toString());
                     }
-                } catch (IOException ex) {
-                    throw new DatabaseException("Unable to open db in read only mode", ex);
-                } catch (H2DBLockException ex) {
-                    throw new DatabaseException("Failed to obtain lock - unable to open db in read only mode", ex);
-                } finally {
-                    if (lock != null) {
-                        lock.release();
-                    }
+                } else {
+                    database = new CveDB(settings);
+                }
+            } catch (IOException ex) {
+                if (readOnly) {
+                    throw new DatabaseException("Unable to open database in read only mode", ex);
+                } else {
+                    throw new DatabaseException("Unable to open database", ex);
+                }
+            } catch (H2DBLockException ex) {
+                throw new DatabaseException("Failed to obtain lock - unable to open database", ex);
+            } finally {
+                if (lock != null) {
+                    lock.release();
                 }
             }
         }
@@ -1176,6 +1188,40 @@ public class Engine implements FileFilter {
         throw new ExceptionCollection(exceptions, true);
     }
 
+    //CSOFF: LineLength
+    /**
+     * Writes the report to the given output directory.
+     *
+     * @param applicationName the name of the application/project
+     * @param outputDir the path to the output directory (can include the full
+     * file name if the format is not ALL)
+     * @param format the report format (ALL, HTML, CSV, JSON, etc.)
+     * @throws ReportException thrown if there is an error generating the report
+     * @deprecated use
+     * {@link #writeReports(java.lang.String, java.io.File, java.lang.String, org.owasp.dependencycheck.exception.ExceptionCollection)}
+     */
+    @Deprecated
+    public void writeReports(String applicationName, File outputDir, String format) throws ReportException {
+        writeReports(applicationName, null, null, null, outputDir, format, null);
+    }
+    //CSON: LineLength
+
+    /**
+     * Writes the report to the given output directory.
+     *
+     * @param applicationName the name of the application/project
+     * @param outputDir the path to the output directory (can include the full
+     * file name if the format is not ALL)
+     * @param format the report format (ALL, HTML, CSV, JSON, etc.)
+     * @param exceptions a collection of exceptions that may have occurred
+     * during the analysis
+     * @throws ReportException thrown if there is an error generating the report
+     */
+    public void writeReports(String applicationName, File outputDir, String format, ExceptionCollection exceptions) throws ReportException {
+        writeReports(applicationName, null, null, null, outputDir, format, exceptions);
+    }
+
+    //CSOFF: LineLength
     /**
      * Writes the report to the given output directory.
      *
@@ -1187,33 +1233,45 @@ public class Engine implements FileFilter {
      * file name if the format is not ALL)
      * @param format the report format (ALL, HTML, CSV, JSON, etc.)
      * @throws ReportException thrown if there is an error generating the report
+     * @deprecated use
+     * {@link #writeReports(java.lang.String, java.lang.String, java.lang.String, java.lang.String, java.io.File, java.lang.String, org.owasp.dependencycheck.exception.ExceptionCollection)}
      */
+    @Deprecated
     public synchronized void writeReports(String applicationName, final String groupId,
             final String artifactId, final String version,
             final File outputDir, String format) throws ReportException {
+        writeReports(applicationName, groupId, artifactId, version, outputDir, format, null);
+    }
+    //CSON: LineLength
+
+    /**
+     * Writes the report to the given output directory.
+     *
+     * @param applicationName the name of the application/project
+     * @param groupId the Maven groupId
+     * @param artifactId the Maven artifactId
+     * @param version the Maven version
+     * @param outputDir the path to the output directory (can include the full
+     * file name if the format is not ALL)
+     * @param format the report format (ALL, HTML, CSV, JSON, etc.)
+     * @param exceptions a collection of exceptions that may have occurred
+     * during the analysis
+     * @throws ReportException thrown if there is an error generating the report
+     */
+    public synchronized void writeReports(String applicationName, final String groupId,
+            final String artifactId, final String version,
+            final File outputDir, String format, ExceptionCollection exceptions) throws ReportException {
         if (mode == Mode.EVIDENCE_COLLECTION) {
             throw new UnsupportedOperationException("Cannot generate report in evidence collection mode.");
         }
         final DatabaseProperties prop = database.getDatabaseProperties();
-        final ReportGenerator r = new ReportGenerator(applicationName, groupId, artifactId, version, dependencies, getAnalyzers(), prop, settings);
+        final ReportGenerator r = new ReportGenerator(applicationName, groupId, artifactId, version,
+                dependencies, getAnalyzers(), prop, settings, exceptions);
         try {
             r.write(outputDir.getAbsolutePath(), format);
         } catch (ReportException ex) {
             final String msg = String.format("Error generating the report for %s", applicationName);
             throw new ReportException(msg, ex);
         }
-    }
-
-    /**
-     * Writes the report to the given output directory.
-     *
-     * @param applicationName the name of the application/project
-     * @param outputDir the path to the output directory (can include the full
-     * file name if the format is not ALL)
-     * @param format the report format (ALL, HTML, CSV, JSON, etc.)
-     * @throws ReportException thrown if there is an error generating the report
-     */
-    public void writeReports(String applicationName, File outputDir, String format) throws ReportException {
-        writeReports(applicationName, null, null, null, outputDir, format);
     }
 }

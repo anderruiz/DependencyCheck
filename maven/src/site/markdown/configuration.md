@@ -25,14 +25,14 @@ failBuildOnAnyVulnerability | Specific that if any vulnerability is identified, 
 failOnError                 | Whether the build should fail if there is an error executing the dependency-check analysis. | true
 name                        | The name of the report in the site. | dependency-check or dependency-check:aggregate
 outputDirectory             | The location to write the report(s). Note, this is not used if generating the report as part of a `mvn site` build. | 'target'
-scanSet                     | An optional collection of filesets that specify additional files and/or directories to analyze as part of the scan. If not specified, defaults to standard Maven conventions. | src/main/resources, src/main/filters, src/main/webapp
+scanSet                     | An optional collection of filesets that specify additional files and/or directories to analyze as part of the scan. If not specified, defaults to standard Maven conventions. To specify this via the command line for maven use `-DscanSet.fileSet=['src/main']`. | ['src/main/resources', 'src/main/filters', 'src/main/webapp']
 skip                        | Skips the dependency-check analysis.                       | false
 skipProvidedScope           | Skip analysis for artifacts with Provided Scope.           | false
 skipRuntimeScope            | Skip analysis for artifacts with Runtime Scope.            | false
 skipSystemScope             | Skip analysis for artifacts with System Scope.             | false
 skipTestScope               | Skip analysis for artifacts with Test Scope.               | true
 skipDependencyManagement    | Skip analysis for dependencyManagement sections.           | true
-skipArtifactType            | A regular expression used to filter/skip artifact types.   | &nbsp;
+skipArtifactType            | A regular expression used to filter/skip artifact types.  This filters on the `type` of dependency as defined in the dependency section: jar, pom, test-jar, etc. | &nbsp;
 suppressionFiles            | The file paths to the XML suppression files \- used to suppress [false positives](../general/suppression.html). The configuration value can be a local file path, a URL to a suppression file, or even a reference to a file on the class path (see https://github.com/jeremylong/DependencyCheck/issues/1878#issuecomment-487533799) | &nbsp;
 hintsFile                   | The file path to the XML hints file \- used to resolve [false negatives](../general/hints.html).       | &nbsp;
 enableExperimental          | Enable the [experimental analyzers](../analyzers/index.html). If not enabled the experimental analyzers (see below) will not be loaded or used. | false
@@ -104,8 +104,9 @@ zipExtensions                 | A comma-separated list of additional file extens
 jarAnalyzerEnabled            | Sets whether Jar Analyzer will be used.                                   | true
 centralAnalyzerEnabled        | Sets whether Central Analyzer will be used. If this analyzer is being disabled there is a good chance you also want to disable the Nexus Analyzer (see below). | true
 centralAnalyzerUseCache       | Sets whether the Central Analyer will cache results. Cached results expire after 30 days.                  | true
-ossIndexAnalyzerEnabled       | Sets whether the OSS Index Analyzer will be enabled.                      | true
+ossindexAnalyzerEnabled       | Sets whether the OSS Index Analyzer will be enabled.                      | true
 ossindexAnalyzerUseCache      | Sets whether the OSS Index Analyzer will cache results. Cached results expire after 24 hours.              | true
+ossindexServerId              | The id of a server defined in the settings.xml to retrieve the credentials (username and password) to connect to OSS Index instance; not it is not required to have a registered account and use this configuration. | &nbsp;
 nexusAnalyzerEnabled          | Sets whether Nexus Analyzer will be used (requires Nexus Pro). This analyzer is superceded by the Central Analyzer; however, you can configure this to run against a Nexus Pro installation. | true
 nexusUrl                      | Defines the Nexus Server's web service end point (example http://domain.enterprise/service/local/). If not set the Nexus Analyzer will be disabled. | &nbsp;
 nexusServerId                 | The id of a server defined in the settings.xml that configures the credentials (username and password) for a Nexus server's REST API end point. When not specified the communication with the Nexus server's REST API will be unauthenticated. | &nbsp;
@@ -128,8 +129,8 @@ composerAnalyzerEnabled       | Sets whether the [experimental](../analyzers/ind
 nodeAnalyzerEnabled           | Sets whether the [retired](../analyzers/index.html) Node.js Analyzer should be used.                       | true
 nodeAuditAnalyzerEnabled      | Sets whether the Node Audit Analyzer should be used.                                                       | true
 nodeAuditAnalyzerUseCache     | Sets whether the Node Audit Analyzer will cache results. Cached results expire after 24 hours.             | true
-retireJsAnalyzerEnabled       | Sets whether the [experimental](../analyzers/index.html) RetireJS Analyzer should be used.                 | true
-retireJsUrl                   | The URL to the Retire JS repository.                                                                       | https://raw.githubusercontent.com/Retirejs/retire.js/master/repository/jsrepository.json
+retireJsAnalyzerEnabled       | Sets whether the RetireJS Analyzer should be used.                                                         | true
+retireJsUrl                   | The URL to the Retire JS repository. **Note** the file name must be `jsrepository.json`.                   | https://raw.githubusercontent.com/Retirejs/retire.js/master/repository/jsrepository.json
 nuspecAnalyzerEnabled         | Sets whether the .NET Nuget Nuspec Analyzer will be used.                                                  | true
 nugetconfAnalyzerEnabled      | Sets whether the [experimental](../analyzers/index.html) .NET Nuget packages.config Analyzer will be used. | true
 cocoapodsAnalyzerEnabled      | Sets whether the [experimental](../analyzers/index.html) Cocoapods Analyzer should be used.                | true
@@ -137,7 +138,10 @@ bundleAuditAnalyzerEnabled    | Sets whether the [experimental](../analyzers/ind
 bundleAuditPath               | Sets the path to the bundle audit executable; only used if bundle audit analyzer is enabled and experimental analyzers are enabled.  | &nbsp;
 swiftPackageManagerAnalyzerEnabled | Sets whether the [experimental](../analyzers/index.html) Swift Package Analyzer should be used.       | true
 assemblyAnalyzerEnabled       | Sets whether the .NET Assembly Analyzer should be used.                                                    | true
-pathToMono                    | The path to Mono for .NET assembly analysis on non-windows systems.                                        | &nbsp;
+pathToCore                          | The path to dotnet core .NET assembly analysis on non-windows systems.                                     | &nbsp;
+golangDepEnabled                    | Sets whether or not the [experimental](../analyzers/index.html) Golang Dependency Analyzer should be used. | true
+golangModEnabled                    | Sets whether or not the [experimental](../analyzers/index.html) Goland Module Analyzer should be used; requires `go` to be installed. | true
+pathToGo                            | The path to `go`.                                                                                          | &nbsp;
 
 RetireJS Configuration
 ====================
@@ -190,7 +194,7 @@ connectionTimeout    | Sets the URL Connection Timeout used when downloading ext
 dataDirectory        | Sets the data directory to hold SQL CVEs contents. This should generally not be changed.                             | ~/.m2/repository/org/owasp/dependency-check-data/                   |
 databaseDriverName   | The name of the database driver. Example: org.h2.Driver.                                                             | &nbsp;                                                              |
 databaseDriverPath   | The path to the database driver JAR file; only used if the driver is not in the class path.                          | &nbsp;                                                              |
-connectionString     | The connection string used to connect to the database.                                                               | &nbsp;                                                              |
+connectionString     | The connection string used to connect to the database.   See using a [database server](../data/database.html).       | &nbsp;                                                              |
 serverId             | The id of a server defined in the settings.xml; this can be used to encrypt the database password. See [password encryption](http://maven.apache.org/guides/mini/guide-encryption.html) for more information. | &nbsp; |
 databaseUser         | The username used when connecting to the database.                                                                   | &nbsp;                                                              |
 databasePassword     | The password used when connecting to the database.                                                                   | &nbsp;                                                              |

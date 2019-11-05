@@ -16,7 +16,7 @@ limitations under the License.
 Copyright (c) 2012 Jeremy Long. All Rights Reserved.
 
 @author Jeremy Long <jeremy.long@owasp.org>
-@version 1.2
+@version 1.3
 *#
 
 
@@ -78,8 +78,13 @@ Copyright (c) 2012 Jeremy Long. All Rights Reserved.
                 $('#modal-text').bind('copy cut', function() {
                     setTimeout('$("#modal-content,#modal-background").toggleClass("active");',100);
                 });
+                $('#modal-text').keyup(function(e){
+                    if(e.keyCode === 27) {
+                        setTimeout('$("#modal-content,#modal-background").toggleClass("active");',100);
+                    }
+                });
                 $('#modal-add-header').click(function () {
-                    xml = '<?xml version="1.0" encoding="UTF-8"?>\n<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.2.xsd">\n   ';
+                    xml = '<?xml version="1.0" encoding="UTF-8"?>\n<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">\n   ';
                     xml += $("#modal-text").text().replace(/\n/g,'\n   ');
                     xml += '\n</suppressions>';
                     $('#modal-add-header').toggleClass('active');
@@ -88,7 +93,7 @@ Copyright (c) 2012 Jeremy Long. All Rights Reserved.
             });
             function suppressSwitchTo(switchTo) {
                 $('#modal-suppress-change-to-sha1').toggleClass('active');
-                $('#modal-suppress-change-to-gav').toggleClass('active');
+                $('#modal-suppress-change-to-packageUrl').toggleClass('active');
                 if (!$('#modal-add-header').hasClass('active')) {
                     $('#modal-add-header').toggleClass('active');
                 }
@@ -98,37 +103,40 @@ Copyright (c) 2012 Jeremy Long. All Rights Reserved.
                             $('#suppress-type').val(), 
                             $('#suppress-val').val());
             }
-            function copyText(name, sha1, gav, type, val) {
+            function copyText(name, sha1, packageUrl, type, val) {
                 $('#suppress-name').val(name);
                 $('#suppress-type').val(type);
                 $('#suppress-val').val(val);
                 $('#suppress-sha1').val(sha1);
-                $('#suppress-gav').val(gav);
-                if (gav=='') {
-                    if ($('#modal-suppress-change-to-gav').hasClass('active')) {
-                        $('#modal-suppress-change-to-gav').toggleClass('active');
+                $('#suppress-packageUrl').val(packageUrl);
+                if (packageUrl=='') {
+                    if ($('#modal-suppress-change-to-packageUrl').hasClass('active')) {
+                        $('#modal-suppress-change-to-packageUrl').toggleClass('active');
                     }
                     if ($('#modal-suppress-change-to-sha1').hasClass('active')) {
                         $('#modal-suppress-change-to-sha1').toggleClass('active');
                     }
                     setCopyText(name, 'sha1', sha1, type, val);
                 } else {
-                    if ($('#modal-suppress-change-to-gav').hasClass('active')) {
-                        $('#modal-suppress-change-to-gav').toggleClass('active');
+                    if ($('#modal-suppress-change-to-packageUrl').hasClass('active')) {
+                        $('#modal-suppress-change-to-packageUrl').toggleClass('active');
                     }
                     if (!$('#modal-suppress-change-to-sha1').hasClass('active')) {
                         $('#modal-suppress-change-to-sha1').toggleClass('active');
                     }
-                    setCopyText(name, 'gav', gav, type, val);
+                    setCopyText(name, 'packageUrl', packageUrl, type, val);
                 }
+            }
+            function escapeRegExp(text) {
+              return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
             }
             function setCopyText(name, matchType, matchValue, suppressType, suppressVal) {
                 xml =  '<suppress>\n';
                 xml += '   <notes><!'+'[CDATA[\n   file name: ' + name + '\n   ]]'+'></notes>\n';
-                if (matchType=='gav') {
-                    v = matchValue.match(/^[^:]+:[^:]+:/);
+                if (matchType=='packageUrl') {
+                    v = matchValue.match(/^[^@]+/);
                     if (v && v[0]) {
-                        xml += '   <'+matchType+' regex="true">^' + v[0].replace(/\./g,'\\.') + '.*$</'+matchType+'>\n';
+                        xml += '   <'+matchType+' regex="true">^' + escapeRegExp(v[0]) + '@.*$</'+matchType+'>\n';
                     } else {
                         xml += '   <'+matchType+'>' + matchValue + '</'+matchType+'>\n';
                     }
@@ -567,11 +575,11 @@ Copyright (c) 2012 Jeremy Long. All Rights Reserved.
         <div id="modal-background"></div>
         <div id="modal-content">
             <div>Press CTR-C to copy XML&nbsp;<a href="http://jeremylong.github.io/DependencyCheck/general/suppression.html" class="infolink" target="_blank" title="Help with suppressing false positives">[help]</a></div>
-                <button onclick="suppressSwitchTo('gav')" id="modal-suppress-change-to-gav" class="modal-button suppresstype" title="Supress by Maven Group Artifact Version">Suppress By GAV</button>
+                <button onclick="suppressSwitchTo('packageUrl')" id="modal-suppress-change-to-packageUrl" class="modal-button suppresstype" title="Supress by Maven Group Artifact Version">Suppress By GAV</button>
                 <button onclick="suppressSwitchTo('sha1')" id="modal-suppress-change-to-sha1" class="modal-button suppresstype" title="Supress by SHA1 hash">Suppress By SHA1</button><br/>
                 <input type="hidden" id="suppress-name"/>
                 <input type="hidden" id="suppress-type"/><input type="hidden" id="suppress-val"/>
-                <input type="hidden" id="suppress-sha1"/><input type="hidden" id="suppress-gav"/>
+                <input type="hidden" id="suppress-sha1"/><input type="hidden" id="suppress-packageUrl"/>
                 <textarea id="modal-text" cols="50" rows="10" readonly></textarea><br/>
                 <button id="modal-add-header" title="Add the parent XML nodes to create the complete XML file that can be used to suppress this finding" class="modal-button">Complete XML Doc</button><button id="modal-close" class="modal-button-right">Close</button>
         </div>
@@ -624,6 +632,36 @@ Getting Help: <a href="https://github.com/jeremylong/DependencyCheck/issues" tar
                         <li class="scaninfo hidden"><i>$enc.html($prop.key)</i>: $enc.html($prop.value)</li>
                         #end
                     </ul><br/>
+                #set($cnt=0)
+#if($exceptions)
+    #macro( writeException $type $ex $depth)
+        #set($cnt=$cnt+1)
+        <h4 id="header$cnt" class="subsectionheader expandable expandablesubsection white">$enc.html($ex.getMessage())</h4>
+        <div id="content$cnt" class="subsectioncontent standardsubsection hidden">
+        <b>$type</b>: $enc.html($ex.toString())
+        #if($ex.getStackTrace())
+            <pre>
+            #foreach($t in $ex.getStackTrace())
+                $enc.html($t.toString())<br/>
+            #end
+            </pre>
+        #end
+        #if($ex.getCause() && $depth<20)
+            #set($cause="cause")
+            #set($currentDepth=$depth+1)
+            #writeException($cause $ex.getCause() $currentDepth)
+        #end
+        </div>
+    #end
+        <h2>Analysis Exceptions</h2>
+            #foreach($ex in $exceptions)
+                #set($type="exception")
+                #set($d=0)
+                #writeException($type $ex $d)
+            #end
+        <br/>
+#end
+<h2>Summary</h2>
                 Display:&nbsp;<a href="#" title="Click to toggle display" onclick="return toggleDisplay(this, '.notvulnerable', 'Showing Vulnerable Dependencies (click to show all)', 'Showing All Dependencies (click to show less)'); return false;">Showing Vulnerable Dependencies (click to show all)</a><br/><br/>
                 #set($lnkcnt=0)
                 <table id="summaryTable" class="lined">
@@ -715,7 +753,6 @@ Getting Help: <a href="https://github.com/jeremylong/DependencyCheck/issues" tar
                 </table>
                 <h2>Dependencies</h2>
                 #set($lnkcnt=0)
-                #set($cnt=0)
                 #set($vsctr=0) ##counter to create unique groups for vulnerable software
                 #foreach($dependency in $dependencies)
                     #set($lnkcnt=$lnkcnt+1)
@@ -800,14 +837,14 @@ Getting Help: <a href="https://github.com/jeremylong/DependencyCheck/issues" tar
                         <h4 id="header$cnt" class="subsectionheader white">Identifiers</h4>
                         ##:&nbsp;<a href="https://web.nvd.nist.gov/view/vuln/search-results?adv_search=true&cves=on&cpe_version=$enc.url($cpevalue)" target="_blank">$enc.html($cpevalue)</a></h4>
                         <div id="content$cnt" class="subsectioncontent standardsubsection">
-                        #set($suppressGav='')
+                        #set($supressPkgUrl='')
                         #if ($dependency.getSoftwareIdentifiers().size()==0 && $dependency.getVulnerableSoftwareIdentifiers().size()==0)
                             <ul><li><b>None</b></li></ul>
                         #else
                             <ul>
                             #foreach($id in $dependency.getSoftwareIdentifiers())
-                                #set($suppressGav=$rpt.identifierToSuppressionId($id))
-                                #if ($suppressGav)
+                                #set($supressPkgUrl=$rpt.identifierToSuppressionId($id))
+                                #if ($supressPkgUrl)
                                     #break
                                 #end
                             #end
@@ -834,7 +871,7 @@ Getting Help: <a href="https://github.com/jeremylong/DependencyCheck/issues" tar
                                 #if ($id.confidence)
                                     &nbsp;&nbsp;(<i>Confidence</i>:$WordUtils.capitalizeFully($id.confidence.toString()))
                                 #end
-                                &nbsp;&nbsp;<button class="copybutton" title="Generate Suppression XML for the identified vulnerability identifier" onclick="copyText('$enc.javascript($dependency.DisplayFileName)', '$enc.javascript($dependency.Sha1sum)', '#if($suppressGav)$enc.javascript($suppressGav)#end', 'cpe', '$enc.javascript($rpt.identifierToSuppressionId($id))')">suppress</button>
+                                &nbsp;&nbsp;<button class="copybutton" title="Generate Suppression XML for the identified vulnerability identifier" onclick="copyText('$enc.javascript($dependency.DisplayFileName)', '$enc.javascript($dependency.Sha1sum)', '#if($supressPkgUrl)$enc.javascript($supressPkgUrl)#end', 'cpe', '$enc.javascript($rpt.identifierToSuppressionId($id))')">suppress</button>
                                 #if ($id.notes)
                                     <ul><li>Notes: $enc.html($id.notes)</li></ul>
                                 #end
@@ -850,14 +887,20 @@ Getting Help: <a href="https://github.com/jeremylong/DependencyCheck/issues" tar
                         #foreach($vuln in $dependency.getVulnerabilities(true))
                             #set($vsctr=$vsctr+1)
                             #if($vuln.getSource().name().equals("NVD"))
-                                <p><b><a target="_blank" href="http://web.nvd.nist.gov/view/vuln/detail?vulnId=$enc.url($vuln.name)">$enc.html($vuln.name)</a></b>&nbsp;&nbsp;<button class="copybutton" title="Generate Suppression XML for this CCE for this file" onclick="copyText('$enc.javascript($dependency.DisplayFileName)', '$enc.javascript($dependency.Sha1sum)', '#if($suppressGav)$enc.javascript($suppressGav)#end', 'cve', '$enc.javascript($vuln.name)')">suppress</button></p>
+                                <p><b><a target="_blank" href="http://web.nvd.nist.gov/view/vuln/detail?vulnId=$enc.url($vuln.name)">$enc.html($vuln.name)</a></b>&nbsp;&nbsp;<button class="copybutton" title="Generate Suppression XML for this CCE for this file" onclick="copyText('$enc.javascript($dependency.DisplayFileName)', '$enc.javascript($dependency.Sha1sum)', '#if($supressPkgUrl)$enc.javascript($supressPkgUrl)#end', 'cve', '$enc.javascript($vuln.name)')">suppress</button></p>
                             #elseif($vuln.getSource().name().equals("NPM"))
-                                <p><b><a target="_blank" href="https://www.npmjs.com/advisories/$enc.url($vuln.name)">NPM-$enc.html($vuln.name)</a></b></p>
+                                <p><b><a target="_blank" href="https://www.npmjs.com/advisories/$enc.url($vuln.name)">NPM-$enc.html($vuln.name)</a></b>&nbsp;&nbsp;<button class="copybutton" title="Generate Suppression XML for this CCE for this file" onclick="copyText('$enc.javascript($dependency.DisplayFileName)', '$enc.javascript($dependency.Sha1sum)', '#if($supressPkgUrl)$enc.javascript($supressPkgUrl)#end', 'vulnerabilityName', '$enc.javascript($vuln.name)')">suppress</button></p>
                             #else
-                                <p><b>$enc.html($vuln.name)</b> ($vuln.getSource().name())</p>
+                                <p><b>$enc.html($vuln.name)</b>&nbsp;($vuln.getSource().name())</b>&nbsp;&nbsp;<button class="copybutton" title="Generate Suppression XML for this CCE for this file" onclick="copyText('$enc.javascript($dependency.DisplayFileName)', '$enc.javascript($dependency.Sha1sum)', '#if($supressPkgUrl)$enc.javascript($supressPkgUrl)#end', 'vulnerabilityName', '$enc.javascript($vuln.name)')">suppress</button></p>
                             #end
                             <p>#if($vuln.description)
                             <pre>$enc.html($vuln.description)</pre>
+                            #end
+                            #if ($vuln.cwes)
+                                $vuln.cwes.toString()<br/><br/>
+                            #end
+                            #if ($vuln.notes)
+                                Notes: $enc.html($vuln.notes)<br/><br/>
                             #end
                             #if($vuln.getCvssV2())
                             CVSSv2:
@@ -871,12 +914,6 @@ Getting Help: <a href="https://github.com/jeremylong/DependencyCheck/issues" tar
                             #end
                             #if ($vuln.unscoredSeverity)
                                 <ul><li>Severity: $enc.html($vuln.unscoredSeverity)</li></ul>
-                            #end
-                            #if ($vuln.cwe)
-                                <br/>CWE: $vuln.cwe.toString()
-                            #end
-                            #if ($vuln.notes)
-                                <br/>Notes: $enc.html($vuln.notes)
                             #end
                             #if ($vuln.getReferences().size()>0)
                                 <br/>References:<ul>
@@ -1026,6 +1063,12 @@ Getting Help: <a href="https://github.com/jeremylong/DependencyCheck/issues" tar
                                     <p>#if($vuln.description)
                                     <pre>$enc.html($vuln.description)</pre>
                                     #end
+                                    #if ($vuln.cwes)
+                                        $vuln.cwes.toString()<br/><br/>
+                                    #end
+                                    #if ($vuln.notes)
+                                        Notes: $enc.html($vuln.notes)<br/><br/>
+                                    #end
                                     #if($vuln.getCvssV2())
                                     CVSSv2:
                                     <ul><li>Base Score: $enc.html($vuln.getCvssV2().getSeverity()) ($vuln.getCvssV2().getScore())</li>
@@ -1038,12 +1081,6 @@ Getting Help: <a href="https://github.com/jeremylong/DependencyCheck/issues" tar
                                     #end
                                     #if ($vuln.unscoredSeverity)
                                         <ul><li>Severity: $enc.html($vuln.unscoredSeverity)</li></ul>
-                                    #end
-                                    #if ($vuln.cwe)
-                                        <br/>CWE: $vuln.cwe.toString()
-                                    #end
-                                    #if ($vuln.notes)
-                                        <br/>Notes: $enc.html($vuln.notes)
                                     #end
                                     #if ($vuln.getReferences().size()>0)
                                         <br/>References: <ul>

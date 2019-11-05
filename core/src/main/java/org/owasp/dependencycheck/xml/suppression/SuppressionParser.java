@@ -37,6 +37,7 @@ import org.owasp.dependencycheck.utils.XmlUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.xml.sax.EntityResolver;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 import org.xml.sax.XMLReader;
@@ -53,6 +54,10 @@ public class SuppressionParser {
      * The logger.
      */
     private static final Logger LOGGER = LoggerFactory.getLogger(SuppressionParser.class);
+    /**
+     * The suppression schema file location for v 1.3.
+     */
+    public static final String SUPPRESSION_SCHEMA_1_3 = "schema/dependency-suppression.1.3.xsd";
     /**
      * The suppression schema file location for v 1.2.
      */
@@ -98,16 +103,18 @@ public class SuppressionParser {
      * @throws SAXException thrown if the XML cannot be parsed
      */
     public List<SuppressionRule> parseSuppressionRules(InputStream inputStream) throws SuppressionParseException, SAXException {
-    	InputStream schemaStream12 = null, schemaStream11 = null, schemaStream10 = null;
+    	InputStream schemaStream13 = null, schemaStream12 = null, schemaStream11 = null, schemaStream10 = null;
         try  {
+        	schemaStream13 = FileUtils.getResourceAsStream(SUPPRESSION_SCHEMA_1_3);
         	schemaStream12 = FileUtils.getResourceAsStream(SUPPRESSION_SCHEMA_1_2);
             schemaStream11 = FileUtils.getResourceAsStream(SUPPRESSION_SCHEMA_1_1);
             schemaStream10 = FileUtils.getResourceAsStream(SUPPRESSION_SCHEMA_1_0);
             final SuppressionHandler handler = new SuppressionHandler();
-            final SAXParser saxParser = XmlUtils.buildSecureSaxParser(schemaStream12, schemaStream11, schemaStream10);
+            final SAXParser saxParser = XmlUtils.buildSecureSaxParser(schemaStream13, schemaStream12, schemaStream11, schemaStream10);
             final XMLReader xmlReader = saxParser.getXMLReader();
             xmlReader.setErrorHandler(new SuppressionErrorHandler());
             xmlReader.setContentHandler(handler);
+            xmlReader.setEntityResolver(new ClassloaderResolver());
             try (Reader reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8)) {
                 final InputSource in = new InputSource(reader);
                 xmlReader.parse(in);
@@ -127,9 +134,31 @@ public class SuppressionParser {
             LOGGER.debug("", ex);
             throw new SuppressionParseException(ex);
         } finally {
+        	IOUtils.closeQuietly(schemaStream13);
         	IOUtils.closeQuietly(schemaStream12);
         	IOUtils.closeQuietly(schemaStream11);
         	IOUtils.closeQuietly(schemaStream10);
+        }
+    }
+
+    /**
+     * Load HTTPS schema resources locally from the JAR files resources.
+     */
+    private static class ClassloaderResolver implements EntityResolver {
+
+        @Override
+        public InputSource resolveEntity(String publicId, String systemId) throws SAXException, IOException {
+
+            if (systemId != null && systemId.startsWith("https://jeremylong.github.io/DependencyCheck/")) {
+                final String resource = "schema/" + systemId.substring(45);
+                final InputStream in = SuppressionParser.class.getClassLoader().getResourceAsStream(resource);
+                if (in != null) {
+                    final InputSource source = new InputSource(in);
+                    source.setSystemId(systemId);
+                    return source;
+                }
+            }
+            return null;
         }
     }
 }

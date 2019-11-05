@@ -48,7 +48,7 @@ public class HdivResourceConnectionUtils {
 	}
 	
 
-	static InputStream fetch(final URL url, HttpResourceConnection connection) throws DownloadFailedException {
+	static InputStream fetch(final URL url, HttpResourceConnection connection) throws DownloadFailedException, TooManyRequestsException, ResourceNotFoundException {
 		int retries = 10;
 		DownloadFailedException last = null;
 		while (retries-- > 1) {

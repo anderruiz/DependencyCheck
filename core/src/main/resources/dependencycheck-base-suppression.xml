@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.1.xsd">
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
     <suppress base="true">
         <notes><![CDATA[
        This suppresses false positives for Microsoft.VisualStudio.QualityTools.UnitTestFramework.dll.
@@ -38,24 +38,24 @@
         <cpe>cpe:/a:pivotal_software:spring_framework</cpe>
     </suppress>
     <suppress base="true">
-       <notes><![CDATA[
+        <notes><![CDATA[
        Don't flag specific CVEs for spring framework related components (i.e. org.springframework.data).
        ]]></notes>
-       <gav regex="true">^org\.springframework\..*$</gav>
-       <cve>CVE-2016-9878</cve>
-       <cve>CVE-2018-1270</cve>
-       <cve>CVE-2018-1271</cve>
-       <cve>CVE-2018-1272</cve>
+        <gav regex="true">^org\.springframework\..*$</gav>
+        <cve>CVE-2016-9878</cve>
+        <cve>CVE-2018-1270</cve>
+        <cve>CVE-2018-1271</cve>
+        <cve>CVE-2018-1272</cve>
     </suppress>
     <suppress base="true">
-       <notes><![CDATA[
+        <notes><![CDATA[
        False positive per #1513. Spring-boot-starter-data-rest is not data-rest (however, it does
            depend on spring-data-rest so the actual library will get flagged instead of the "boot" version
            being flagged as spring-data-rest with the wrong version number)
        ]]></notes>
-       <gav regex="true">^org\.springframework\.boot:spring-boot-starter-data-rest:.*$</gav>
-       <cpe>cpe:/a:pivotal_software:spring_data_rest</cpe>
-       <cpe>cpe:/a:pivotal_software:spring_boot</cpe>
+        <gav regex="true">^org\.springframework\.boot:spring-boot-starter-data-rest:.*$</gav>
+        <cpe>cpe:/a:pivotal_software:spring_data_rest</cpe>
+        <cpe>cpe:/a:pivotal_software:spring_boot</cpe>
     </suppress>
     <suppress base="true">
         <notes><![CDATA[
@@ -112,6 +112,8 @@
             36. <cpe>cpe:/a:json-jwt_project:json-jwt</cpe> is a ruby lib #1791
             37. <cpe>cpe:/a:zip_project:zip</cpe> is an etherium related project #1788
             38. <cpe>cpe:/a:echo_project:echo</cpe> is a php media wiki project #1786
+            39. <cpe>cpe:/a:util-linux_project:util-linux</cpe> c util on linux #2069
+            40. <cpe>cpe:/a:bitmap_project:bitmap</cpe> is a C library #1961
         ]]></notes>
         <filePath regex="true">.*(\.(dll|jar|ear|war|pom|nupkg|nuspec|aar)|pom\.xml|package.json|packages.config)$</filePath>
         <cpe>cpe:/a:sandbox:sandbox</cpe>
@@ -155,6 +157,8 @@
         <cpe>cpe:/a:json-jwt_project:json-jwt</cpe>
         <cpe>cpe:/a:zip_project:zip</cpe>
         <cpe>cpe:/a:echo_project:echo</cpe>
+        <cpe>cpe:/a:util-linux_project:util-linux</cpe>
+        <cpe>cpe:/a:bitmap_project:bitmap</cpe>
     </suppress>
     <suppress base="true">
         <notes><![CDATA[
@@ -171,6 +175,9 @@
             8. CVE-2017-16046 is for the node.js npm mariadb client (#1364)
             9. sqlserver_project is a node js module (#1388)
             10. auth0 is a javascript library (#1925)
+            11. JAR files should not be identified as github
+            12. <cpe>cpe:/a:data-tools_project:data_tools</cpe> is a python project #1961
+            13. flow_project reports an Ethereum token issue
         ]]></notes>
         <filePath regex="true">.*(\.(jar|ear|war|pom)|pom\.xml)$</filePath>
         <cpe>cpe:/a:dash:dash</cpe>
@@ -185,6 +192,9 @@
         <cve>CVE-2017-16046</cve>
         <cpe>cpe:/a:sqlserver_project:sqlserver</cpe>
         <cpe>cpe:/a:auth0:auth0</cpe>
+        <cpe>cpe:/a:github:github</cpe>
+        <cpe>cpe:/a:data-tools_project:data_tools</cpe>
+        <cpe>cpe:/a:flow_project:flow</cpe>
     </suppress>
     <suppress base="true">
         <notes><![CDATA[
@@ -199,7 +209,21 @@
         ]]></notes>
         <gav regex="true">^de\.siegmar:logback-gelf:.*$</gav>
         <cpe>cpe:/a:logback:logback</cpe>
-     </suppress>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        False positive per #2001 & #2109
+        ]]></notes>
+        <gav regex="true">^io\.prometheus:simple.*$</gav>
+        <cve>CVE-2019-3826</cve>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        False positive per  #2109
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/io\.prometheus/simpleclient_logback@.*$</packageUrl>
+        <cpe>cpe:/a:logback:logback</cpe>
+    </suppress>
     <suppress base="true">
         <notes><![CDATA[
         Suppresses false positives per #1566.
@@ -238,11 +262,11 @@
         <cpe>cpe:/a:useragent_project:useragent</cpe>
     </suppress>
     <suppress base="true">
-       <notes><![CDATA[
+        <notes><![CDATA[
        Supress false positives per issue #1872
        ]]></notes>
-       <gav regex="true">^org\.springframework\.security\.oauth:spring-security-oauth2:.*$</gav>
-       <cpe>cpe:/a:pivotal_software:spring_security</cpe>
+        <gav regex="true">^org\.springframework\.security\.oauth:spring-security-oauth2:.*$</gav>
+        <cpe>cpe:/a:pivotal_software:spring_security</cpe>
     </suppress>
     <suppress base="true">
         <notes><![CDATA[
@@ -349,6 +373,103 @@
         <cpe>cpe:/a:oracle:glassfish</cpe>
         <cpe>cpe:/a:oracle:glassfish_server</cpe>
     </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        Akka FP per #2050
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/io\.kamon/kamon\-akka.*$</packageUrl>
+        <cpe>cpe:/a:akka:akka</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        FP per #1877
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven\/org\.apache\.sling/org\.apache\.sling\.auth\.core@.*$</packageUrl>
+        <cpe regex="true">^cpe:/a:apache:sling(?!_auth_core).*$</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        FP per #1877
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/org\.apache\.sling/org\.apache\.sling\.(?!auth\.core).*$</packageUrl>
+        <cve>CVE-2013-4390</cve>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        FP per #1877
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/org\.apache\.sling/org\.apache\.sling.*$</packageUrl>
+        <cve>CVE-2016-0956</cve>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        FP per #2026
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/io\.undertow/.*$</packageUrl>
+        <cve>CVE-2018-1067</cve>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        FP per #2026 & #2077
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/io\.undertow\..*$</packageUrl>
+        <cpe>cpe:/a:redhat:undertow</cpe>
+        <cpe>cpe:/a:oracle:jsp</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        FP per #872 - really not a fan of this as it appears several pieces of AspNetCore are
+            packaged under different names so you can grab a specific new bit of code. As
+            such, one may miss that the fix is in one of the sub components that is repackaged.
+        ]]></notes>
+        <packageUrl regex="true">^pkg:(generic|nuget)/Microsoft\.AspNetCore\..*$</packageUrl>
+        <cpe>cpe:/a:microsoft:aspnetcore</cpe>
+        <cpe>cpe:/a:microsoft:asp.net_core</cpe>
+        <cpe>cpe:/a:microsoft:asp.net</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        FP per #872 - really not a fan of this as it appears several pieces of AspNetCore are
+            packaged under different names so you can grab a specific new bit of code. As
+            such, one may miss that the fix is in one of the sub components that is repackaged.
+        ]]></notes>
+        <packageUrl regex="true">^pkg:(generic|nuget)/Microsoft\.Net\..*$</packageUrl>
+        <cpe>cpe:/a:microsoft:aspnetcore</cpe>
+        <cpe>cpe:/a:microsoft:asp.net_core</cpe>
+        <cpe>cpe:/a:microsoft:asp.net</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        FP per #872 - really not a fan of this as it appears several pieces of AspNetCore are
+                 packaged under different names so you can grab a specific new bit of code. As
+                 such, one may miss that the fix is in one of the sub components that is repackaged.
+        ]]></notes>
+        <packageUrl regex="true">^pkg:(generic|nuget)/Microsoft\.Extensions\..*$</packageUrl>
+        <cpe>cpe:/a:microsoft:aspnetcore</cpe>
+        <cpe>cpe:/a:microsoft:asp.net_core</cpe>
+        <cpe>cpe:/a:microsoft:asp.net</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        FP per #872
+        ]]></notes>
+        <packageUrl regex="true">^pkg:(generic|nuget)/Swashbuckle\..*$</packageUrl>
+        <cpe>cpe:/a:asp-project:asp-project</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        FP per #872
+        ]]></notes>
+        <packageUrl regex="true">^pkg:(generic|nuget)/Microsoft\.AspNetCore\.JsonPatch@.*$</packageUrl>
+        <cpe>cpe:/a:json-patch_project:json-patch</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        FP per #1968
+        ]]></notes>
+        <packageUrl regex="true">^pkg:(generic|nuget)/Microsoft\.Win32\.Registry\.AccessControl@.*$</packageUrl>
+        <cpe>cpe:/a:microsoft:access</cpe>
+    </suppress>
     <!--suppress base="true">
         <notes><![CDATA[
         This was added to a broader suppression ruleg
@@ -398,7 +519,7 @@
         ]]></notes>
         <gav regex="true">^org\.apache\.httpcomponents:httpmime:.*$</gav>
         <cpe>cpe:/a:apache:httpclient</cpe>
-     </suppress>
+    </suppress>
     <suppress base="true">
         <notes><![CDATA[
         FP per #1515
@@ -462,13 +583,37 @@
     </suppress>
     <suppress base="true">
         <notes><![CDATA[
+        FP per #2031
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/org\.wildfly/wildfly\-microprofile\-config\-implementation@.*$</packageUrl>
+        <cpe regex="true">cpe:/a:(wildfly|redhat):wildfly.*</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        FP per #2202
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/org\.wildfly.*(common|config|cli|naming|security|elytron|arquillian|ejb|weld|naming|manager|swarm|transaction|undertow).*$</packageUrl>
+        <cpe regex="true">cpe:/a:(wildfly|redhat):wildfly.*</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        FP per #2047
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/org\.openapitools/jackson\-databind\-nullable@.*$</packageUrl>
+        <cpe>cpe:/a:fasterxml:jackson</cpe>
+        <cpe>cpe:/a:fasterxml:jackson-databind</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
         Suppresses false positives on the org.opensaml:xmltooling
             FP per issue #945
+            FP per issue #2030
         ]]></notes>
         <gav regex="true">org\.opensaml:xmltooling:.*</gav>
         <cpe>cpe:/a:shibboleth:opensaml</cpe>
         <cpe>cpe:/a:internet2:opensaml</cpe>
         <cve>CVE-2015-0851</cve>
+        <cve>CVE-2019-9628</cve>
     </suppress>
     <suppress base="true">
         <notes><![CDATA[
@@ -647,6 +792,13 @@
     </suppress>
     <suppress base="true">
         <notes><![CDATA[
+        FP per #2070
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/org\.springframework\.boot/spring\-boot\-starter\-web\-services@.*$</packageUrl>
+        <cpe>cpe:/a:pivotal_software:spring_web_services</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
         suppress false positives per issue #1622
         ]]></notes>
         <gav regex="true">^org\.openjdk\.jmh:jmh-core:.*$</gav>
@@ -695,6 +847,63 @@
         ]]></notes>
         <gav regex="true">io\.dropwizard\.metrics:metrics-jetty:.*</gav>
         <cpe>cpe:/a:jetty:jetty</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        false positive per issue #1961
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/org\.gagravarr/vorbis\-java\-tika@.*$</packageUrl>
+        <cpe>cpe:/a:apache:tika</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        false positive per issue #1961
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/edu\.usc\.ir/sentiment\-analysis\-parser@.*$</packageUrl>
+        <cpe>cpe:/a:apache:opennlp</cpe>
+        <cpe>cpe:/a:apache:tika</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        Suppresses false positives per #1961.
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/org\.apache\.avro/avro\-mapred@.*$</packageUrl>
+        <cpe>cpe:/a:apache:hadoop</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        Suppresses false positives per #1961. Scalap is not scala.
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/org\.scala\-lang/scalap@.*$</packageUrl>
+        <cpe>cpe:/a:scala-lang:scala</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        Suppresses false positives per #1961. Scalap is not scala.
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/org\.scala\-lang/scalap@.*$</packageUrl>
+        <vulnerabilityName>CVE-2017-15288</vulnerabilityName>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        Suppresses false positives per #1961. spark-sketch is not sketch - an vector drawing tool.
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/org\.apache\.spark/spark\-sketch_2\.10@.*$</packageUrl>
+        <cpe>cpe:/a:sketch:sketch</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        Suppresses false positives per #1961. parqueet is not hadoop.
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/org\.apache\.parquet/parquet\-hadoop@.*$</packageUrl>
+        <cpe>cpe:/a:apache:hadoop</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        Jetbrains annotations is not the IDE
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/com\.intellij/annotations@.*$</packageUrl>
+        <cpe>cpe:/a:jetbrains:intellij_idea</cpe>
     </suppress>
     <suppress base="true">
         <notes><![CDATA[
@@ -762,6 +971,13 @@
     </suppress>
     <suppress base="true">
         <notes><![CDATA[
+        FP per #2029
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/org\.opensaml/openws@.*$</packageUrl>
+        <cpe>cpe:/a:shibboleth:opensaml</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
         false positives per #1631
         ]]></notes>
         <gav regex="true">^org\.apache\.servicemix\.bundles:org\.apache\.servicemix\.bundles\.not-yet-commons-ssl:.*$</gav>
@@ -773,7 +989,7 @@
         ]]></notes>
         <gav regex="true">^org\.apache\.cxf\.fediz:fediz-core:.*$</gav>
         <cpe>cpe:/a:apache:cxf</cpe>
-     </suppress>
+    </suppress>
     <suppress base="true">
         <notes><![CDATA[
         false positive in drop wizard
@@ -825,11 +1041,11 @@
         <cve>CVE-2015-4035</cve>
     </suppress>
     <suppress base="true">
-       <notes><![CDATA[
+        <notes><![CDATA[
        https://github.com/processing/processing is not javax
        ]]></notes>
-       <gav regex="true">^(javax\.json|org\.glassfish):javax\.json(-api)?:.*$</gav>
-       <cpe>cpe:/a:processing:processing</cpe>
+        <gav regex="true">^(javax\.json|org\.glassfish):javax\.json(-api)?:.*$</gav>
+        <cpe>cpe:/a:processing:processing</cpe>
     </suppress>
     <suppress base="true">
         <notes><![CDATA[
@@ -869,6 +1085,13 @@
     </suppress>
     <suppress base="true">
         <notes><![CDATA[
+        FP per #2178 - the gradle api is versioned differently than gradle itself. This causes FP.
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/com\.android\.tools\.build/gradle\-api@.*$</packageUrl>
+        <cpe>cpe:/a:gradle:gradle</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
         False positive: see https://github.com/jeremylong/DependencyCheck/issues/1949
         ]]></notes>
         <gav regex="true">^io\.springfox:springfox-.+:.*$</gav>
@@ -880,7 +1103,7 @@
         ]]></notes>
         <gav regex="true">^io\.micrometer:micrometer-registry-prometheus:.*$</gav>
         <cve>CVE-2019-3826</cve>
-     </suppress>
+    </suppress>
     <suppress base="true">
         <notes><![CDATA[
         see https://github.com/jeremylong/DependencyCheck/issues/1927
@@ -888,7 +1111,7 @@
         <gav regex="true">^io\.prometheus:simpleclient_common:.*$</gav>
         <cve>CVE-2019-3826</cve>
     </suppress>
-    <suppress>
+    <suppress base="true">
         <notes><![CDATA[
         see https://github.com/jeremylong/DependencyCheck/issues/1927
         ]]></notes>
@@ -944,12 +1167,12 @@
         <gav regex="true">org\.elasticsearch:securesm:.*</gav>
         <cpe>cpe:/a:elasticsearch:elasticsearch</cpe>
     </suppress>
-   <suppress base="true">
-       <notes><![CDATA[
+    <suppress base="true">
+        <notes><![CDATA[
        wink-json false positive
        ]]></notes>
-       <gav regex="true">^org\.apache\.wink:wink-json4j:.*$</gav>
-       <cpe>cpe:/a:wink:wink</cpe>
+        <gav regex="true">^org\.apache\.wink:wink-json4j:.*$</gav>
+        <cpe>cpe:/a:wink:wink</cpe>
     </suppress>
     <suppress base="true">
         <notes><![CDATA[
@@ -1119,7 +1342,7 @@
         ]]></notes>
         <gav regex="true">^com\.github\.docker-java:docker-java:.*$</gav>
         <cve>CVE-2017-7297</cve>
-     </suppress>
+    </suppress>
     <suppress base="true">
         <notes><![CDATA[
             These CVE only affects jackson-dataformat-xml. See issue #517.
@@ -1198,6 +1421,13 @@
         False positive suppression per issue #664 for JJWT - A Java and Android JSON Web Token library
         ]]></notes>
         <gav regex="true">^io\.jsonwebtoken:jjwt:.*$</gav>
+        <cpe>cpe:/a:sonatype:nexus</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        FP per #2151
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/io\.vertx/vertx\-auth\-common@.*$</packageUrl>
         <cpe>cpe:/a:sonatype:nexus</cpe>
     </suppress>
     <suppress base="true">
@@ -1565,6 +1795,41 @@
         ]]></notes>
         <sha1>73a51faadb407dccdbd77234e0d5a0a648665692</sha1>
         <cpe>cpe:/a:apache:xerces2_java</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        FP per #2186
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/com\.lightbend\.akka/akka\-stream\-alpakka\-xml_2\.12@.*$</packageUrl>
+        <cpe>cpe:/a:akka:akka</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        FP per #2191
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/com\.vaadin\.(addon|external).*$</packageUrl>
+        <cpe>cpe:/a:vaadin:vaadin</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        FP per #2191
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/com\.vaadin/.*(flow|theme|mixin|style|widget).*$</packageUrl>
+        <cpe>cpe:/a:vaadin:vaadin</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        FP per #2191
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/org\.webjars\.(bower|bowergithub|npm).*$</packageUrl>
+        <cpe>cpe:/a:vaadin:vaadin</cpe>
+    </suppress>
+    <suppress base="true">
+        <notes><![CDATA[
+        FP per #2186
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/com\.lightbend\.akka/akka\-stream\-alpakka\-xml_2\.12@.*$</packageUrl>
+        <cpe>cpe:/a:lightbend:akka</cpe>
     </suppress>
     <suppress base="true">
         <notes><![CDATA[

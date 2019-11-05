@@ -133,6 +133,21 @@ public class Check extends Update {
      * Whether or not the defined proxy should be used when connecting to Nexus.
      */
     private Boolean nexusUsesProxy;
+
+    /**
+     * Sets whether the Golang Dependency analyzer is enabled. Default is true.
+     */
+    private Boolean golangDepEnabled;
+    /**
+     * Sets whether Golang Module Analyzer is enabled; this requires `go` to be
+     * installed. Default is true.
+     */
+    private Boolean golangModEnabled;
+    /**
+     * Sets the path to `go`.
+     */
+    private String pathToGo;
+
     /**
      * Additional ZIP File extensions to add analyze. This should be a
      * comma-separated list of file extensions to treat like ZIP files.
@@ -186,14 +201,10 @@ public class Check extends Update {
     private Boolean prettyPrint = null;
 
     /**
-     * Suppression file path.
-     */
-    private String suppressionFile = null;
-    /**
      * Suppression file paths.
      */
     @SuppressWarnings("CanBeFinal")
-    private List<String> suppressionFiles = new ArrayList<>();
+    private final List<String> suppressionFiles = new ArrayList<>();
 
     /**
      * The path to the suppression file.
@@ -245,6 +256,10 @@ public class Check extends Update {
      */
     private String bundleAuditPath;
     /**
+     * Sets the path for the working directory that the bundle-audit binary should be executed from.
+     */
+    private String bundleAuditWorkingDirectory;
+    /**
      * Whether or not the CocoaPods Analyzer is enabled.
      */
     private Boolean cocoapodsAnalyzerEnabled;
@@ -266,7 +281,14 @@ public class Check extends Update {
      * URL of the Sonatype OSS Index service.
      */
     private String ossindexAnalyzerUrl;
-
+    /**
+     * The username to use for the Sonatype OSS Index service.
+     */
+    private String ossindexAnalyzerUsername;
+    /**
+     * The password to use for the Sonatype OSS Index service.
+     */
+    private String ossindexAnalyzerPassword;
     /**
      * Whether or not the Artifactory Analyzer is enabled.
      */
@@ -373,6 +395,10 @@ public class Check extends Update {
      *
      * @throws BuildException if the reference is not to a resource collection
      */
+    //declaring a throw that extends runtime exception may be a bad practice
+    //but seems to be an ingrained practice within Ant as even the base `Task`
+    //contains an `execute() throws BuildExecption`.
+    @SuppressWarnings("squid:RedundantThrowsDeclarationCheck")
     private void dealWithReferences() throws BuildException {
         if (isReference()) {
             final Object o = refId.getReferencedObject(getProject());
@@ -543,7 +569,6 @@ public class Check extends Update {
      * @param suppressionFile new value of suppressionFile
      */
     public void setSuppressionFile(String suppressionFile) {
-        this.suppressionFile = suppressionFile;
         suppressionFiles.add(suppressionFile);
     }
 
@@ -746,24 +771,6 @@ public class Check extends Update {
     }
 
     /**
-     * Get the value of cmakeAnalyzerEnabled.
-     *
-     * @return the value of cmakeAnalyzerEnabled
-     */
-    public Boolean isCMakeAnalyzerEnabled() {
-        return cmakeAnalyzerEnabled;
-    }
-
-    /**
-     * Set the value of cmakeAnalyzerEnabled.
-     *
-     * @param cmakeAnalyzerEnabled new value of cmakeAnalyzerEnabled
-     */
-    public void setCMakeAnalyzerEnabled(Boolean cmakeAnalyzerEnabled) {
-        this.cmakeAnalyzerEnabled = cmakeAnalyzerEnabled;
-    }
-
-    /**
      * Returns if the Bundle Audit Analyzer is enabled.
      *
      * @return if the Bundle Audit Analyzer is enabled.
@@ -798,6 +805,24 @@ public class Check extends Update {
      */
     public void setBundleAuditPath(String bundleAuditPath) {
         this.bundleAuditPath = bundleAuditPath;
+    }
+
+    /**
+     * Sets the path to the working directory that the bundle audit executable should be executed from.
+     *
+     * @param bundleAuditWorkingDirectory the path to the working directory that the bundle audit executable should be executed from.
+     */
+    public void setBundleAuditWorkingDirectory(String bundleAuditWorkingDirectory) {
+        this.bundleAuditWorkingDirectory = bundleAuditWorkingDirectory;
+    }
+
+    /**
+     * Returns the path to the working directory that the bundle audit executable should be executed from.
+     *
+     * @return the path to the working directory that the bundle audit executable should be executed from.
+     */
+    public String getBundleAuditWorkingDirectory() {
+        return bundleAuditWorkingDirectory;
     }
 
     /**
@@ -870,34 +895,6 @@ public class Check extends Update {
      * @param nodeAnalyzerEnabled new value of nodeAnalyzerEnabled
      */
     public void setNodeAnalyzerEnabled(Boolean nodeAnalyzerEnabled) {
-        this.nodeAnalyzerEnabled = nodeAnalyzerEnabled;
-    }
-
-    /**
-     * Get the value of nodeAnalyzerEnabled.
-     *
-     * @return the value of nodeAnalyzerEnabled
-     * @deprecated As of release 3.3.3, replaced by
-     * {@link #isNodeAuditAnalyzerEnabled()}
-     */
-    @Deprecated
-    public Boolean isNspAnalyzerEnabled() {
-        log("The NspAnalyzerEnabled configuration has been deprecated and replaced by NodeAuditAnalyzerEnabled", Project.MSG_ERR);
-        log("The NspAnalyzerEnabled configuration will be removed in the next major release");
-        return nodeAnalyzerEnabled;
-    }
-
-    /**
-     * Set the value of nodeAnalyzerEnabled.
-     *
-     * @param nodeAnalyzerEnabled new value of nodeAnalyzerEnabled
-     * @deprecated As of release 3.3.3, replaced by
-     * {@link #setNodeAuditAnalyzerEnabled(java.lang.Boolean)}
-     */
-    @Deprecated
-    public void setNspAnalyzerEnabled(Boolean nodeAnalyzerEnabled) {
-        log("The NspAnalyzerEnabled configuration has been deprecated and replaced by NodeAuditAnalyzerEnabled", Project.MSG_ERR);
-        log("The NspAnalyzerEnabled configuration will be removed in the next major release");
         this.nodeAnalyzerEnabled = nodeAnalyzerEnabled;
     }
 
@@ -1123,6 +1120,60 @@ public class Check extends Update {
     }
 
     /**
+     * Get the value of golangDepEnabled.
+     *
+     * @return the value of golangDepEnabled
+     */
+    public Boolean isGolangDepEnabled() {
+        return golangDepEnabled;
+    }
+
+    /**
+     * Set the value of golangDepEnabled.
+     *
+     * @param golangDepEnabled new value of golangDepEnabled
+     */
+    public void setGolangDepEnabled(Boolean golangDepEnabled) {
+        this.golangDepEnabled = golangDepEnabled;
+    }
+
+    /**
+     * Get the value of golangModEnabled.
+     *
+     * @return the value of golangModEnabled
+     */
+    public Boolean isGoModDepEnabled() {
+        return golangModEnabled;
+    }
+
+    /**
+     * Set the value of golangModEnabled.
+     *
+     * @param golangModEnabled new value of golangModEnabled
+     */
+    public void setGolangModEnabled(Boolean golangModEnabled) {
+        this.golangModEnabled = golangModEnabled;
+    }
+
+    /**
+     * Get the value of pathToCore.
+     *
+     * @return the value of pathToCore
+     */
+    public String getPathToGo() {
+        return pathToGo;
+    }
+
+    /**
+     * Set the value of pathToGo.
+     *
+     * @param pathToGo new value of pathToGo
+     */
+    public void setPathToGo(String pathToGo) {
+        this.pathToGo = pathToGo;
+    }
+
+    /**
      * Get the value of nexusUrl.
      *
      * @return the value of nexusUrl
@@ -1285,11 +1336,47 @@ public class Check extends Update {
     }
 
     /**
-     * Returns the value of cmakeAnalyzerEnabled.
+     * Get value of {@link #ossindexAnalyzerUsername}.
+     *
+     * @return the value of ossindexAnalyzerUsername
+     */
+    public String getOssindexAnalyzerUsername() {
+        return ossindexAnalyzerUsername;
+    }
+
+    /**
+     * Set value of {@link #ossindexAnalyzerUsername}.
+     *
+     * @param ossindexAnalyzerUsername new value of ossindexAnalyzerUsername
+     */
+    public void setOssindexAnalyzerUsername(String ossindexAnalyzerUsername) {
+        this.ossindexAnalyzerUsername = ossindexAnalyzerUsername;
+    }
+
+    /**
+     * Get value of {@link #ossindexAnalyzerPassword}.
+     *
+     * @return the value of ossindexAnalyzerPassword
+     */
+    public String getOssindexAnalyzerPassword() {
+        return ossindexAnalyzerPassword;
+    }
+
+    /**
+     * Set value of {@link #ossindexAnalyzerPassword}.
+     *
+     * @param ossindexAnalyzerPassword new value of ossindexAnalyzerPassword
+     */
+    public void setOssindexAnalyzerPassword(String ossindexAnalyzerPassword) {
+        this.ossindexAnalyzerPassword = ossindexAnalyzerPassword;
+    }
+
+    /**
+     * Get the value of cmakeAnalyzerEnabled.
      *
      * @return the value of cmakeAnalyzerEnabled
      */
-    public Boolean getCmakeAnalyzerEnabled() {
+    public Boolean isCmakeAnalyzerEnabled() {
         return cmakeAnalyzerEnabled;
     }
 
@@ -1433,6 +1520,8 @@ public class Check extends Update {
         this.artifactoryAnalyzerBearerToken = artifactoryAnalyzerBearerToken;
     }
 
+    //see note on `dealWithReferences()` for information on this suppression
+    @SuppressWarnings("squid:RedundantThrowsDeclarationCheck")
     @Override
     public void execute() throws BuildException {
         dealWithReferences();
@@ -1448,16 +1537,10 @@ public class Check extends Update {
                     }
                 }
             }
+            final ExceptionCollection exceptions = callExecuteAnalysis(engine);
 
-            try {
-                engine.analyzeDependencies();
-            } catch (ExceptionCollection ex) {
-                if (this.isFailOnError()) {
-                    throw new BuildException(ex);
-                }
-            }
             for (String format : getReportFormats()) {
-                engine.writeReports(getProjectName(), new File(reportOutputDirectory), format);
+                engine.writeReports(getProjectName(), new File(reportOutputDirectory), format, exceptions);
             }
 
             if (this.failBuildOnCVSS <= 10) {
@@ -1484,11 +1567,35 @@ public class Check extends Update {
     }
 
     /**
+     * Wraps the call to `engine.analyzeDependencies()` and correctly handles any
+     * exceptions
+     * @param engine a reference to the engine
+     * @return the collection of any exceptions that occurred; otherwise <code>null</code>
+     * @throws BuildException thrown if configured to fail the build on errors
+     */
+    //see note on `dealWithReferences()` for information on this suppression
+    @SuppressWarnings("squid:RedundantThrowsDeclarationCheck")
+    private ExceptionCollection callExecuteAnalysis(final Engine engine) throws BuildException {
+        ExceptionCollection exceptions = null;
+        try {
+            engine.analyzeDependencies();
+        } catch (ExceptionCollection ex) {
+            if (this.isFailOnError()) {
+                throw new BuildException(ex);
+            }
+            exceptions = ex;
+        }
+        return exceptions;
+    }
+
+    /**
      * Validate the configuration to ensure the parameters have been properly
      * configured/initialized.
      *
      * @throws BuildException if the task was not configured correctly.
      */
+    //see note on `dealWithReferences()` for information on this suppression
+    @SuppressWarnings("squid:RedundantThrowsDeclarationCheck")
     private synchronized void validateConfiguration() throws BuildException {
         if (path == null) {
             throw new BuildException("No project dependencies have been defined to analyze.");
@@ -1505,6 +1612,8 @@ public class Check extends Update {
      *
      * @throws BuildException thrown when an invalid setting is configured.
      */
+    //see note on `dealWithReferences()` for information on this suppression
+    @SuppressWarnings("squid:RedundantThrowsDeclarationCheck")
     @Override
     protected void populateSettings() throws BuildException {
         super.populateSettings();
@@ -1533,6 +1642,7 @@ public class Check extends Update {
         getSettings().setBooleanIfNotNull(Settings.KEYS.ANALYZER_COCOAPODS_ENABLED, cocoapodsAnalyzerEnabled);
         getSettings().setBooleanIfNotNull(Settings.KEYS.ANALYZER_BUNDLE_AUDIT_ENABLED, bundleAuditAnalyzerEnabled);
         getSettings().setStringIfNotNull(Settings.KEYS.ANALYZER_BUNDLE_AUDIT_PATH, bundleAuditPath);
+        getSettings().setStringIfNotNull(Settings.KEYS.ANALYZER_BUNDLE_AUDIT_WORKING_DIRECTORY, bundleAuditWorkingDirectory);
         getSettings().setBooleanIfNotNull(Settings.KEYS.ANALYZER_AUTOCONF_ENABLED, autoconfAnalyzerEnabled);
         getSettings().setBooleanIfNotNull(Settings.KEYS.ANALYZER_COMPOSER_LOCK_ENABLED, composerAnalyzerEnabled);
         getSettings().setBooleanIfNotNull(Settings.KEYS.ANALYZER_NODE_PACKAGE_ENABLED, nodeAnalyzerEnabled);
@@ -1542,6 +1652,9 @@ public class Check extends Update {
         getSettings().setStringIfNotNull(Settings.KEYS.ANALYZER_RETIREJS_REPO_JS_URL, retireJsUrl);
         getSettings().setBooleanIfNotNull(Settings.KEYS.ANALYZER_RETIREJS_FILTER_NON_VULNERABLE, retirejsFilterNonVulnerable);
         getSettings().setArrayIfNotEmpty(Settings.KEYS.ANALYZER_RETIREJS_FILTERS, retirejsFilters);
+        getSettings().setBooleanIfNotNull(Settings.KEYS.ANALYZER_GOLANG_DEP_ENABLED, golangDepEnabled);
+        getSettings().setBooleanIfNotNull(Settings.KEYS.ANALYZER_GOLANG_MOD_ENABLED, golangModEnabled);
+        getSettings().setStringIfNotNull(Settings.KEYS.ANALYZER_GOLANG_PATH, pathToGo);
 
         getSettings().setBooleanIfNotNull(Settings.KEYS.ANALYZER_NUSPEC_ENABLED, nuspecAnalyzerEnabled);
         getSettings().setBooleanIfNotNull(Settings.KEYS.ANALYZER_NUGETCONF_ENABLED, nugetconfAnalyzerEnabled);
@@ -1558,6 +1671,8 @@ public class Check extends Update {
         getSettings().setStringIfNotEmpty(Settings.KEYS.ANALYZER_ASSEMBLY_DOTNET_PATH, pathToCore);
         getSettings().setBooleanIfNotNull(Settings.KEYS.ANALYZER_OSSINDEX_ENABLED, ossindexAnalyzerEnabled);
         getSettings().setStringIfNotEmpty(Settings.KEYS.ANALYZER_OSSINDEX_URL, ossindexAnalyzerUrl);
+        getSettings().setStringIfNotEmpty(Settings.KEYS.ANALYZER_OSSINDEX_USER, ossindexAnalyzerUsername);
+        getSettings().setStringIfNotEmpty(Settings.KEYS.ANALYZER_OSSINDEX_PASSWORD, ossindexAnalyzerPassword);
         getSettings().setBooleanIfNotNull(Settings.KEYS.ANALYZER_OSSINDEX_USE_CACHE, ossindexAnalyzerUseCache);
         getSettings().setFloat(Settings.KEYS.JUNIT_FAIL_ON_CVSS, junitFailOnCVSS);
     }
@@ -1570,6 +1685,8 @@ public class Check extends Update {
      * @throws BuildException thrown if a CVSS score is found that is higher
      * than the threshold set
      */
+    //see note on `dealWithReferences()` for information on this suppression
+    @SuppressWarnings("squid:RedundantThrowsDeclarationCheck")
     private void checkForFailure(Dependency[] dependencies) throws BuildException {
         final StringBuilder ids = new StringBuilder();
         for (Dependency d : dependencies) {

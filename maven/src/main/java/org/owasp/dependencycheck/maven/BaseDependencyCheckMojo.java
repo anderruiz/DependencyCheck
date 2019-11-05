@@ -72,6 +72,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -89,6 +90,9 @@ import org.owasp.dependencycheck.dependency.naming.Identifier;
 import org.owasp.dependencycheck.dependency.naming.PurlIdentifier;
 import org.apache.maven.shared.dependency.graph.traversal.DependencyNodeVisitor;
 import org.apache.maven.shared.dependency.graph.traversal.FilteringDependencyNodeVisitor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.spi.LocationAwareLogger;
 
 /**
  * @author Jeremy Long
@@ -209,7 +213,25 @@ public abstract class BaseDependencyCheckMojo extends AbstractMojo implements Ma
     @SuppressWarnings("CanBeFinal")
     @Parameter(property = "enableRetired")
     private Boolean enableRetired;
-
+    /**
+     * Sets whether the Golang Dependency analyzer is enabled. Default is true.
+     */
+    @SuppressWarnings("CanBeFinal")
+    @Parameter(property = "golangDepEnabled")
+    private Boolean golangDepEnabled;
+    /**
+     * Sets whether Golang Module Analyzer is enabled; this requires `go` to be
+     * installed. Default is true.
+     */
+    @SuppressWarnings("CanBeFinal")
+    @Parameter(property = "golangModEnabled")
+    private Boolean golangModEnabled;
+    /**
+     * Sets the path to `go`.
+     */
+    @SuppressWarnings("CanBeFinal")
+    @Parameter(property = "pathToGo")
+    private String pathToGo;
     /**
      * Use pom dependency information for snapshot dependencies that are part of
      * the Maven reactor while aggregate scanning a multi-module project.
@@ -423,20 +445,20 @@ public abstract class BaseDependencyCheckMojo extends AbstractMojo implements Ma
      * access artifactory
      */
     @SuppressWarnings("CanBeFinal")
-    @Parameter(property = "artifactoryAnalyzerServerId", defaultValue = "artifactory")
+    @Parameter(property = "artifactoryAnalyzerServerId")
     private String artifactoryAnalyzerServerId;
     /**
      * The username (only used with API token) to connect to Artifactory
      * instance
      */
     @SuppressWarnings("CanBeFinal")
-    @Parameter(property = "artifactoryAnalyzerUsername", defaultValue = "artifactory")
+    @Parameter(property = "artifactoryAnalyzerUsername")
     private String artifactoryAnalyzerUsername;
     /**
      * The API token to connect to Artifactory instance
      */
     @SuppressWarnings("CanBeFinal")
-    @Parameter(property = "artifactoryAnalyzerApiToken", defaultValue = "artifactory")
+    @Parameter(property = "artifactoryAnalyzerApiToken")
     private String artifactoryAnalyzerApiToken;
     /**
      * The bearer token to connect to Artifactory instance
@@ -454,7 +476,7 @@ public abstract class BaseDependencyCheckMojo extends AbstractMojo implements Ma
      * Whether Artifactory should be accessed through a proxy or not
      */
     @SuppressWarnings("CanBeFinal")
-    @Parameter(property = "artifactoryAnalyzerUseProxy", defaultValue = "artifactory")
+    @Parameter(property = "artifactoryAnalyzerUseProxy")
     private Boolean artifactoryAnalyzerUseProxy;
     /**
      * Whether the Artifactory analyzer should be run in parallel or not.
@@ -489,6 +511,14 @@ public abstract class BaseDependencyCheckMojo extends AbstractMojo implements Ma
     private String ossindexAnalyzerUrl;
 
     /**
+     * The id of a server defined in the settings.xml that configures the
+     * credentials (username and password) for a OSS Index service.
+     */
+    @SuppressWarnings("CanBeFinal")
+    @Parameter(property = "ossIndexServerId")
+    private String ossIndexServerId;
+
+    /**
      * Whether or not the Ruby Bundle Audit Analyzer is enabled.
      */
     @Parameter(property = "bundleAuditAnalyzerEnabled")
@@ -500,6 +530,14 @@ public abstract class BaseDependencyCheckMojo extends AbstractMojo implements Ma
     @SuppressWarnings("CanBeFinal")
     @Parameter(property = "bundleAuditPath")
     private String bundleAuditPath;
+
+    /**
+     * Sets the path for the working directory that the bundle-audit binary
+     * should be executed from.
+     */
+    @SuppressWarnings("CanBeFinal")
+    @Parameter(property = "bundleAuditWorkingDirectory")
+    private String bundleAuditWorkingDirectory;
 
     /**
      * Whether or not the CocoaPods Analyzer is enabled.
@@ -632,7 +670,8 @@ public abstract class BaseDependencyCheckMojo extends AbstractMojo implements Ma
 
     /**
      * Skip analysis for dependencies which type matches this regular
-     * expression.
+     * expression. This filters on the `type` of dependency as defined
+     * in the dependency section: jar, pom, test-jar, etc.
      */
     @SuppressWarnings("CanBeFinal")
     @Parameter(property = "skipArtifactType")
@@ -1034,8 +1073,9 @@ public abstract class BaseDependencyCheckMojo extends AbstractMojo implements Ma
                 final Artifact dependencyArtifact = dependencyNode.getArtifact();
                 final Artifact result;
                 if (dependencyArtifact.isResolved()) {
-                    //All transitive dependencies, excluding reactor and dependencyManagement artifacts should have been resolved by Maven prior to invoking the plugin
-                    //Resolving the dependencies manually is unnecessary, and does not work in some cases (issue-1751)
+                    //All transitive dependencies, excluding reactor and dependencyManagement artifacts should
+                    //have been resolved by Maven prior to invoking the plugin - resolving the dependencies
+                    //manually is unnecessary, and does not work in some cases (issue-1751)
                     getLog().debug(String.format("Skipping artifact %s, already resolved", dependencyArtifact.getArtifactId()));
                     result = dependencyArtifact;
                 } else {
@@ -1356,6 +1396,7 @@ public abstract class BaseDependencyCheckMojo extends AbstractMojo implements Ma
      * fail the build
      */
     protected void runCheck() throws MojoExecutionException, MojoFailureException {
+        muteJCS();
         try (Engine engine = initializeEngine()) {
             ExceptionCollection exCol = scanDependencies(engine);
             try {
@@ -1374,7 +1415,7 @@ public abstract class BaseDependencyCheckMojo extends AbstractMojo implements Ma
                 try {
                     final MavenProject p = this.getProject();
                     for (String f : getFormats()) {
-                        engine.writeReports(p.getName(), p.getGroupId(), p.getArtifactId(), p.getVersion(), outputDir, f);
+                        engine.writeReports(p.getName(), p.getGroupId(), p.getArtifactId(), p.getVersion(), outputDir, f, exCol);
                     }
                 } catch (ReportException ex) {
                     if (exCol == null) {
@@ -1573,6 +1614,10 @@ public abstract class BaseDependencyCheckMojo extends AbstractMojo implements Ma
         settings.setBooleanIfNotNull(Settings.KEYS.AUTO_UPDATE, autoUpdate);
         settings.setBooleanIfNotNull(Settings.KEYS.ANALYZER_EXPERIMENTAL_ENABLED, enableExperimental);
         settings.setBooleanIfNotNull(Settings.KEYS.ANALYZER_RETIRED_ENABLED, enableRetired);
+        settings.setBooleanIfNotNull(Settings.KEYS.ANALYZER_GOLANG_DEP_ENABLED, golangDepEnabled);
+        settings.setBooleanIfNotNull(Settings.KEYS.ANALYZER_GOLANG_MOD_ENABLED, golangModEnabled);
+        settings.setStringIfNotNull(Settings.KEYS.ANALYZER_GOLANG_PATH, pathToGo);
+
         final Proxy proxy = getMavenProxy();
         if (proxy != null) {
             settings.setString(Settings.KEYS.PROXY_SERVER, proxy.getHost());
@@ -1601,48 +1646,16 @@ public abstract class BaseDependencyCheckMojo extends AbstractMojo implements Ma
         settings.setStringIfNotEmpty(Settings.KEYS.ADDITIONAL_ZIP_EXTENSIONS, zipExtensions);
         settings.setStringIfNotEmpty(Settings.KEYS.ANALYZER_ASSEMBLY_DOTNET_PATH, pathToCore);
         settings.setStringIfNotEmpty(Settings.KEYS.ANALYZER_NEXUS_URL, nexusUrl);
-        if (nexusServerId != null) {
-            final Server server = settingsXml.getServer(nexusServerId);
-            if (server != null) {
-                final String nexusUser = server.getUsername();
-                String nexusPassword = null;
-                try {
-                    nexusPassword = decryptServerPassword(server);
-                } catch (SecDispatcherException ex) {
-                    if (ex.getCause() instanceof FileNotFoundException
-                            || (ex.getCause() != null && ex.getCause().getCause() instanceof FileNotFoundException)) {
-                        //maybe its not encrypted?
-                        final String tmp = server.getPassword();
-                        if (tmp.startsWith("{") && tmp.endsWith("}")) {
-                            getLog().error(String.format(
-                                    "Unable to decrypt the server password for server id '%s' in settings.xml%n\tCause: %s",
-                                    serverId, ex.getMessage()));
-                        } else {
-                            nexusPassword = tmp;
-                        }
-                    } else {
-                        getLog().error(String.format(
-                                "Unable to decrypt the server password for server id '%s' in settings.xml%n\tCause: %s",
-                                serverId, ex.getMessage()));
-                    }
-                }
-                settings.setStringIfNotEmpty(Settings.KEYS.ANALYZER_NEXUS_USER, nexusUser);
-                settings.setStringIfNotEmpty(Settings.KEYS.ANALYZER_NEXUS_PASSWORD, nexusPassword);
-            } else {
-                getLog().error(String.format("Server '%s' not found in the settings.xml file", serverId));
-            }
-        }
+        configureServerCredentials(nexusServerId, Settings.KEYS.ANALYZER_NEXUS_USER, Settings.KEYS.ANALYZER_NEXUS_PASSWORD);
+
         settings.setBooleanIfNotNull(Settings.KEYS.ANALYZER_NEXUS_USES_PROXY, nexusUsesProxy);
         settings.setStringIfNotNull(Settings.KEYS.ANALYZER_ARTIFACTORY_URL, artifactoryAnalyzerUrl);
         settings.setBooleanIfNotNull(Settings.KEYS.ANALYZER_ARTIFACTORY_USES_PROXY, artifactoryAnalyzerUseProxy);
         settings.setBooleanIfNotNull(Settings.KEYS.ANALYZER_ARTIFACTORY_PARALLEL_ANALYSIS, artifactoryAnalyzerParallelAnalysis);
         if (Boolean.TRUE.equals(artifactoryAnalyzerEnabled)) {
             if (artifactoryAnalyzerServerId != null) {
-                final Server server = settingsXml.getServer(artifactoryAnalyzerServerId);
-                if (server != null) {
-                    settings.setStringIfNotNull(Settings.KEYS.ANALYZER_ARTIFACTORY_API_USERNAME, server.getUsername());
-                    settings.setStringIfNotNull(Settings.KEYS.ANALYZER_ARTIFACTORY_API_TOKEN, server.getPassword());
-                }
+                configureServerCredentials(artifactoryAnalyzerServerId, Settings.KEYS.ANALYZER_ARTIFACTORY_API_USERNAME,
+                        Settings.KEYS.ANALYZER_ARTIFACTORY_API_TOKEN);
             } else {
                 settings.setStringIfNotNull(Settings.KEYS.ANALYZER_ARTIFACTORY_API_USERNAME, artifactoryAnalyzerUsername);
                 settings.setStringIfNotNull(Settings.KEYS.ANALYZER_ARTIFACTORY_API_TOKEN, artifactoryAnalyzerApiToken);
@@ -1663,10 +1676,12 @@ public abstract class BaseDependencyCheckMojo extends AbstractMojo implements Ma
         settings.setStringIfNotNull(Settings.KEYS.ANALYZER_RETIREJS_REPO_JS_URL, retireJsUrl);
         settings.setBooleanIfNotNull(Settings.KEYS.ANALYZER_BUNDLE_AUDIT_ENABLED, bundleAuditAnalyzerEnabled);
         settings.setStringIfNotNull(Settings.KEYS.ANALYZER_BUNDLE_AUDIT_PATH, bundleAuditPath);
+        settings.setStringIfNotNull(Settings.KEYS.ANALYZER_BUNDLE_AUDIT_WORKING_DIRECTORY, bundleAuditWorkingDirectory);
         settings.setBooleanIfNotNull(Settings.KEYS.ANALYZER_COCOAPODS_ENABLED, cocoapodsAnalyzerEnabled);
         settings.setBooleanIfNotNull(Settings.KEYS.ANALYZER_SWIFT_PACKAGE_MANAGER_ENABLED, swiftPackageManagerAnalyzerEnabled);
         settings.setBooleanIfNotNull(Settings.KEYS.ANALYZER_OSSINDEX_ENABLED, ossindexAnalyzerEnabled);
         settings.setStringIfNotEmpty(Settings.KEYS.ANALYZER_OSSINDEX_URL, ossindexAnalyzerUrl);
+        configureServerCredentials(ossIndexServerId, Settings.KEYS.ANALYZER_OSSINDEX_USER, Settings.KEYS.ANALYZER_OSSINDEX_PASSWORD);
         settings.setBooleanIfNotNull(Settings.KEYS.ANALYZER_OSSINDEX_USE_CACHE, ossindexAnalyzerUseCache);
 
         if (retirejs != null) {
@@ -1680,11 +1695,37 @@ public abstract class BaseDependencyCheckMojo extends AbstractMojo implements Ma
         settings.setStringIfNotEmpty(Settings.KEYS.DB_CONNECTION_STRING, connectionString);
 
         if (databaseUser == null && databasePassword == null && serverId != null) {
+            configureServerCredentials(serverId, Settings.KEYS.DB_USER, Settings.KEYS.DB_PASSWORD);
+        } else {
+            settings.setStringIfNotEmpty(Settings.KEYS.DB_USER, databaseUser);
+            settings.setStringIfNotEmpty(Settings.KEYS.DB_PASSWORD, databasePassword);
+        }
+        settings.setStringIfNotEmpty(Settings.KEYS.DATA_DIRECTORY, dataDirectory);
+        settings.setStringIfNotEmpty(Settings.KEYS.CVE_MODIFIED_JSON, cveUrlModified);
+        settings.setStringIfNotEmpty(Settings.KEYS.CVE_BASE_JSON, cveUrlBase);
+        settings.setIntIfNotNull(Settings.KEYS.CVE_CHECK_VALID_FOR_HOURS, cveValidForHours);
+        settings.setBooleanIfNotNull(Settings.KEYS.PRETTY_PRINT, prettyPrint);
+        artifactScopeExcluded = new ArtifactScopeExcluded(skipTestScope, skipProvidedScope, skipSystemScope, skipRuntimeScope);
+        artifactTypeExcluded = new ArtifactTypeExcluded(skipArtifactType);
+    }
+
+    /**
+     * Retrieves the server credentials from the settings.xml, decrypts the
+     * password, and places the values into the settings under the given key
+     * names.
+     *
+     * @param serverId the server id
+     * @param userSettingKey the property name for the username
+     * @param passwordSettingKey the property name for the password
+     */
+    private void configureServerCredentials(String serverId, String userSettingKey, String passwordSettingKey) {
+        if (serverId != null) {
             final Server server = settingsXml.getServer(serverId);
             if (server != null) {
-                databaseUser = server.getUsername();
+                final String username = server.getUsername();
+                String password = null;
                 try {
-                    databasePassword = decryptServerPassword(server);
+                    password = decryptServerPassword(server);
                 } catch (SecDispatcherException ex) {
                     if (ex.getCause() instanceof FileNotFoundException
                             || (ex.getCause() != null && ex.getCause().getCause() instanceof FileNotFoundException)) {
@@ -1695,7 +1736,7 @@ public abstract class BaseDependencyCheckMojo extends AbstractMojo implements Ma
                                     "Unable to decrypt the server password for server id '%s' in settings.xml%n\tCause: %s",
                                     serverId, ex.getMessage()));
                         } else {
-                            databasePassword = tmp;
+                            password = tmp;
                         }
                     } else {
                         getLog().error(String.format(
@@ -1703,19 +1744,12 @@ public abstract class BaseDependencyCheckMojo extends AbstractMojo implements Ma
                                 serverId, ex.getMessage()));
                     }
                 }
+                settings.setStringIfNotEmpty(userSettingKey, username);
+                settings.setStringIfNotEmpty(passwordSettingKey, password);
             } else {
                 getLog().error(String.format("Server '%s' not found in the settings.xml file", serverId));
             }
         }
-        settings.setStringIfNotEmpty(Settings.KEYS.DB_USER, databaseUser);
-        settings.setStringIfNotEmpty(Settings.KEYS.DB_PASSWORD, databasePassword);
-        settings.setStringIfNotEmpty(Settings.KEYS.DATA_DIRECTORY, dataDirectory);
-        settings.setStringIfNotEmpty(Settings.KEYS.CVE_MODIFIED_JSON, cveUrlModified);
-        settings.setStringIfNotEmpty(Settings.KEYS.CVE_BASE_JSON, cveUrlBase);
-        settings.setIntIfNotNull(Settings.KEYS.CVE_CHECK_VALID_FOR_HOURS, cveValidForHours);
-        settings.setBooleanIfNotNull(Settings.KEYS.PRETTY_PRINT, prettyPrint);
-        artifactScopeExcluded = new ArtifactScopeExcluded(skipTestScope, skipProvidedScope, skipSystemScope, skipRuntimeScope);
-        artifactTypeExcluded = new ArtifactTypeExcluded(skipArtifactType);
     }
 
     /**
@@ -1760,6 +1794,37 @@ public abstract class BaseDependencyCheckMojo extends AbstractMojo implements Ma
             }
         }
         return suppressions;
+    }
+
+    /**
+     * Hacky method of muting the noisy logging from JCS. Implemented using a
+     * solution from SO: https://stackoverflow.com/a/50723801
+     */
+    private void muteJCS() {
+        final String[] noisyLoggers = {
+            "org.apache.commons.jcs.auxiliary.disk.AbstractDiskCache",
+            "org.apache.commons.jcs.engine.memory.AbstractMemoryCache",
+            "org.apache.commons.jcs.engine.control.CompositeCache",
+            "org.apache.commons.jcs.auxiliary.disk.indexed.IndexedDiskCache",
+            "org.apache.commons.jcs.engine.control.CompositeCache",
+            "org.apache.commons.jcs.engine.memory.AbstractMemoryCache",
+            "org.apache.commons.jcs.engine.control.event.ElementEventQueue",
+            "org.apache.commons.jcs.engine.memory.AbstractDoubleLinkedListMemoryCache",
+            "org.apache.commons.jcs.auxiliary.AuxiliaryCacheConfigurator",
+            "org.apache.commons.jcs.engine.control.CompositeCacheManager",
+            "org.apache.commons.jcs.utils.threadpool.ThreadPoolManager",
+            "org.apache.commons.jcs.engine.control.CompositeCacheConfigurator"};
+        for (String loggerName : noisyLoggers) {
+            try {
+                //This is actually a MavenSimpleLogger, but due to various classloader issues, can't work with the directly.
+                final Logger l = LoggerFactory.getLogger(loggerName);
+                final Field f = l.getClass().getSuperclass().getDeclaredField("currentLogLevel");
+                f.setAccessible(true);
+                f.set(l, LocationAwareLogger.ERROR_INT);
+            } catch (IllegalAccessException | IllegalArgumentException | NoSuchFieldException | SecurityException e) {
+                getLog().debug("Failed to reset the log level of " + loggerName + ", it will continue being noisy.");
+            }
+        }
     }
 
     /**

@@ -314,7 +314,7 @@ public class CPEAnalyzer extends AbstractAnalyzer {
     protected void collectTerms(Map<String, MutableInt> terms, Iterable<Evidence> evidence) {
         for (Evidence e : evidence) {
             String value = cleanseText(e.getValue());
-            if (value.isEmpty()) {
+            if (StringUtils.isBlank(value)) {
                 continue;
             }
             if (value.length() > 1000) {
@@ -483,6 +483,8 @@ public class CPEAnalyzer extends AbstractAnalyzer {
         }
         sb.append(field).append(":(");
         boolean addSpace = false;
+        boolean addedTerm = false;
+
         for (Map.Entry<String, MutableInt> entry : terms.entrySet()) {
             final StringBuilder boostedTerms = new StringBuilder();
             final int weighting = entry.getValue().intValue();
@@ -496,6 +498,7 @@ public class CPEAnalyzer extends AbstractAnalyzer {
                 } else {
                     addSpace = true;
                 }
+                addedTerm = true;
                 if (LuceneUtils.isKeyword(word)) {
                     sb.append("\"");
                     LuceneUtils.appendEscapedLuceneQuery(sb, word);
@@ -524,7 +527,7 @@ public class CPEAnalyzer extends AbstractAnalyzer {
             }
         }
         sb.append(")");
-        return true;
+        return addedTerm;
     }
 
     /**
@@ -731,7 +734,12 @@ public class CPEAnalyzer extends AbstractAnalyzer {
             return false;
         }
 
-        DependencyVersion bestGuess = new DependencyVersion("-");
+        DependencyVersion bestGuess;
+        if ("Golang".equals(dependency.getEcosystem()) && dependency.getVersion() == null) {
+            bestGuess = new DependencyVersion("*");
+        } else {
+            bestGuess = new DependencyVersion("-");
+        }
         Confidence bestGuessConf = null;
         String bestGuessURL = null;
         boolean hasBroadMatch = false;

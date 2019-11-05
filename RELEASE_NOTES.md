@@ -2,6 +2,54 @@
 
 Please see the [dependency-check google group](https://groups.google.com/forum/#!forum/dependency-check) for the release notes on versions not listed below.
 
+## [Version 5.2.2](https://github.com/jeremylong/DependencyCheck/releases/tag/v5.2.2) (2019-09-22)
+
+### Changes
+
+- False positive corrections
+- General code cleanup/bug fix
+- Full listing of [resolved issues](https://github.com/jeremylong/DependencyCheck/issues?utf8=%E2%9C%93&q=is%3Aissue++is%3Aclosed+milestone%3A5.2.2).
+
+## [Version 5.2.1](https://github.com/jeremylong/DependencyCheck/releases/tag/v5.2.1) (2019-08-04)
+
+### Changes
+
+- Updated docker container to include additional database drivers and reduce overall image size
+- Performance improvements when using some external databases
+- False positive corrections
+- General code cleanup/bug fix
+- Full listing of [resolved issues](https://github.com/jeremylong/DependencyCheck/issues?utf8=%E2%9C%93&q=is%3Aissue++is%3Aclosed+milestone%3A5.2.1).
+
+## [Version 5.2.0](https://github.com/jeremylong/DependencyCheck/releases/tag/v5.2.0) (2019-07-21)
+
+### Changes
+
+- Resolved formatting issues within the CSV report
+- False positive corrections
+- Renamed three properties within the `dependencycheck.properties`; there is no impact unless you are using a properties file in your build to control the CLI.
+- Added support for rbenv for Bundle Audit Analysis (see https://github.com/jeremylong/DependencyCheck/issues/2060).
+- Full listing of [resolved issues](https://github.com/jeremylong/DependencyCheck/issues?utf8=%E2%9C%93&q=is%3Aissue++is%3Aclosed+milestone%3A5.2.0).
+
+## [Version 5.1.1](https://github.com/jeremylong/DependencyCheck/releases/tag/v5.1.1) (2019-07-15)
+
+### Changes
+
+- False positive corrections
+- General code cleanup
+- Full listing of [resolved issues](https://github.com/jeremylong/DependencyCheck/issues?q=is%3Aissue+milestone%3A5.1.1+is%3Aclosed).
+
+## [Version 5.1.0](https://github.com/jeremylong/DependencyCheck/releases/tag/v5.1.0) (2019-06-28)
+
+### Changes
+
+- Added two experimental analyzers to support Golang.
+- Updated the suppression schema to support suppressing OSS Index, RetireJS, NSP vulnerabilities, etc.
+  - The HTML report now uses the 1.3 suppression schema by default to generate suppression rules.
+  - See the updated examples on https://jeremylong.github.io/DependencyCheck/general/suppression.html.
+- Added optional configuration to add credentials to the OSS Index analysis.
+- Resolved issues when Oracle or MySQL were used as a centralized database in 5.0.0.
+- Full listing of [resolved issues](https://github.com/jeremylong/DependencyCheck/issues?utf8=%E2%9C%93&q=is%3Aissue+is%3Aopen+milestone%3A5.1.0) and [pull requests](https://github.com/jeremylong/DependencyCheck/pulls?utf8=%E2%9C%93&q=is%3Apr+milestone%3A5.1.0).
+
 ## [Version 5.0.0](https://github.com/jeremylong/DependencyCheck/releases/tag/v5.0.0) (2019-06-09)
 
 ### Changes

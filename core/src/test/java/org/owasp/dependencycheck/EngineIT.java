@@ -49,8 +49,11 @@ public class EngineIT extends BaseDBTestCase {
     public void testEngine() throws IOException, InvalidSettingException, DatabaseException, ReportException, ExceptionCollection {
         String testClasses = "target/test-classes";
         getSettings().setBoolean(Settings.KEYS.AUTO_UPDATE, false);
+        getSettings().setBoolean(Settings.KEYS.ANALYZER_CENTRAL_ENABLED, false);
         getSettings().setBoolean(Settings.KEYS.ANALYZER_NODE_PACKAGE_ENABLED, false);
         getSettings().setBoolean(Settings.KEYS.ANALYZER_NODE_AUDIT_ENABLED, false);
+		getSettings().setBoolean(Settings.KEYS.ANALYZER_EXPERIMENTAL_ENABLED, true);
+		ExceptionCollection exceptions = null;
         Engine engine = new Engine(getSettings());
         try {
         	engine.scan(testClasses);
@@ -61,6 +64,7 @@ public class EngineIT extends BaseDBTestCase {
                 Set<String> allowedMessages = new HashSet<>();
                 allowedMessages.add("bundle-audit");
                 allowedMessages.add("AssemblyAnalyzer");
+                allowedMessages.add("Failed to request component-reports");
                 allowedMessages.add("ailed to read results from the NPM Audit API");
                 for (Throwable t : ex.getExceptions()) {
                     boolean isOk = false;
@@ -75,9 +79,10 @@ public class EngineIT extends BaseDBTestCase {
                     if (!isOk) {
                         throw ex;
                     }
+                    exceptions = ex;
                 }
             }
-            engine.writeReports("dependency-check sample", new File("./target/"), "ALL");
+            engine.writeReports("dependency-check sample", new File("./target/"), "ALL", exceptions);
         }
         finally {
             if (engine != null) {

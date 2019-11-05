@@ -1,5 +1,5 @@
 /*
- * This file is part of dependency-check-core.
+ * This file is part of dependency-check-utils.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ package org.owasp.dependencycheck.utils;
 import com.google.gson.Gson;
 
 import org.apache.commons.io.IOUtils;
+import org.owasp.dependencycheck.utils.HdivUtils.Predicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,11 +34,15 @@ import java.io.StringWriter;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.security.ProtectionDomain;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.UUID;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * A simple settings container that wraps the dependencycheck.properties file.
@@ -63,7 +68,10 @@ public final class Settings {
      * The properties.
      */
     private Properties props = null;
-
+    /**
+     * The collection of properties that should be masked when logged.
+     */
+    private List<Predicate<String>> maskedKeys;
     /**
      * A reference to the temporary directory; used in case it needs to be
      * deleted during cleanup.
@@ -74,16 +82,18 @@ public final class Settings {
     /**
      * The collection of keys used within the properties file.
      */
+    //suppress hard-coded password rule
+    @SuppressWarnings("squid:S2068")
     public static final class KEYS {
 
         /**
          * The key to obtain the application name.
          */
-        public static final String APPLICATION_NAME = "application.name";
+        public static final String APPLICATION_NAME = "odc.application.name";
         /**
          * The key to obtain the application version.
          */
-        public static final String APPLICATION_VERSION = "application.version";
+        public static final String APPLICATION_VERSION = "odc.application.version";
         /**
          * The key to obtain the URL to retrieve the current release version
          * from.
@@ -93,7 +103,7 @@ public final class Settings {
          * The properties key indicating whether or not the cached data sources
          * should be updated.
          */
-        public static final String AUTO_UPDATE = "autoupdate";
+        public static final String AUTO_UPDATE = "odc.autoupdate";
         /**
          * The database driver class name. If this is not in the properties file
          * the embedded database is used.
@@ -316,6 +326,18 @@ public final class Settings {
          */
         public static final String ANALYZER_PYTHON_PACKAGE_ENABLED = "analyzer.python.package.enabled";
         /**
+         * The properties key for whether the Golang Mod analyzer is enabled.
+         */
+        public static final String ANALYZER_GOLANG_MOD_ENABLED = "analyzer.golang.mod.enabled";
+        /**
+         * The path to go, if available.
+         */
+        public static final String ANALYZER_GOLANG_PATH = "analyzer.golang.path";
+        /**
+         * The properties key for whether the Golang Dep analyzer is enabled.
+         */
+        public static final String ANALYZER_GOLANG_DEP_ENABLED = "analyzer.golang.dep.enabled";
+        /**
          * The properties key for whether the Ruby Gemspec Analyzer is enabled.
          */
         public static final String ANALYZER_RUBY_GEMSPEC_ENABLED = "analyzer.ruby.gemspec.enabled";
@@ -456,6 +478,10 @@ public final class Settings {
          */
         public static final String ANALYZER_BUNDLE_AUDIT_PATH = "analyzer.bundle.audit.path";
         /**
+         * The path to bundle-audit, if available.
+         */
+        public static final String ANALYZER_BUNDLE_AUDIT_WORKING_DIRECTORY = "analyzer.bundle.audit.working.directory";
+        /**
          * The additional configured zip file extensions, if available.
          */
         public static final String ADDITIONAL_ZIP_EXTENSIONS = "extensions.zip";
@@ -573,10 +599,23 @@ public final class Settings {
          */
         public static final String ANALYZER_OSSINDEX_URL = "analyzer.ossindex.url";
         /**
+         * The properties key for the Sonatype OSS Index user.
+         */
+        public static final String ANALYZER_OSSINDEX_USER = "analyzer.ossindex.user";
+        /**
+         * The properties key for the Sonatype OSS Index password.
+         */
+        public static final String ANALYZER_OSSINDEX_PASSWORD = "analyzer.ossindex.password";
+        /**
          * The properties key setting whether or not the JSON and XML reports
          * will be pretty printed.
          */
         public static final String PRETTY_PRINT = "odc.reports.pretty.print";
+        /**
+         * The properties key setting which other keys should be considered
+         * sensitive and subsequently masked when logged.
+         */
+        private static final String MASKED_PROPERTIES = "odc.settings.mask";
 
         /**
          * private constructor because this is a "utility" class containing
@@ -621,8 +660,7 @@ public final class Settings {
      * @param propertiesFilePath the path to the settings property file
      */
     private void initialize(final String propertiesFilePath) {
-    	System.out.println("Loading from:"+propertiesFilePath);
-        props = new Properties();
+    	props = new Properties();
         InputStream in = FileUtils.getResourceAsStream(propertiesFilePath);
         try {
             props.load(in);
@@ -641,8 +679,6 @@ public final class Settings {
 				e.printStackTrace();
 			}
         }
-        System.out.println("Entry k:"+Settings.KEYS.CVE_MODIFIED_JSON+" v:"+System.getProperty(Settings.KEYS.CVE_MODIFIED_JSON));
-        System.out.println("Loading from:"+propertiesFilePath+" props:"+props.size()+" value:"+getString(Settings.KEYS.CVE_MODIFIED_JSON)+" p:"+props.getProperty(Settings.KEYS.CVE_MODIFIED_JSON));
         logProperties("Properties loaded", props);
     }
 
@@ -668,6 +704,68 @@ public final class Settings {
     }
 
     /**
+     * Returns the list of keys to mask.
+     *
+     * @return the list of keys to mask
+     */
+    private List<Predicate<String>> getMaskedKeys() {
+    	List<Predicate<String>> predicates = new ArrayList<>();
+    	for (final String key : Arrays.asList(getArray(Settings.KEYS.MASKED_PROPERTIES))) {
+			predicates.add(new Predicate<String>() {
+
+				@Override
+				public boolean test(String t) {
+					// TODO Auto-generated method stub
+					return Pattern.compile(key).matcher(t).find();
+				}
+			});
+		}
+    	return predicates;
+    }
+
+    /**
+     * Check if a given key is considered to have a value with sensitive data.
+     *
+     * @param key the key to determine if the property should be masked
+     * @return <code>true</code> if the key is for a sensitive property value;
+     * otherwise <code>false</code>
+     */
+    private boolean isKeyMasked(String key) {
+    	for (Predicate<String> predicate : getMaskedKeys()) {
+			if(predicate.test(key)) {
+				return true;
+			}
+		}
+        return false;
+    }
+
+    /**
+     * Obtains the printable/loggable value for a given key/value pair. This
+     * will mask some values so as to not leak sensitive information.
+     *
+     * @param key the property key
+     * @param value the property value
+     * @return the printable value
+     */
+    protected String getPrintableValue(String key, String value) {
+        String printableValue = null;
+        if (value != null) {
+            printableValue = isKeyMasked(key) ? "********" : value;
+        }
+        return printableValue;
+    }
+
+    /**
+     * Initializes the masked keys collection. This is done outside of the
+     * {@link #initialize(java.lang.String)} method because a caller may use the
+     * {@link #mergeProperties(java.io.File)} to add additional properties after
+     * the call to initialize.
+     */
+    protected void initMaskedKeys() {
+        maskedKeys = getMaskedKeys();
+    }
+
+    /**
      * Logs the properties. This will not log any properties that contain
      * 'password' in the key.
      *
@@ -676,6 +774,7 @@ public final class Settings {
      */
     private void logProperties(final String header, final Properties properties) {
         if (LOGGER.isDebugEnabled()) {
+            initMaskedKeys();
             final StringWriter sw = new StringWriter();
             PrintWriter pw = new PrintWriter(sw);
             try {
@@ -683,13 +782,9 @@ public final class Settings {
                 final Enumeration<?> e = properties.propertyNames();
                 while (e.hasMoreElements()) {
                     final String key = (String) e.nextElement();
-                    if (key.contains("password")) {
-                        pw.format("%s='*****'%n", key);
-                    } else {
-                        final String value = properties.getProperty(key);
-                        if (value != null) {
-                            pw.format("%s='%s'%n", key, value);
-                        }
+                    final String value = getPrintableValue(key, properties.getProperty(key));
+                    if (value != null) {
+                        pw.format("%s='%s'%n", key, value);
                     }
                 }
                 pw.flush();
@@ -697,7 +792,6 @@ public final class Settings {
             } finally {
             	pw.close();
             }
-
         }
     }
 

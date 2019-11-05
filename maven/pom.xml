@@ -20,7 +20,7 @@ Copyright (c) 2013 Jeremy Long. All Rights Reserved.
     <parent>
         <groupId>org.owasp</groupId>
         <artifactId>dependency-check-parent</artifactId>
-        <version>5.0.0</version>
+        <version>5.2.2</version>
     </parent>
     <artifactId>dependency-check-maven</artifactId>
     <packaging>maven-plugin</packaging>
@@ -32,12 +32,12 @@ Copyright (c) 2013 Jeremy Long. All Rights Reserved.
     </properties>
     <scm>
         <connection>scm:git:https://github.com/jeremylong/DependencyCheck.git</connection>
-        <url>https://github.com/jeremylong/DependencyCheck/maven</url>
+        <url>https://github.com/jeremylong/DependencyCheck/tree/master/maven</url>
         <developerConnection>scm:git:git@github.com:jeremylong/DependencyCheck.git</developerConnection>
         <tag>HEAD</tag>
     </scm>
     <prerequisites>
-        <maven>${maven.api.version>}</maven>
+        <maven>${maven.api.version}</maven>
     </prerequisites>
     <build>
         <resources>
@@ -142,12 +142,6 @@ Copyright (c) 2013 Jeremy Long. All Rights Reserved.
         <dependency>
             <groupId>org.apache.maven.shared</groupId>
             <artifactId>maven-dependency-tree</artifactId>
-            <version>3.0.1</version>
-        </dependency>
-        <dependency>
-            <groupId>org.jmockit</groupId>
-            <artifactId>jmockit</artifactId>
-            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.maven.plugin-testing</groupId>
@@ -170,36 +164,12 @@ Copyright (c) 2013 Jeremy Long. All Rights Reserved.
             <build>
                 <plugins>
                     <plugin>
-                        <groupId>org.codehaus.gmavenplus</groupId>
-                        <artifactId>gmavenplus-plugin</artifactId>
-                        <executions>
-                            <execution>
-                                <id>add-dynamic-properties-integ</id>
-                                <phase>pre-integration-test</phase>
-                                <goals>
-                                    <goal>execute</goal>
-                                </goals>
-                                <configuration>
-                                    <scripts>
-                                        <script><![CDATA[
-                                        if (project.properties!=null && project.properties.failsafeArgLine!=null) {
-                                            project.properties['invoker.mavenOpts']=project.properties.failsafeArgLine
-                                        }
-                                        ]]></script>
-                                    </scripts>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                    <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-invoker-plugin</artifactId>
                         <configuration>
                             <!--streamLogs>true</streamLogs-->
                             <parallelThreads>4</parallelThreads>
-                            <!--setupIncludes>
-                                <setupInclude>690-threadsafety/pom.xml</setupInclude>
-                            </setupIncludes-->
+                            <mavenOpts>${failsafeArgLine}</mavenOpts>
                             <cloneProjectsTo>${project.build.directory}/it</cloneProjectsTo>
                             <localRepositoryPath>target/local-repo</localRepositoryPath>
                             <properties>

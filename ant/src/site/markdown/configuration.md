@@ -149,6 +149,8 @@ centralAnalyzerEnabled              | Sets whether the Central Analyzer will be 
 centralAnalyzerUseCache             | Sets whether the Central Analyer will cache results. Cached results expire after 30 days.                  | true
 ossIndexAnalyzerEnabled             | Sets whether the OSS Index Analyzer will be enabled.                                                       | true
 ossindexAnalyzerUseCache            | Sets whether the OSS Index Analyzer will cache results. Cached results expire after 24 hours.              | true
+ossindexAnalyzerUsername            | Sets the username for OSS Index - note an account with OSS Index is not required.                          | &nbsp;
+ossindexAnalyzerPassword            | Sets the password for OSS Index.                                                                           | &nbsp;
 nexusAnalyzerEnabled                | Sets whether Nexus Analyzer will be used (requires Nexus Pro). This analyzer is superceded by the Central Analyzer; however, you can configure this to run against a Nexus Pro installation. | true
 nexusUrl                            | Defines the Nexus web service endpoint (example http://domain.enterprise/nexus/service/local/). If not set the Nexus Analyzer will be disabled. | &nbsp;
 nexusUser                           | The username to authenticate to the Nexus Server's web service end point. If not set the Nexus Analyzer will use an unauthenticated connection. | &nbsp;
@@ -171,19 +173,26 @@ composerAnalyzerEnabled             | Sets whether the [experimental](../analyze
 nodeAnalyzerEnabled                 | Sets whether the [retired](../analyzers/index.html) Node.js Analyzer should be used.                       | true
 nodeAuditAnalyzerEnabled            | Sets whether the Node Audit Analyzer should be used.                                                       | true
 nodeAuditAnalyzerUseCache           | Sets whether the Node Audit Analyzer will cache results. Cached results expire after 24 hours.             | true
-retireJsAnalyzerEnabled             | Sets whether the [experimental](../analyzers/index.html) RetireJS Analyzer should be used.                 | true
+retireJsAnalyzerEnabled             | Sets whether the RetireJS Analyzer should be used.                 | true
 retirejsFilterNonVulnerable         | Configures the RetireJS Analyzer to remove non-vulnerable JS dependencies from the report.                 | false
 retirejsFilter                      | A nested configuration that can be specified multple times; The regex defined is used to filter JS files based on content. | &nbsp;
-retireJsUrl                         | The URL to the Retire JS repository.                                                                       | https://raw.githubusercontent.com/Retirejs/retire.js/master/repository/jsrepository.json
+retireJsUrl                         | The URL to the Retire JS repository. **Note** the file name must be `jsrepository.json`.                   | https://raw.githubusercontent.com/Retirejs/retire.js/master/repository/jsrepository.json
 nuspecAnalyzerEnabled               | Sets whether the .NET Nuget Nuspec Analyzer will be used.                                                  | true
-nugetconfAnalyzerEnabled            | Sets whether the [experimental](../analyzers/index.html) .NET Nuget packages.config Analyzer will be used.                                                                                                           | true
+nugetconfAnalyzerEnabled            | Sets whether the [experimental](../analyzers/index.html) .NET Nuget packages.config Analyzer will be used. | true
 cocoapodsAnalyzerEnabled            | Sets whether the [experimental](../analyzers/index.html) Cocoapods Analyzer should be used.                | true
 bundleAuditAnalyzerEnabled          | Sets whether the [experimental](../analyzers/index.html) Bundle Audit Analyzer should be used.             | true
 bundleAuditPath                     | Sets the path to the bundle audit executable; only used if bundle audit analyzer is enabled and experimental analyzers are enabled.  | &nbsp;
 swiftPackageManagerAnalyzerEnabled  | Sets whether the [experimental](../analyzers/index.html) Switft Package Analyzer should be used.           | true
 assemblyAnalyzerEnabled             | Sets whether the .NET Assembly Analyzer should be used.                                                    | true
+<<<<<<< HEAD
 pathToMono                          | The path to Mono for .NET assembly analysis on non-windows systems.                                        | &nbsp;
 >>>>>>> refs/heads/master
+=======
+pathToCore                          | The path to dotnet core .NET assembly analysis on non-windows systems.                                     | &nbsp;
+golangDepEnabled                    | Sets whether or not the [experimental](../analyzers/index.html) Golang Dependency Analyzer should be used. | true
+golangModEnabled                    | Sets whether or not the [experimental](../analyzers/index.html) Goland Module Analyzer should be used; requires `go` to be installed. | true
+pathToGo                            | The path to `go`.                                                                                          | &nbsp;
+>>>>>>> refs/tags/v5.2.2
 
 Advanced Configuration
 ====================
@@ -199,6 +208,6 @@ cveUrl20Base         | Base URL for each year's CVE 2.0, the %d will be replaced
 dataDirectory        | Data directory that is used to store the local copy of the NVD. This should generally not be changed. | data
 databaseDriverName   | The name of the database driver. Example: org.h2.Driver.                 | &nbsp;
 databaseDriverPath   | The path to the database driver JAR file; only used if the driver is not in the class path. | &nbsp;
-connectionString     | The connection string used to connect to the database.                   | &nbsp;
+connectionString     | The connection string used to connect to the database. See using a [database server](../data/database.html). | &nbsp;
 databaseUser         | The username used when connecting to the database.                       | &nbsp;
 databasePassword     | The password used when connecting to the database.                       | &nbsp;

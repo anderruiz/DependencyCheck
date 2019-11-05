@@ -42,7 +42,9 @@ import org.owasp.dependencycheck.utils.DownloadFailedException;
 import org.owasp.dependencycheck.utils.Downloader;
 import org.owasp.dependencycheck.utils.FileFilterBuilder;
 import org.owasp.dependencycheck.utils.InvalidSettingException;
+import org.owasp.dependencycheck.utils.ResourceNotFoundException;
 import org.owasp.dependencycheck.utils.Settings;
+import org.owasp.dependencycheck.utils.TooManyRequestsException;
 
 /**
  * Analyzer which will attempt to locate a dependency on a Nexus service by
@@ -125,16 +127,17 @@ public class NexusAnalyzer extends AbstractFileTypeAnalyzer {
     private boolean checkEnabled() {
         /* Enable this analyzer ONLY if the Nexus URL has been set to something
          other than the default one (if it's the default one, we'll use the
-         central one) and it's enabled by the user.
+         central analyzer) and it's enabled by the user.
          */
         boolean retval = false;
         try {
-            if (!DEFAULT_URL.equals(getSettings().getString(Settings.KEYS.ANALYZER_NEXUS_URL))
-                    && getSettings().getBoolean(Settings.KEYS.ANALYZER_NEXUS_ENABLED)) {
-                LOGGER.info("Enabling Nexus analyzer");
-                retval = true;
-            } else {
-                LOGGER.debug("Nexus analyzer disabled, using Central instead");
+            if (getSettings().getBoolean(Settings.KEYS.ANALYZER_NEXUS_ENABLED)) {
+                if (getSettings().getString(Settings.KEYS.ANALYZER_NEXUS_URL) != null
+                        && !DEFAULT_URL.equals(getSettings().getString(Settings.KEYS.ANALYZER_NEXUS_URL))) {
+                    retval = true;
+                } else {
+                    LOGGER.warn("Disabling Nexus analyzer - please specify the URL to a Nexus Server");
+                }
             }
         } catch (InvalidSettingException ise) {
             LOGGER.warn("Invalid setting. Disabling Nexus analyzer");
@@ -259,6 +262,13 @@ public class NexusAnalyzer extends AbstractFileTypeAnalyzer {
                     PomUtils.analyzePOM(dependency, pomFile);
                 } catch (DownloadFailedException ex) {
                     LOGGER.warn("Unable to download pom.xml for {} from Nexus repository; "
+                            + "this could result in undetected CPE/CVEs.", dependency.getFileName());
+                } catch (TooManyRequestsException ex) {
+                    this.setEnabled(false);
+                    throw new AnalysisException("Received a 429 - too many requests from nexus; "
+                            + "the nexus analyzer is being disabled.", ex);
+                } catch (ResourceNotFoundException ex) {
+                    LOGGER.warn("pom.xml not found for {} from nexus; "
                             + "this could result in undetected CPE/CVEs.", dependency.getFileName());
                 } finally {
                     if (pomFile != null && pomFile.exists() && !FileUtils.deleteQuietly(pomFile)) {

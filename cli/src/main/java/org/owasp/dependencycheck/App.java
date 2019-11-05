@@ -19,6 +19,7 @@ package org.owasp.dependencycheck;
 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -631,6 +632,8 @@ import ch.qos.logback.classic.encoder.PatternLayoutEncoder;
 import ch.qos.logback.classic.filter.ThresholdFilter;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 
+=======
+>>>>>>> refs/tags/v5.2.2
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -640,32 +643,43 @@ import java.util.List;
 import java.util.Set;
 
 import org.apache.commons.cli.ParseException;
+import org.apache.tools.ant.DirectoryScanner;
 import org.owasp.dependencycheck.data.nvdcve.DatabaseException;
 import org.owasp.dependencycheck.dependency.Dependency;
-import org.apache.tools.ant.DirectoryScanner;
 import org.owasp.dependencycheck.dependency.Vulnerability;
-import org.owasp.dependencycheck.utils.Settings;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import ch.qos.logback.core.FileAppender;
 import org.apache.tools.ant.types.LogLevel;
 import org.owasp.dependencycheck.data.update.exception.UpdateException;
 import org.owasp.dependencycheck.exception.ExceptionCollection;
 import org.owasp.dependencycheck.exception.ReportException;
 import org.owasp.dependencycheck.utils.InvalidSettingException;
+import org.owasp.dependencycheck.utils.Settings;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.slf4j.impl.StaticLoggerBinder;
+
+import ch.qos.logback.core.FileAppender;
+import ch.qos.logback.classic.encoder.PatternLayoutEncoder;
+import ch.qos.logback.classic.filter.ThresholdFilter;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.LoggerContext;
 
 /**
  * The command line interface for the DependencyCheck application.
  *
  * @author Jeremy Long
  */
+@SuppressWarnings("squid:S106")
 public class App {
 
     /**
      * The logger.
      */
     private static final Logger LOGGER = LoggerFactory.getLogger(App.class);
+    /**
+     * Properties file error message.
+     */
+    private static final String ERROR_LOADING_PROPERTIES_FILE = "Error loading properties file";
     /**
      * The configured settings.
      */
@@ -676,6 +690,7 @@ public class App {
      *
      * @param args the command line arguments
      */
+    @SuppressWarnings("squid:S4823")
     public static void main(String[] args) {
         final int exitCode;
         final App app = new App();
@@ -735,7 +750,7 @@ public class App {
                     populateSettings(cli);
                 } catch (InvalidSettingException ex) {
                     LOGGER.error(ex.getMessage());
-                    LOGGER.debug("Error loading properties file", ex);
+                    LOGGER.debug(ERROR_LOADING_PROPERTIES_FILE, ex);
                     exitCode = -4;
                     return exitCode;
                 }
@@ -755,7 +770,7 @@ public class App {
                 populateSettings(cli);
             } catch (InvalidSettingException ex) {
                 LOGGER.error(ex.getMessage());
-                LOGGER.debug("Error loading properties file", ex);
+                LOGGER.debug(ERROR_LOADING_PROPERTIES_FILE, ex);
                 exitCode = -4;
                 return exitCode;
             }
@@ -774,27 +789,26 @@ public class App {
             try {
                 populateSettings(cli);
             } catch (InvalidSettingException ex) {
-                LOGGER.error(ex.getMessage());
-                LOGGER.debug("Error loading properties file", ex);
+                LOGGER.error(ex.getMessage(), ex);
+                LOGGER.debug(ERROR_LOADING_PROPERTIES_FILE, ex);
                 exitCode = -4;
                 return exitCode;
             }
             try {
                 final String[] scanFiles = cli.getScanFiles();
                 if (scanFiles != null) {
-                    final String[] formats = cli.getReportFormat();
-                    for (String format : formats) {
-                        exitCode = runScan(cli.getReportDirectory(), format, cli.getProjectName(), scanFiles,
-                                cli.getExcludeList(), cli.getSymLinkDepth(), cli.getFailOnCVSS());
-                    }
+                    exitCode = runScan(cli.getReportDirectory(), cli.getReportFormat(), cli.getProjectName(), scanFiles,
+                    cli.getExcludeList(), cli.getSymLinkDepth(), cli.getFailOnCVSS());
                 } else {
                     LOGGER.error("No scan files configured");
                 }
             } catch (DatabaseException ex) {
                 LOGGER.error(ex.getMessage());
+                LOGGER.debug("database exception", ex);
                 exitCode = -11;
             } catch (ReportException ex) {
                 LOGGER.error(ex.getMessage());
+                LOGGER.debug("report exception", ex);
                 exitCode = -12;
             } catch (ExceptionCollection ex) {
                 if (ex.isFatal()) {
@@ -824,7 +838,7 @@ public class App {
      *
      * @param reportDirectory the path to the directory where the reports will
      * be written
-     * @param outputFormat the output format of the report
+     * @param outputFormats String[] of output formats of the report
      * @param applicationName the application name for the report
      * @param files the files/directories to scan
      * @param excludes the patterns for files/directories to exclude
@@ -838,7 +852,7 @@ public class App {
      * analysis; there may be multiple exceptions contained within the
      * collection.
      */
-    private int runScan(String reportDirectory, String outputFormat, String applicationName, String[] files,
+    private int runScan(String reportDirectory, String[] outputFormats, String applicationName, String[] files,
             String[] excludes, int symLinkDepth, float cvssFailScore) throws DatabaseException,
             ExceptionCollection, ReportException {
         Engine engine = null;
@@ -860,7 +874,9 @@ public class App {
             }
 
             try {
-                engine.writeReports(applicationName, new File(reportDirectory), outputFormat);
+                for (String outputFormat : outputFormats) {
+                    engine.writeReports(applicationName, new File(reportDirectory), outputFormat, exCol);
+                }
             } catch (ReportException ex) {
                 if (exCol != null) {
                     exCol.addException(ex);
@@ -1070,6 +1086,9 @@ public class App {
         settings.setBoolean(Settings.KEYS.ANALYZER_BUNDLE_AUDIT_ENABLED, !cli.isBundleAuditDisabled());
         settings.setBoolean(Settings.KEYS.ANALYZER_OPENSSL_ENABLED, !cli.isOpenSSLDisabled());
         settings.setBoolean(Settings.KEYS.ANALYZER_COMPOSER_LOCK_ENABLED, !cli.isComposerDisabled());
+        settings.setBoolean(Settings.KEYS.ANALYZER_GOLANG_DEP_ENABLED, !cli.isGolangDepAnalyzerDisabled());
+        settings.setBoolean(Settings.KEYS.ANALYZER_GOLANG_MOD_ENABLED, !cli.isGolangModDisabled());
+        settings.setStringIfNotNull(Settings.KEYS.ANALYZER_GOLANG_PATH, cli.getPathToGo());
         settings.setBoolean(Settings.KEYS.ANALYZER_NODE_PACKAGE_ENABLED, !cli.isNodeJsDisabled());
         settings.setBoolean(Settings.KEYS.ANALYZER_NODE_AUDIT_ENABLED, !cli.isNodeAuditDisabled());
         settings.setBoolean(Settings.KEYS.ANALYZER_NODE_AUDIT_USE_CACHE, !cli.isNodeAuditCacheDisabled());
@@ -1081,7 +1100,7 @@ public class App {
         settings.setBoolean(Settings.KEYS.ANALYZER_RUBY_GEMSPEC_ENABLED, !cli.isRubyGemspecDisabled());
         settings.setBoolean(Settings.KEYS.ANALYZER_CENTRAL_ENABLED, !cli.isCentralDisabled());
         settings.setBoolean(Settings.KEYS.ANALYZER_CENTRAL_USE_CACHE, !cli.isCentralCacheDisabled());
-        settings.setBoolean(Settings.KEYS.ANALYZER_NEXUS_ENABLED, !cli.isNexusDisabled());
+        settings.setBooleanIfNotNull(Settings.KEYS.ANALYZER_NEXUS_ENABLED, cli.isNexusEnabled());
         settings.setBoolean(Settings.KEYS.ANALYZER_OSSINDEX_ENABLED, !cli.isOssIndexDisabled());
         settings.setBoolean(Settings.KEYS.ANALYZER_OSSINDEX_USE_CACHE, !cli.isOssIndexCacheDisabled());
         settings.setFloat(Settings.KEYS.JUNIT_FAIL_ON_CVSS, cli.getJunitFailOnCVSS());
@@ -1102,6 +1121,7 @@ public class App {
                 cli.getStringArgument(CliParser.ARGUMENT.ARTIFACTORY_BEARER_TOKEN));
 
         settings.setStringIfNotEmpty(Settings.KEYS.ANALYZER_BUNDLE_AUDIT_PATH, cli.getPathToBundleAudit());
+        settings.setStringIfNotEmpty(Settings.KEYS.ANALYZER_BUNDLE_AUDIT_WORKING_DIRECTORY, cli.getPathToBundleAuditWorkingDirectory());
         settings.setStringIfNotEmpty(Settings.KEYS.ANALYZER_NEXUS_URL, nexusUrl);
         settings.setStringIfNotEmpty(Settings.KEYS.ANALYZER_NEXUS_USER, nexusUser);
         settings.setStringIfNotEmpty(Settings.KEYS.ANALYZER_NEXUS_PASSWORD, nexusPass);

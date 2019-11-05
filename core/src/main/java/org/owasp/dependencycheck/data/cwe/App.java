@@ -21,7 +21,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
-import java.util.Map;
+import java.util.HashMap;
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.parsers.SAXParser;
 
@@ -36,6 +36,7 @@ import org.xml.sax.SAXException;
  *
  * @author Jeremy Long
  */
+@SuppressWarnings("squid:S106")
 public final class App {
 
     /**
@@ -49,6 +50,7 @@ public final class App {
      *
      * @param args the command line arguments
      */
+    @SuppressWarnings("squid:S4823")
     public static void main(String[] args) {
         final File in;
         final File out;
@@ -64,8 +66,10 @@ public final class App {
             return;
         }
         out = new File("cwe.hashmap.serialized");
-        final Map<String, String> cwe = readCweData(args);
-        serializeCweData(cwe, out);
+        final HashMap<String, String> cwe = readCweData(args);
+        if (cwe != null) {
+            serializeCweData(cwe, out);
+        }
     }
 
     /**
@@ -74,7 +78,7 @@ public final class App {
      * @param files the array of files to parse
      * @return a map of the CWE data
      */
-    private static Map<String, String> readCweData(String[] files) {
+    private static HashMap<String, String> readCweData(String[] files) {
         try {
             final SAXParser saxParser = XmlUtils.buildSecureSaxParser();
             final CweHandler handler = new CweHandler();
@@ -82,6 +86,7 @@ public final class App {
                 final File in = new File(f);
                 if (!in.isFile()) {
                     System.err.println(String.format("File not found %s", in));
+                    return null;
                 }
                 System.out.println(String.format("Parsing %s", in));
                 saxParser.parse(in, handler);
@@ -99,7 +104,7 @@ public final class App {
      * @param cwe the CWE data
      * @param out the file output location
      */
-    private static void serializeCweData(Map<String, String> cwe, File out) {
+    private static void serializeCweData(HashMap<String, String> cwe, File out) {
     	FileOutputStream fout = null;
     	ObjectOutputStream objOut = null;
         try {

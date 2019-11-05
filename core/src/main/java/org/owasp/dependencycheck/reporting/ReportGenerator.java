@@ -58,6 +58,7 @@ import org.owasp.dependencycheck.analyzer.Analyzer;
 import org.owasp.dependencycheck.data.nvdcve.DatabaseProperties;
 import org.owasp.dependencycheck.dependency.Dependency;
 import org.owasp.dependencycheck.dependency.EvidenceType;
+import org.owasp.dependencycheck.exception.ExceptionCollection;
 import org.owasp.dependencycheck.exception.ReportException;
 import org.owasp.dependencycheck.utils.FileUtils;
 import org.owasp.dependencycheck.utils.Settings;
@@ -128,6 +129,8 @@ public class ReportGenerator {
      */
     private final Settings settings;
 
+    //CSOFF: ParameterNumber
+    //CSOFF: LineLength
     /**
      * Constructs a new ReportGenerator.
      *
@@ -137,13 +140,31 @@ public class ReportGenerator {
      * @param properties the database properties (containing timestamps of the
      * NVD CVE data)
      * @param settings a reference to the database settings
+     * @deprecated Please use
+     * {@link #ReportGenerator(java.lang.String, java.util.List, java.util.List, org.owasp.dependencycheck.data.nvdcve.DatabaseProperties, org.owasp.dependencycheck.utils.Settings, org.owasp.dependencycheck.exception.ExceptionCollection)}
      */
+    @Deprecated
     public ReportGenerator(String applicationName, List<Dependency> dependencies, List<Analyzer> analyzers,
             DatabaseProperties properties, Settings settings) {
-        this.settings = settings;
-        velocityEngine = createVelocityEngine();
-        velocityEngine.init();
-        context = createContext(applicationName, dependencies, analyzers, properties);
+        this(applicationName, dependencies, analyzers, properties, settings, null);
+    }
+
+    /**
+     * Constructs a new ReportGenerator.
+     *
+     * @param applicationName the application name being analyzed
+     * @param dependencies the list of dependencies
+     * @param analyzers the list of analyzers used
+     * @param properties the database properties (containing timestamps of the
+     * NVD CVE data)
+     * @param settings a reference to the database settings
+     * @param exceptions a collection of exceptions that may have occurred
+     * during the analysis
+     * @since 5.1.0
+     */
+    public ReportGenerator(String applicationName, List<Dependency> dependencies, List<Analyzer> analyzers,
+            DatabaseProperties properties, Settings settings, ExceptionCollection exceptions) {
+        this(applicationName, null, null, null, dependencies, analyzers, properties, settings, exceptions);
     }
 
     /**
@@ -158,30 +179,40 @@ public class ReportGenerator {
      * @param properties the database properties (containing timestamps of the
      * NVD CVE data)
      * @param settings a reference to the database settings
+     * @deprecated Please use
+     * {@link #ReportGenerator(java.lang.String, java.lang.String, java.lang.String, java.lang.String, java.util.List, java.util.List, org.owasp.dependencycheck.data.nvdcve.DatabaseProperties, org.owasp.dependencycheck.utils.Settings, org.owasp.dependencycheck.exception.ExceptionCollection)}
      */
-    //CSOFF: ParameterNumber
+    @Deprecated
     public ReportGenerator(String applicationName, String groupID, String artifactID, String version,
-            List<Dependency> dependencies, List<Analyzer> analyzers, DatabaseProperties properties, Settings settings) {
-        this(applicationName, dependencies, analyzers, properties, settings);
-        if (version != null) {
-            context.put("applicationVersion", version);
-        }
-        if (artifactID != null) {
-            context.put("artifactID", artifactID);
-        }
-        if (groupID != null) {
-            context.put("groupID", groupID);
-        }
+            List<Dependency> dependencies, List<Analyzer> analyzers, DatabaseProperties properties,
+            Settings settings) {
+        this(applicationName, groupID, artifactID, version, dependencies, analyzers, properties, settings, null);
     }
-    //CSON: ParameterNumber
 
     /**
-     * Creates a new Velocity Engine.
+     * Constructs a new ReportGenerator.
      *
-     * @return a velocity engine
+     * @param applicationName the application name being analyzed
+     * @param groupID the group id of the project being analyzed
+     * @param artifactID the application id of the project being analyzed
+     * @param version the application version of the project being analyzed
+     * @param dependencies the list of dependencies
+     * @param analyzers the list of analyzers used
+     * @param properties the database properties (containing timestamps of the
+     * NVD CVE data)
+     * @param settings a reference to the database settings
+     * @param exceptions a collection of exceptions that may have occurred
+     * during the analysis
+     * @since 5.1.0
      */
-    private VelocityEngine createVelocityEngine() {
-        return new VelocityEngine();
+    public ReportGenerator(String applicationName, String groupID, String artifactID, String version,
+            List<Dependency> dependencies, List<Analyzer> analyzers, DatabaseProperties properties,
+            Settings settings, ExceptionCollection exceptions) {
+        this.settings = settings;
+        velocityEngine = createVelocityEngine();
+        velocityEngine.init();
+        context = createContext(applicationName, dependencies, analyzers, properties, groupID,
+                artifactID, version, exceptions);
     }
 
     /**
@@ -189,14 +220,21 @@ public class ReportGenerator {
      * reports.
      *
      * @param applicationName the application name being analyzed
+     * @param groupID the group id of the project being analyzed
+     * @param artifactID the application id of the project being analyzed
+     * @param version the application version of the project being analyzed
      * @param dependencies the list of dependencies
      * @param analyzers the list of analyzers used
      * @param properties the database properties (containing timestamps of the
      * NVD CVE data)
+     * @param exceptions a collection of exceptions that may have occurred
+     * during the analysis
      * @return the velocity context
      */
+    @SuppressWarnings("JavaTimeDefaultTimeZone")
     private VelocityContext createContext(String applicationName, List<Dependency> dependencies,
-            List<Analyzer> analyzers, DatabaseProperties properties) {
+            List<Analyzer> analyzers, DatabaseProperties properties, String groupID,
+            String artifactID, String version, ExceptionCollection exceptions) {
 
         final String scanDate = "";
         final String scanDateXML = "";
@@ -217,7 +255,30 @@ public class ReportGenerator {
         ctxt.put("VERSION", EvidenceType.VERSION);
         ctxt.put("version", settings.getString(Settings.KEYS.APPLICATION_VERSION, "Unknown"));
         ctxt.put("settings", settings);
+        if (version != null) {
+            ctxt.put("applicationVersion", version);
+        }
+        if (artifactID != null) {
+            ctxt.put("artifactID", artifactID);
+        }
+        if (groupID != null) {
+            ctxt.put("groupID", groupID);
+        }
+        if (exceptions != null) {
+            ctxt.put("exceptions", exceptions.getExceptions());
+        }
         return ctxt;
+    }
+    //CSON: ParameterNumber
+    //CSON: LineLength
+
+    /**
+     * Creates a new Velocity Engine.
+     *
+     * @return a velocity engine
+     */
+    private VelocityEngine createVelocityEngine() {
+        return new VelocityEngine();
     }
 
     /**
@@ -290,7 +351,7 @@ public class ReportGenerator {
      * @param format the report format
      * @return the report File
      */
-    protected File getReportFile(String outputLocation, Format format) {
+    public static File getReportFile(String outputLocation, Format format) {
         File outFile = new File(outputLocation);
         if (outFile.getParentFile() == null) {
             outFile = new File(".", outputLocation);

@@ -19,7 +19,9 @@ package org.owasp.dependencycheck.dependency;
 
 import java.io.Serializable;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import org.owasp.dependencycheck.data.cwe.CweDB;
 
@@ -65,7 +67,7 @@ public class CweSet implements Serializable {
 			if(sb.length()!=0) {
 				sb.append(' ');
 			}
-			sb.append(CweDB.getName(cwe));
+			sb.append(CweDB.getFullName(cwe));
 		}
         return sb.toString();
     }
@@ -77,5 +79,18 @@ public class CweSet implements Serializable {
      */
     public Collection<String> stream() {
         return cwes;
+    }
+
+    /**
+     * Returns a map of CWE-ID and title.
+     *
+     * @return a map of CWE-ID and title.
+     */
+    public Map<String, String> getFullCwes() {
+        final Map<String, String> map = new HashMap<>();
+        for (String cwe : cwes) {
+        	map.put(cwe, CweDB.getName(cwe));
+		}
+        return map;
     }
 }

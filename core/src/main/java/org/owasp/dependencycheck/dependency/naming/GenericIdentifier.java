@@ -189,9 +189,6 @@ public class GenericIdentifier implements Identifier {
      */
     @Override
     public int compareTo(Identifier o) {
-        if (o == null) {
-            throw new IllegalArgumentException("Unable to compare a null identifier");
-        }
         return new CompareToBuilder()
                 .append(this.value, o.toString())
                 .append(this.url, o.getUrl())
