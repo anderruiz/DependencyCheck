@@ -17,6 +17,7 @@
  */
 package org.owasp.dependencycheck.utils;
 
+import org.apache.commons.io.FileUtils;
 import org.hdiv.ee.ssl.HdivHttpConnection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -196,6 +197,13 @@ public final class Downloader {
                     writer.write(buffer, 0, bytesRead);
                 }
                 LOGGER.debug("Download of {} complete", url.toString());
+                if(outputPath.getName().endsWith(".xml")) {
+                	String data = FileUtils.readFileToString(outputPath);
+                	if(data.startsWith("<!DOCTYPE html>")) {
+                		throw new IOException("Invalid XML");
+                	}
+                }
+                
             } catch (IOException ex) {
                 checkForCommonExceptionTypes(ex);
                 final String msg = format("Error saving '%s' to file '%s'%nConnection Timeout: %d%nEncoding: %s%n",
@@ -298,6 +306,9 @@ public final class Downloader {
                 final int t = conn.getResponseCode();
                 if (t >= 200 && t < 300) {
                 	timestamp = conn.getLastModified();
+                	if(timestamp==0) {
+                		throw new URLConnectionFailureException(format("%s request returned a 0 timestamp: %s", httpMethod, url));
+                	}
                 } else {
                 	throw new DownloadFailedException(format("%s request returned a non-200 status code: %s", httpMethod, url));
                 }
