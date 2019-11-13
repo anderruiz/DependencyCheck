@@ -409,7 +409,9 @@ public class AssemblyAnalyzer extends AbstractFileTypeAnalyzer {
      */
     @Override
     public void closeAnalyzer() throws Exception {
-        FileUtils.delete(grokAssembly.getParentFile());
+        if(grokAssembly!=null) {
+        	FileUtils.delete(grokAssembly.getParentFile());
+        }
     }
 
     @Override

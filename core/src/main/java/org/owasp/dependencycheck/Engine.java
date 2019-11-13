@@ -675,6 +675,7 @@ public class Engine implements FileFilter {
 
         // analysis phases
         for (AnalysisPhase phase : mode.getPhases()) {
+        	System.out.println("Phase:"+phase);
         	if(skipPhase(phase)) {
         		continue;
         	}

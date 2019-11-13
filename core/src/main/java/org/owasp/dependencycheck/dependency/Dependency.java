@@ -441,6 +441,10 @@ public class Dependency extends EvidenceCollection implements Serializable {
     public synchronized Set<Identifier> getSoftwareIdentifiers() {
         return Collections.unmodifiableSet(new TreeSet<>(softwareIdentifiers));
     }
+    
+    public synchronized void removeSoftwareIdentifier(Identifier identifier) {
+    	softwareIdentifiers.remove(identifier);
+    }
 
     /**
      * Returns an unmodifiable set of vulnerability identifiers.
