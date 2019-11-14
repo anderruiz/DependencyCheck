@@ -674,15 +674,21 @@ public class Engine implements FileFilter {
         final long analysisStart = System.currentTimeMillis();
 
         // analysis phases
+        new Exception().printStackTrace();
         for (AnalysisPhase phase : mode.getPhases()) {
         	System.out.println("Phase:"+phase);
         	if(skipPhase(phase)) {
+        		System.out.println("Phase:"+phase + " skipped");
+        		for (final Analyzer analyzer : analyzers.get(phase)) {
+        			System.out.println("Skipped analyzers in this phase-->" + analyzer.getName());
+        		}
         		continue;
         	}
             final List<Analyzer> analyzerList = analyzers.get(phase);
 
             for (final Analyzer analyzer : analyzerList) {
                 final long analyzerStart = System.currentTimeMillis();
+                
                 try {
                     initializeAnalyzer(analyzer);
                 } catch (InitializationException ex) {
@@ -691,15 +697,15 @@ public class Engine implements FileFilter {
                         continue;
                     }
                 }
-
-                if (analyzer.isEnabled()) {
+                
+                if (analyzer.isEnabled() && analyzer.isAnalysisEnabled()) {
                     executeAnalysisTasks(analyzer, exceptions);
 
                     final long analyzerDurationMillis = System.currentTimeMillis() - analyzerStart;
                     final long analyzerDurationSeconds = TimeUnit.MILLISECONDS.toSeconds(analyzerDurationMillis);
                     LOGGER.info("Finished {} ({} seconds)", analyzer.getName(), analyzerDurationSeconds);
                 } else {
-                    LOGGER.debug("Skipping {} (not enabled)", analyzer.getName());
+                	LOGGER.debug("Skipping {} (not enabled)", analyzer.getName());
                 }
             }
         }
@@ -797,9 +803,9 @@ public class Engine implements FileFilter {
                 try {
                     result.get();
                 } catch (ExecutionException e) {
-                    throwFatalExceptionCollection("Analysis task failed with a fatal exception.", e, exceptions);
+                	throwFatalExceptionCollection("Analysis task failed with a fatal exception.", e, exceptions);
                 } catch (CancellationException e) {
-                    throwFatalExceptionCollection("Analysis task was cancelled.", e, exceptions);
+                	throwFatalExceptionCollection("Analysis task was cancelled.", e, exceptions);
                 }
             }
         } catch (InterruptedException e) {
@@ -854,7 +860,7 @@ public class Engine implements FileFilter {
             LOGGER.debug("Initializing {}", analyzer.getName());
             analyzer.prepare(this);
         } catch (InitializationException ex) {
-            LOGGER.error("Exception occurred initializing {}.", analyzer.getName());
+        	LOGGER.error("Exception occurred initializing {}.", analyzer.getName());
             LOGGER.debug("", ex);
             if (ex.isFatal()) {
                 try {
@@ -865,7 +871,7 @@ public class Engine implements FileFilter {
             }
             throw ex;
         } catch (Throwable ex) {
-            LOGGER.error("Unexpected exception occurred initializing {}.", analyzer.getName());
+        	LOGGER.error("Unexpected exception occurred initializing {}.", analyzer.getName());
             LOGGER.debug("", ex);
             try {
                 analyzer.close();
@@ -1113,14 +1119,14 @@ public class Engine implements FileFilter {
         if (file == null) {
             return false;
         }
+        
+        boolean accepted = false;
         /* note, we can't break early on this loop as the analyzers need to know if
         they have files to work on prior to initialization */
         for (FileTypeAnalyzer a : this.fileTypeAnalyzers) {
-			if(a.accept(file)) {
-				return true;
-			}
+        	accepted = a.accept(file) || accepted;
 		}
-        return false;
+        return accepted;
     }
 
     /**

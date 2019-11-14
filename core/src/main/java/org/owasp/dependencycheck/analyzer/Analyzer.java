@@ -111,5 +111,12 @@ public interface Analyzer {
      * @return the value of enabled
      */
     boolean isEnabled();
+    
+    /**
+     * Get the value of analysis enabled.
+     *
+     * @return the value of analysis enabled
+     */
+    boolean isAnalysisEnabled();
 
 }

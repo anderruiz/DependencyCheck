@@ -47,7 +47,17 @@ public abstract class AbstractFileTypeAnalyzer extends AbstractAnalyzer implemen
      * Whether the file type analyzer detected any files it needs to analyze.
      */
     private boolean filesMatched = false;
-
+  
+    /**
+     * Get the value of analysis enabled.
+     *
+     * @return the value of analysis enabled
+     */
+    @Override
+    public boolean isAnalysisEnabled() {
+        return filesMatched;
+    }
+    
     /**
      * Set the value of filesMatched. A flag indicating whether the scan
      * included any file types this analyzer supports.
@@ -80,9 +90,9 @@ public abstract class AbstractFileTypeAnalyzer extends AbstractAnalyzer implemen
     @Override
     protected final void prepareAnalyzer(Engine engine) throws InitializationException {
         if (filesMatched) {
-            prepareFileTypeAnalyzer(engine);
-        } else {
-            this.setEnabled(false);
+        	prepareFileTypeAnalyzer(engine);
+        //} else {
+        //this.setEnabled(false);
         }
     }
 
@@ -121,7 +131,7 @@ public abstract class AbstractFileTypeAnalyzer extends AbstractAnalyzer implemen
      */
     @Override
     public boolean accept(File pathname) {
-        final FileFilter filter = getFileFilter();
+    	final FileFilter filter = getFileFilter();
         boolean accepted = false;
         if (null == filter) {
             LOGGER.error("The '{}' analyzer is misconfigured and does not have a file filter; it will be disabled", getName());
