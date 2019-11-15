@@ -674,7 +674,6 @@ public class Engine implements FileFilter {
         final long analysisStart = System.currentTimeMillis();
 
         // analysis phases
-        new Exception().printStackTrace();
         for (AnalysisPhase phase : mode.getPhases()) {
         	System.out.println("Phase:"+phase);
         	if(skipPhase(phase)) {
