@@ -675,12 +675,7 @@ public class Engine implements FileFilter {
 
         // analysis phases
         for (AnalysisPhase phase : mode.getPhases()) {
-        	System.out.println("Phase:"+phase);
         	if(skipPhase(phase)) {
-        		System.out.println("Phase:"+phase + " skipped");
-        		for (final Analyzer analyzer : analyzers.get(phase)) {
-        			System.out.println("Skipped analyzers in this phase-->" + analyzer.getName());
-        		}
         		continue;
         	}
             final List<Analyzer> analyzerList = analyzers.get(phase);
