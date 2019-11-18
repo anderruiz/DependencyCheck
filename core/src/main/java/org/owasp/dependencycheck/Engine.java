@@ -692,7 +692,7 @@ public class Engine implements FileFilter {
                     }
                 }
                 
-                if (analyzer.isEnabled() && analyzer.isAnalysisEnabled()) {
+                if (analyzer.isEnabled()) {
                     executeAnalysisTasks(analyzer, exceptions);
 
                     final long analyzerDurationMillis = System.currentTimeMillis() - analyzerStart;

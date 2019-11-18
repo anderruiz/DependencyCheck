@@ -174,16 +174,6 @@ public abstract class AbstractAnalyzer implements Analyzer {
     public boolean supportsParallelProcessing() {
         return true;
     }
-    
-    /**
-     * Get the value of analysis enabled.
-     *
-     * @return the value of analysis enabled
-     */
-    @Override
-    public boolean isAnalysisEnabled() {
-        return isEnabled();
-    }
 
     /**
      * <p>

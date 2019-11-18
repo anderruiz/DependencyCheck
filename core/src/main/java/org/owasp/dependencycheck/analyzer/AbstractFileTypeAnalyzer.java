@@ -47,16 +47,6 @@ public abstract class AbstractFileTypeAnalyzer extends AbstractAnalyzer implemen
      * Whether the file type analyzer detected any files it needs to analyze.
      */
     private boolean filesMatched = false;
-  
-    /**
-     * Get the value of analysis enabled.
-     *
-     * @return the value of analysis enabled
-     */
-    @Override
-    public boolean isAnalysisEnabled() {
-        return filesMatched;
-    }
     
     /**
      * Set the value of filesMatched. A flag indicating whether the scan
