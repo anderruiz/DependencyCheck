@@ -193,7 +193,7 @@ public class EngineVersionCheck implements CachedWebDataSource {
         }
         final DependencyVersion running = new DependencyVersion(currentVersion);
         final DependencyVersion released = new DependencyVersion(updateToVersion);
-        if (running.compareTo(released) < 0) {
+        if (false && running.compareTo(released) < 0) {
             LOGGER.debug("Upgrade recommended");
             return true;
         }
