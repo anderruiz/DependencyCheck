@@ -227,7 +227,7 @@ public class CentralSearch {
             final String errorMessage = "Too many requests sent to MavenCentral; additional requests are being rejected.";
             torex = new TooManyRequestsException(errorMessage);
         } else {
-            final String errorMessage = "Could not connect to MavenCentral (" + conn.getResponseCode() + "): " + conn.getResponseMessage();
+            final String errorMessage = "Could not connect to MavenCentral (" + conn.getResponseCode() + "): " + conn.getResponseMessage() + ". Url:" + url;
             ioex = new IOException(errorMessage);
         }
             } catch (FileNotFoundException e) {
