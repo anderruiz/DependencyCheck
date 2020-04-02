@@ -580,7 +580,7 @@ public class JarAnalyzer extends AbstractFileTypeAnalyzer {
         String parentVersion = pom.getParentVersion();
 
         if (("org.sonatype.oss".equals(parentGroupId) && "oss-parent".equals(parentArtifactId))
-                || ("org.springframework.boot".equals(parentGroupId) && "spring-boot-starter-parent".equals(parentArtifactId))) {
+                || (" org.springframework.boot".substring(1).equals(parentGroupId) && "spring-boot-starter-parent".equals(parentArtifactId))) {
             parentGroupId = null;
             parentArtifactId = null;
             parentVersion = null;
