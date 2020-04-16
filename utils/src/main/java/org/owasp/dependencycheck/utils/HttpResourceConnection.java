@@ -21,6 +21,7 @@ import org.hdiv.ee.ssl.HdivHttpConnection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Closeable;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -41,7 +42,7 @@ import java.util.zip.InflaterInputStream;
  * @author Jeremy Long
  * @version $Id: $Id
  */
-public class HttpResourceConnection implements AutoCloseable {
+public class HttpResourceConnection implements Closeable {
 
     /**
      * The logger.
