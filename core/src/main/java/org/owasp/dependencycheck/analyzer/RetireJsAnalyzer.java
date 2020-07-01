@@ -174,7 +174,11 @@ public class RetireJsAnalyzer extends AbstractFileTypeAnalyzer {
         } catch (IOException ex) {
             this.setEnabled(false);
             throw new InitializationException("Failed to initialize the RetireJS repo - data directory could not be created", ex);
+        } catch (Exception ex) {
+            this.setEnabled(false);
+            throw new InitializationException("Failed to initialize the RetireJS repo", ex);
         }
+        
         try (FileInputStream in = new FileInputStream(repoFile)) {
             this.jsRepository = new VulnerabilitiesRepositoryLoader().loadFromInputStream(in);
 
