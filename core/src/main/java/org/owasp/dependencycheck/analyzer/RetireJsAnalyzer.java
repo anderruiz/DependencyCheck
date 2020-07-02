@@ -28,6 +28,7 @@ import com.h3xstream.retirejs.repo.VulnerabilitiesRepository;
 import com.h3xstream.retirejs.repo.VulnerabilitiesRepositoryLoader;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.json.JSONException;
 import org.owasp.dependencycheck.Engine;
 import org.owasp.dependencycheck.analyzer.exception.AnalysisException;
 import org.owasp.dependencycheck.dependency.Confidence;
@@ -179,7 +180,13 @@ public class RetireJsAnalyzer extends AbstractFileTypeAnalyzer {
         try (FileInputStream in = new FileInputStream(repoFile)) {
             this.jsRepository = new VulnerabilitiesRepositoryLoader().loadFromInputStream(in);
 
-        }catch (Exception ex) {
+        } catch (IOException ex) {
+            this.setEnabled(false);
+            throw new InitializationException("Failed to initialize the RetireJS repo", ex);
+        } catch (JSONException ex) {
+            this.setEnabled(false);
+            throw new InitializationException("Failed to initialize the RetireJS repo. Bad file content. Need to be updated. ", ex);
+        } catch (Exception ex) {
             this.setEnabled(false);
             throw new InitializationException("Failed to initialize the RetireJS repo", ex);
         }
