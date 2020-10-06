@@ -171,10 +171,10 @@ public class RetireJsAnalyzer extends AbstractFileTypeAnalyzer {
             repoFile = new File(getSettings().getDataDirectory(), "jsrepository.json");
         } catch (FileNotFoundException ex) {
             this.setEnabled(false);
-            throw new InitializationException(String.format("RetireJS repo does not exist locally (%s)", repoFile), ex);
+            throw new InitializationException(String.format("RetireJS repo does not exist locally (%s)", repoFile), ex, false);
         } catch (IOException ex) {
             this.setEnabled(false);
-            throw new InitializationException("Failed to initialize the RetireJS repo - data directory could not be created", ex);
+            throw new InitializationException("Failed to initialize the RetireJS repo - data directory could not be created", ex, false);
         } 
         
         try (FileInputStream in = new FileInputStream(repoFile)) {
@@ -182,13 +182,16 @@ public class RetireJsAnalyzer extends AbstractFileTypeAnalyzer {
 
         } catch (IOException ex) {
             this.setEnabled(false);
-            throw new InitializationException("Failed to initialize the RetireJS repo", ex);
+            repoFile.delete();
+            throw new InitializationException("Failed to initialize the RetireJS repo", ex, false);
         } catch (JSONException ex) {
             this.setEnabled(false);
-            throw new InitializationException("Failed to initialize the RetireJS repo. Bad file content. Need to be updated. ", ex);
+            repoFile.delete();
+            throw new InitializationException("Failed to initialize the RetireJS repo. Bad file content. Need to be updated. ", ex, false);
         } catch (Exception ex) {
             this.setEnabled(false);
-            throw new InitializationException("Failed to initialize the RetireJS repo", ex);
+            repoFile.delete();
+            throw new InitializationException("Failed to initialize the RetireJS repo", ex, false);
         }
     }
 

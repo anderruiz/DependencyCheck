@@ -38,6 +38,7 @@ import javax.annotation.concurrent.ThreadSafe;
 
 import org.owasp.dependencycheck.Engine;
 import org.owasp.dependencycheck.data.update.exception.UpdateException;
+import org.owasp.dependencycheck.utils.DownloadFailedException;
 import org.owasp.dependencycheck.utils.Downloader;
 import org.owasp.dependencycheck.utils.ResourceNotFoundException;
 import org.owasp.dependencycheck.utils.Settings;
@@ -109,6 +110,9 @@ public class RetireJSDataSource implements CachedWebDataSource {
                 url = settings.getString(Settings.KEYS.ANALYZER_RETIREJS_REPO_JS_URL, DEFAULT_JS_URL);
                 initializeRetireJsRepo(settings, new URL(url));
             }
+        } catch (DownloadFailedException ex) {
+        	LOGGER.error("Error downloading retirejs:"+ex.getMessage());
+        	return false;
         } catch (MalformedURLException ex) {
             throw new UpdateException(String.format("Inavlid URL for RetireJS repository (%s)", url), ex);
         } catch (IOException ex) {
@@ -151,7 +155,7 @@ public class RetireJSDataSource implements CachedWebDataSource {
      * @throws UpdateException thrown if there is an exception during
      * initialization
      */
-    private void initializeRetireJsRepo(Settings settings, URL repoUrl) throws UpdateException {
+    private void initializeRetireJsRepo(Settings settings, URL repoUrl) throws UpdateException, DownloadFailedException {
         try {
             final File dataDir = settings.getDataDirectory();
 
@@ -163,6 +167,8 @@ public class RetireJSDataSource implements CachedWebDataSource {
 
             final File repoFile = new File(dataDir, filename);
             downloader.fetchFile(repoUrl, repoFile);
+        } catch (DownloadFailedException ex) {
+        	throw ex;
         } catch (IOException | TooManyRequestsException | ResourceNotFoundException ex) {
             throw new UpdateException("Failed to initialize the RetireJS repo", ex);
         }
