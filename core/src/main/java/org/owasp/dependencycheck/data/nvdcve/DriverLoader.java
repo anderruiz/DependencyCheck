@@ -57,6 +57,8 @@ public final class DriverLoader {
             DriverManager.deregisterDriver(driver);
         } catch (SQLException ex) {
             LOGGER.debug("An error occurred unloading the database driver", ex);
+        } catch (SecurityException ex) {
+           // Ignore this as it will be launched in Graal
         } catch (Throwable unexpected) {
             LOGGER.debug("An unexpected throwable occurred unloading the database driver", unexpected);
         }
