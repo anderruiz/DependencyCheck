@@ -20,6 +20,8 @@ package org.owasp.dependencycheck.data.update.cpe;
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
+
 import javax.annotation.concurrent.NotThreadSafe;
 import org.owasp.dependencycheck.data.update.NvdCveUpdater;
 import org.owasp.dependencycheck.data.update.exception.InvalidDataException;
@@ -45,7 +47,7 @@ public class CPEHandler extends DefaultHandler {
     /**
      * The Starts with expression to filter CVE entries by CPE.
      */
-    private final String cpeStartsWith;
+    private final Pattern cpeStartsWith;
     /**
      * The text content of the node being processed. This can be used during the
      * end element event.
@@ -70,7 +72,7 @@ public class CPEHandler extends DefaultHandler {
      * @param settings the configured settings
      */
     public CPEHandler(Settings settings) {
-        cpeStartsWith = settings.getString(Settings.KEYS.CVE_CPE_STARTS_WITH_FILTER, "cpe:/a:");
+        cpeStartsWith = Pattern.compile(settings.getString(Settings.KEYS.CVE_CPE_STARTS_WITH_FILTER, "cpe:/a:.*"));
     }
 
     /**
@@ -100,7 +102,7 @@ public class CPEHandler extends DefaultHandler {
             final String temp = attributes.getValue("deprecated");
             final String value = attributes.getValue("name");
             final boolean delete = "true".equalsIgnoreCase(temp);
-            if (!delete && value.startsWith(cpeStartsWith) && value.length() > 7) {
+            if (!delete && cpeStartsWith.matcher(value).matches() && value.length() > 7) {
                 try {
                     final Cpe cpe = new Cpe(value);
                     data.add(cpe);

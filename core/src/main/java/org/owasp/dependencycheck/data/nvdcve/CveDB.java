@@ -37,6 +37,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.*;
+import java.util.regex.Pattern;
 
 import static org.apache.commons.collections.map.AbstractReferenceMap.HARD;
 import static org.apache.commons.collections.map.AbstractReferenceMap.SOFT;
@@ -116,7 +117,7 @@ public final class CveDB implements Closeable {
      * The filter for 2.3 CPEs in the CVEs - we don't import unless we get a
      * match.
      */
-    private final String cpeStartsWithFilter;
+    private final Pattern cpeStartsWithFilter;
     /**
      * Cache for CVE lookups; used to speed up the vulnerability search process.
      */
@@ -354,7 +355,7 @@ public final class CveDB implements Closeable {
      */
     public CveDB(Settings settings) throws DatabaseException {
         this.settings = settings;
-        this.cpeStartsWithFilter = this.settings.getString(Settings.KEYS.CVE_CPE_STARTS_WITH_FILTER, "cpe:2.3:a:");
+        this.cpeStartsWithFilter = Pattern.compile(this.settings.getString(Settings.KEYS.CVE_CPE_STARTS_WITH_FILTER, "cpe:2.3:a:.*"));
         connectionFactory = new ConnectionFactory(settings);
         open();
     }
@@ -1433,7 +1434,7 @@ public final class CveDB implements Closeable {
         List<DefCpeMatch> allEntries = HdivUtils.collect(HdivUtils.collect(cve.getConfigurations().getNodes(), new NodeFlatteningCollector()), new CpeMatchStreamCollector());
         List<DefCpeMatch> cpeEntries = new ArrayList<>();
         for (DefCpeMatch defCpeMatch : allEntries) {
-			if(defCpeMatch.getCpe23Uri().startsWith(cpeStartsWithFilter)&& (!("CVE-2009-0754".equals(cve.getCve().getCVEDataMeta().getId())
+			if(cpeStartsWithFilter.matcher(defCpeMatch.getCpe23Uri()).matches()&& (!("CVE-2009-0754".equals(cve.getCve().getCVEDataMeta().getId())
 	                && "cpe:2.3:a:apache:apache:*:*:*:*:*:*:*:*".equals(defCpeMatch.getCpe23Uri())))) {
 				cpeEntries.add(defCpeMatch);
 			}

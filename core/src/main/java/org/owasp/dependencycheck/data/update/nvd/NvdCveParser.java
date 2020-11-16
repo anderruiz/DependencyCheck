@@ -30,6 +30,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 
 import java.util.List;
+import java.util.regex.Pattern;
 import java.util.zip.GZIPInputStream;
 import org.owasp.dependencycheck.data.nvdcve.CveDB;
 import org.slf4j.Logger;
@@ -64,7 +65,7 @@ public final class NvdCveParser {
      * The filter for 2.3 CPEs in the CVEs - we don't import unless we get a
      * match.
      */
-    private final String cpeStartsWithFilter;
+    private final Pattern cpeStartsWithFilter;
 
     /**
      * Creates a new NVD CVE JSON Parser.
@@ -73,7 +74,7 @@ public final class NvdCveParser {
      * @param db a reference to the database
      */
     public NvdCveParser(Settings settings, CveDB db) {
-        this.cpeStartsWithFilter = settings.getString(Settings.KEYS.CVE_CPE_STARTS_WITH_FILTER, "cpe:2.3:a:");
+        this.cpeStartsWithFilter = Pattern.compile(settings.getString(Settings.KEYS.CVE_CPE_STARTS_WITH_FILTER, "cpe:2.3:a:.*"));
         this.cveDB = db;
     }
 
@@ -137,7 +138,7 @@ public final class NvdCveParser {
         List<DefCpeMatch> nodes = HdivUtils.collect(HdivUtils.collect(cve.getConfigurations().getNodes(), new NodeFlatteningCollector())
                 , new CpeMatchStreamCollector());
         for (DefCpeMatch cpe : nodes) {
-			if(cpe.getCpe23Uri().startsWith(cpeStartsWithFilter)) {
+			if(cpeStartsWithFilter.matcher(cpe.getCpe23Uri()).matches()) {
 				return true;
 			}
 		}
