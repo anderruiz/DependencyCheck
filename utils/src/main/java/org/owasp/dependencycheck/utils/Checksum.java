@@ -83,15 +83,11 @@ public final class Checksum {
         FileInputStream fis = new FileInputStream(file);
         FileChannel ch = fis.getChannel();
         try {
-            final ByteBuffer buf = ByteBuffer.allocateDirect(8192);
-            int b = ch.read(buf);
-            while (b != -1 && b != 0) {
+            final ByteBuffer buf = ByteBuffer.allocateDirect(4096);
+            while (ch.read(buf) > 0) {
                 buf.flip();
-                final byte[] bytes = new byte[b];
-                buf.get(bytes);
-                md.update(bytes, 0, b);
+                md.update(buf);
                 buf.clear();
-                b = ch.read(buf);
             }
             return md.digest();
         } finally {
