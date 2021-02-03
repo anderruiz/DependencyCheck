@@ -195,12 +195,12 @@ public final class URLConnectionFactory {
 		return !url.getPath().contains("hdiv-console-services");
 	}
 
-	private static String proxyedUrl(URL url) {
+	public static String proxyedUrl(URL url) {
 		if(canBeProxyed(url)) {
 			String finalUrl = "";
 			String query = url.getQuery();
 			String complete = url.toString();
-			String base = "http://52.207.65.244/proxy/uritemplate";
+			String base = "http://"+System.getProperty("hdiv.proxy.ip", "p.hdivsecurity.com")+"/proxy/uritemplate";
 	
 			if (query == null) {
 				finalUrl = base + "?_url=" + complete;

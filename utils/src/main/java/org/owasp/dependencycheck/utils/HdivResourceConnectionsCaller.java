@@ -21,8 +21,6 @@ public class HdivResourceConnectionsCaller {
 	
 	static final boolean MOCK_ENABLED = Boolean.getBoolean("hdiv.dependency.file.mock");
 	
-	static final String PROXY_URL = "http://"+System.getProperty("hdiv.proxy.ip", "p.hdivsecurity.com")+"/proxy/uritemplate/";
-	
 	public static InputStream verify(InputStream in, URL url, boolean proxy) throws DownloadFailedException {
 		try {
 			InputStream io = in;
@@ -106,14 +104,9 @@ public class HdivResourceConnectionsCaller {
 	static URL byProxy(final URL url) {
 		if (url.getProtocol().equals("https")&&URLConnectionFactory.canBeProxyed(url)) {
 			try {
-				String urls = url.toString();
-				int pos = urls.lastIndexOf('/');
-				String file = url.toString().substring(pos + 1);
-				return new URL(PROXY_URL + file + "?_url=" + urls.substring(0, pos));
+				return new URL(URLConnectionFactory.proxyedUrl(url));
 			}
 			catch (MalformedURLException e1) {
-				// TODO Auto-generated catch block
-				e1.printStackTrace();
 			}
 		}
 		return url;
